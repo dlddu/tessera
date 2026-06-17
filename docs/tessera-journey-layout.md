@@ -23,12 +23,12 @@
 
 | 단계 | 사용자 행동 · 시스템 반응 | 근거 AC | 시각화 |
 |------|---------------------------|---------|--------|
-| 1 | 앱 실행 → "새 워크스페이스" 생성. backend는 **host**, 작업 디렉토리 지정. | AC2.1 | ⬜ (M-J1-S1) |
-| 2 | 빈 window가 열림. 첫 tab으로 **터미널**을 선택·생성 → 호스트 셸 PTY 동작. | AC1.1, AC2.2 | ⬜ (M-J1-S2) |
-| 3 | window를 수직 분할해 pane 추가, 새 pane에 **편집기** tab 생성·호스트 파일 열기. | AC1.2, AC1.1, AC2.2 | ⬜ (M-J1-S3) |
-| 4 | 추가 분할로 **브라우저** tab·**Claude Code GUI** tab을 더해 2×2 레이아웃 완성(4종 공존). | AC1.1, AC1.2 | ⬜ (M-J1-S4) |
-| 5 | tab을 다른 pane으로 드래그 이동·순서 재정렬, 마우스 없이 단축키로 포커스/tab 전환. | AC1.3, AC1.4 | ⬜ (M-J1-S5) |
-| 6 | 구성한 레이아웃 골격을 저장(직렬화) → 다음 실행 시 동일 골격으로 재구성. | AC1.5 | ⬜ (M-J1-S6) |
+| 1 | 앱 실행 → "새 워크스페이스" 생성. backend는 **host**, 작업 디렉토리 지정. | AC2.1 | ✅ [M-J1-S1](./mockups/M-J1-S1.html) |
+| 2 | 빈 window가 열림. 첫 tab으로 **터미널**을 선택·생성 → 호스트 셸 PTY 동작. | AC1.1, AC2.2 | ✅ [M-J1-S2](./mockups/M-J1-S2.html) |
+| 3 | window를 수직 분할해 pane 추가, 새 pane에 **편집기** tab 생성·호스트 파일 열기. | AC1.2, AC1.1, AC2.2 | ✅ [M-J1-S3](./mockups/M-J1-S3.html) |
+| 4 | 추가 분할로 **브라우저** tab·**Claude Code GUI** tab을 더해 2×2 레이아웃 완성(4종 공존). | AC1.1, AC1.2 | ✅ [M-J1-S4](./mockups/M-J1-S4.html) |
+| 5 | tab을 다른 pane으로 드래그 이동·순서 재정렬, 마우스 없이 단축키로 포커스/tab 전환. | AC1.3, AC1.4 | ✅ [M-J1-S5](./mockups/M-J1-S5.html) |
+| 6 | 구성한 레이아웃 골격을 저장(직렬화) → 다음 실행 시 동일 골격으로 재구성. | AC1.5 | ✅ [M-J1-S6](./mockups/M-J1-S6.html) |
 
 ## 완료 상태
 
@@ -37,7 +37,7 @@
 
 ## 시각화 상태
 
-이 여정의 6개 단계는 아직 mockup이 없다(⬜ 0/6). 전체 시각화 로드맵과 권장 진행 순서는
-`tessera-user-journeys.md`의 "시각화 상태와 다음 단계"를 참조한다.
+이 여정의 6개 단계가 모두 mockup으로 작성·연결되었다(✅ 6/6). 갤러리는 [`mockups/index.html`](./mockups/index.html),
+mockup↔여정↔가치 매핑은 [`mockups/tessera-mockup-index.md`](./mockups/tessera-mockup-index.md)를 참조한다.
 
-> 시각화 범례: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 괄호 안 `M-J1-Sn`은 제안 mockup ID(미작성).
+> 시각화 범례: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 위 표의 ✅ 항목은 `mockups/` 아래 자체 완결 HTML로 연결된다.

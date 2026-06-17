@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J4-S5 · 영속 저장은 backend/app 수명과 독립 (docker rm 생존) — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J4-S5</span>
+    <span class="ctitle">영속 저장은 backend/app 수명과 독립 (docker rm 생존)</span>
+    <span class="cmeta"><span><b>가치</b> V4</span><span><b>AC</b> AC4.5</span><span><b>패턴</b> P-restore</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">~/code/api-svc</span></div>
+      <div class="right"><span class="badge down"><span class="led"></span>container removed</span><span class="badge ok"><span class="led"></span>store ✓</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane focused" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · backend 수명과 독립</span>
+<span class="ps">dev@mbp</span> <span class="path">~/code/api-svc</span> % docker rm -f ctr-api7f3
+ctr-api7f3
+<span class="dim"># 컨테이너 제거됨 — 그러나 상태는 호스트에 남음</span>
+<span class="ps">dev@mbp</span> <span class="path">~/code/api-svc</span> % ls ~/.tessera/api-svc.json
+<span class="ok">~/.tessera/api-svc.json</span>
+<span class="ps">dev@mbp</span> <span class="path">~/code/api-svc</span> % <span class="cursor" style="position:static;display:inline-block;vertical-align:-2px"></span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg host">host · docker</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">16:40</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;width:460px;max-width:92%;background:var(--tile-raise);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-dialog);overflow:hidden"><div style="padding:13px 15px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:9px"><span class="mark"><i></i><i></i><i></i><i></i></span><span style="font-size:12.5px;font-weight:600">호스트 영속 저장소 — 단일 진실 원천</span><span class="badge ok" style="margin-left:auto;color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)"><span class="led" style="background:var(--ok)"></span>생존</span></div><div class="restore-list" style="width:100%"><div class="rl-row done"><span class="rl-ic" style="background:var(--danger)"></span><span>컨테이너 docker rm</span><span class="rl-st">상태 영향 없음</span></div><div class="rl-row done"><span class="rl-ic" style="background:var(--danger)"></span><span>앱 비정상 종료</span><span class="rl-st">상태 영향 없음</span></div><div class="rl-row done"><span class="rl-ic" style="background:var(--ok)"></span><span>새(심지어 새 이미지) 백엔드 위로 복원</span><span class="rl-st">가능 ✓</span></div></div><div class="hint" style="margin-top:7px">영속 저장은 backend·app 수명과 <b>독립</b> — 상태가 호스트에 남아 새 백엔드 위로 복원됩니다.</div></div></div>
+  </div>
+</div>
+</body></html>

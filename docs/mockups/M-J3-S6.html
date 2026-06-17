@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J3-S6 · 다중 컨테이너 — 포트 충돌·오배달 없음 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J3-S6</span>
+    <span class="ctitle">다중 컨테이너 — 포트 충돌·오배달 없음</span>
+    <span class="cmeta"><span><b>가치</b> V3</span><span><b>AC</b> AC3.5</span><span><b>패턴</b> P-flowmap</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim">   https://idp.acme.dev/authorize?…&redirect_uri=http://localhost:53219/callback</span>
+   Waiting for callback on <span class="route">:53219</span> …
+<span class="ok">✓</span> Received OAuth callback on :53219
+<span class="ok">✓</span> Token saved · /root/.config/acme/credentials.json
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># <span class="caret"></span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">15:22</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;width:560px;max-width:92%;background:var(--tile-raise);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-dialog);overflow:hidden"><div style="padding:13px 15px"><div style="display:flex;align-items:center;gap:9px;margin-bottom:4px"><span class="mark"><i></i><i></i><i></i><i></i></span><span style="font-size:13px;font-weight:600">다중 컨테이너 라우팅 — 포트 격리</span><span class="badge ok" style="margin-left:auto;border-color:color-mix(in srgb,var(--ok) 40%,transparent);color:var(--ok)"><span class="led" style="background:var(--ok)"></span>충돌 없음</span></div><div style="padding:10px 4px"><div class="flowmap"><div class="fnode host"><b>호스트 브라우저 콜백</b>:53219</div><div class="farrow"><div>방향 B</div><div class="ln">───▶</div></div><div class="fnode cont"><b>ctr-api7f3</b>api-svc · code=ac_9f…</div></div></div><div style="padding:10px 4px"><div class="flowmap"><div class="fnode host"><b>호스트 브라우저 콜백</b>:49185</div><div class="farrow"><div>방향 B</div><div class="ln">───▶</div></div><div class="fnode cont"><b>ctr-web2a1</b>web-svc · code=wb_3c…</div></div></div><div class="hint" style="margin-top:6px">각 워크스페이스의 URL 전달·콜백은 <b>자기 컨테이너로만</b> 라우팅 — 포트 충돌·오배달 없음.</div></div></div>
+  </div>
+</div>
+</body></html>

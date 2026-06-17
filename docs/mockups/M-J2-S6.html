@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J2-S6 · 컨테이너 생명주기 관리 · 호스트급 응답성 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J2-S6</span>
+    <span class="ctitle">컨테이너 생명주기 관리 · 호스트급 응답성</span>
+    <span class="cmeta"><span><b>가치</b> V2</span><span><b>AC</b> AC2.6</span><span><b>패턴</b> P-overlay</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># container shell · node:20-bookworm</span>
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># hostname
+ctr-api7f3
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># echo $TESSERA_BACKEND
+container
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># ls
+Dockerfile  package.json  src  tsconfig.json
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># npm run dev
+<span class="acc">  api</span> listening on :4000
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># </div><span class="cursor"></span></div></div></div></div><div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>users.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">api-svc › src › routes</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6
+7</div><div class="code"><span class="cm">// /workspace/src/routes/users.ts</span>
+<span class="kw">import</span> { <span class="fn">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>
+
+<span class="kw">const</span> r = <span class="fn">Router</span>()
+r.<span class="fn">get</span>(<span class="str">'/users/:id'</span>, <span class="kw">async</span> (req, res) => {
+  <span class="kw">const</span> u = <span class="kw">await</span> <span class="fn">findUser</span>(req.params.id)
+  res.<span class="fn">json</span>(u)<span class="caret"></span>
+})</div></div></div></div></div></div></div><div class="col"><div class="row"><div class="pane" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:4000<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab active"><span class="fav"></span>api · /users/42</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:4000</span><span class="rest">/users/42</span></div></div></div><div class="bview"><div class="page-bar"><div class="b-logo" style="background:var(--id-web)"></div><div class="skline" style="width:120px;background:#222a37"></div></div><pre class="mono" style="font-size:11px;color:var(--muted);line-height:1.7;margin:0"><span class="faint">GET /users/42 · 200</span>
+{
+  <span class="route">"id"</span>: <span class="ok">"42"</span>,
+  <span class="route">"name"</span>: <span class="ok">"Ada"</span>,
+  <span class="route">"role"</span>: <span class="ok">"admin"</span>
+}</pre></div></div></div></div></div><div class="row"><div class="pane" data-kind="claude"><div class="tabbar"><div class="tab active" data-kind="claude"><span class="dot"></span>session<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="claude"><div class="turns"><div class="turn user"><div class="av">You</div><div class="msg">users 라우트에 404 처리랑 입력 검증 추가해줘</div></div><div class="turn asst"><div class="av">◆</div><div class="msg">컨테이너 안 <span class="mono">/workspace/src/routes/users.ts</span>를 수정합니다. zod 스키마로 검증하고 미존재 시 404를 반환하도록 패치할게요.</div></div><div class="turn asst"><div class="av">◆</div><div class="run"><span class="spinner"></span>src/routes/users.ts 편집 중 (컨테이너 내부)…</div></div></div><div class="composer"><span>메시지 입력…</span><span class="send">↑</span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">15:08</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;width:420px;max-width:92%;background:var(--tile-raise);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-dialog);overflow:hidden"><div class="bepanel" style="width:100%;box-shadow:none;border:none"><div class="behead"><span class="mark"><i></i><i></i><i></i><i></i></span><h3>컨테이너 백엔드</h3><span class="badge live" style="margin-left:auto"><span class="led"></span>running</span></div><div class="bebody"><div class="metric"><span class="mlabel">이미지</span><span class="mval">node:20-bookworm</span></div><div class="metric"><span class="mlabel">컨테이너</span><span class="mval">ctr-api7f3</span></div><div><div class="metric"><span class="mlabel">터미널 입력 지연</span><span class="mval ok">8 ms</span></div><div class="gauge"><i style="width:92%"></i></div><div class="hint" style="margin-top:5px">호스트에 준하는 체감 응답성 (목표 &lt; 16 ms)</div></div><div class="belife"><button class="btn ghost sm">정지</button><button class="btn ghost sm">재시작</button><div class="spacer" style="flex:1"></div></div></div></div></div>
+  </div>
+</div>
+</body></html>

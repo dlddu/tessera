@@ -14,14 +14,14 @@
 
 ### 프론트엔드 사슬 (사용자 여정 → mockup ↔ 디자인 시스템)
 - 사용자 여정: **4개** (J1~J4, 여정별 파일 분리 + 인덱스 1개) — 가치 연결됨: 4개 / 미연결: 0개. V1~V4 전부 달성, AC1.1~AC4.6 전부 경유.
-- 디자인 시스템: **없음** (토큰/컴포넌트/패턴 미정의)
-- mockup: **없음** / mockup 인덱스: **없음**
-- 여정 단계 시각화: **0 / 24단계** (모든 단계 mockup 미작성)
+- 디자인 시스템: **있음** (`docs/design-system/tessera-design-system.md` + 공유 `tessera.css`) — 토큰/컴포넌트(C-*)/패턴(P-*) 정의됨.
+- mockup: **24개** (`docs/mockups/M-Jx-Sn.html`) / mockup 인덱스: **있음** (`docs/mockups/tessera-mockup-index.md`) + 갤러리(`index.html`)
+- 여정 단계 시각화: **24 / 24단계** (모든 단계 mockup 작성·연결됨)
 
-- **건강 상태**: ⚠️ **위험 있음** — 🔴 제품 소유자 미확정 1건 + 🟡 프론트엔드 시각화 공백(아래 위험 진단 참고)
+- **건강 상태**: ⚠️ **위험 있음** — 🔴 제품 소유자 미확정 1건 (프론트엔드 시각화 공백은 모두 해소됨)
 
 > 백엔드 연결 구조(가치→PRD→AC→테스트)는 모두 이어져 있다.
-> 프론트엔드 사슬은 여정→가치 연결까지 완료됐고, 그 아래(mockup·디자인 시스템)가 아직 비어 있다.
+> 프론트엔드 사슬도 여정→mockup↔디자인 시스템까지 모두 이어졌다. 남은 위험은 제품 소유자 미확정 1건뿐이다.
 
 ## 연결 매트릭스
 
@@ -53,13 +53,13 @@
 
 | 여정 | 제목 | 파일 | 주 가치 | 부 가치 | 경유 AC | 시각화(mockup) |
 |------|------|------|---------|---------|---------|----------------|
-| J1 | 통합 작업 표면 구성 | `tessera-journey-layout.md` | V1 | V2 | AC1.1~1.5, AC2.1, AC2.2 | ⬜ 0/6 |
-| J2 | 컨테이너 워크스페이스 격리 작업 | `tessera-journey-backend.md` | V2 | V1 | AC2.1, AC2.3, AC2.4, AC2.5, AC2.6 | ⬜ 0/6 |
-| J3 | 컨테이너 작업 중 OAuth 인증 완결 | `tessera-journey-browser-routing.md` | V3 | V2 | AC3.1~3.5 | ⬜ 0/6 |
-| J4 | 크래시에서 작업 복원 | `tessera-journey-state-restoration.md` | V4 | V1 | AC1.5, AC4.1~4.6 | ⬜ 0/6 |
+| J1 | 통합 작업 표면 구성 | `tessera-journey-layout.md` | V1 | V2 | AC1.1~1.5, AC2.1, AC2.2 | ✅ 6/6 |
+| J2 | 컨테이너 워크스페이스 격리 작업 | `tessera-journey-backend.md` | V2 | V1 | AC2.1, AC2.3, AC2.4, AC2.5, AC2.6 | ✅ 6/6 |
+| J3 | 컨테이너 작업 중 OAuth 인증 완결 | `tessera-journey-browser-routing.md` | V3 | V2 | AC3.1~3.5 | ✅ 6/6 |
+| J4 | 크래시에서 작업 복원 | `tessera-journey-state-restoration.md` | V4 | V1 | AC1.5, AC4.1~4.6 | ✅ 6/6 |
 
 → 4개 여정이 V1~V4를 모두 달성하고, 단계 근거로 AC1.1~AC4.6(22개)을 전부 경유한다. (고아 여정 없음)
-→ 단, 24개 단계 전부가 아직 mockup으로 시각화되지 않음(시각화 0/24). 상세는 위험 진단 참조.
+→ 24개 단계 전부가 mockup으로 시각화·연결됨(시각화 24/24). 단일 소스는 `mockups/tessera-mockup-index.md`.
 
 ## 위험 진단
 
@@ -85,25 +85,22 @@
 ### 🟢 고아 테스트 (AC를 참조하지 않는 테스트)
 - (없음) — 4개 테스트 문서 모두 대상 AC 명시.
 
-### 🟡 [프론트엔드] 시각화 누락 단계 (mockup 없는 여정 단계)
-- **J1~J4 전 단계 (24/24)** — 모든 여정 단계가 어떤 mockup도 가리키지 못함.
-  - **원인**: 디자인 시스템·mockup이 아직 없음(프론트엔드 사슬이 막 시작된 상태).
-  - **권장 조치**: 디자인 시스템 셋업 → mockup 작성(web-artifacts-builder) → mockup 인덱스 작성 → 여정 시각화 칸 연결.
+### 🟢 [프론트엔드] 시각화 누락 단계 (mockup 없는 여정 단계)
+- (없음) — J1~J4 전 단계(24/24)가 대응 mockup(`M-Jx-Sn.html`)을 가리킨다. **해소됨**.
+  - 디자인 시스템 셋업 → mockup 24개 작성 → mockup 인덱스 작성 → 여정 시각화 칸 연결의 순서로 처리 완료.
 
-### 🟡 [프론트엔드] 시각화 없는 가치 (mockup 없는 가치)
-- **V1~V4 전체** — 어떤 mockup으로도 아직 시각화되지 않음.
+### 🟢 [프론트엔드] 시각화 없는 가치 (mockup 없는 가치)
+- (없음) — V1~V4 모두 하나 이상의 mockup으로 시각화됨. **해소됨**.
 
-### 🟡 [프론트엔드] 구조적 공백
-- **디자인 시스템 없음** — 토큰/컴포넌트/패턴 미정의.
-- **mockup / mockup 인덱스 없음** — mockup과 그 연결의 단일 소스 부재.
-- (위 항목들은 프론트엔드 사슬이 막 시작된 데 따른 정상적 공백이며, 위 권장 진행 순서로 해소된다.)
+### 🟢 [프론트엔드] 구조적 공백
+- (없음) — 디자인 시스템(`design-system/`)·mockup(`mockups/`)·mockup 인덱스가 모두 작성됨. **해소됨**.
 
 ## 위험 우선순위에 따른 다음 액션
 
-1. 🔴 **제품 소유자 확정** — 가장 시급. 소유자 지정 후 가치 문서 갱신.
-2. 🟡 **디자인 시스템 셋업** — 프론트엔드 사슬의 다음 선행 작업.
-3. 🟡 **mockup 작성 + 인덱스화** — J1~J4 단계(M-Jx-Sn)를 web-artifacts-builder로 시각화하고 인덱스에 매핑.
-4. 🟡 **여정 시각화 칸 연결** — mockup 작성 후 `tessera-user-journeys.md`의 ⬜를 ✅로 갱신하고 재검증.
+1. 🔴 **제품 소유자 확정** — 유일하게 남은 위험. 소유자 지정 후 `tessera-values.md`의 "제품 소유자" 항목 갱신.
+2. ✅ **디자인 시스템 셋업** — 완료(`docs/design-system/`).
+3. ✅ **mockup 작성 + 인덱스화** — 완료(24개 `M-Jx-Sn.html` + `mockups/tessera-mockup-index.md`).
+4. ✅ **여정 시각화 칸 연결** — 완료(`tessera-user-journeys.md` 및 여정별 파일의 ⬜ → ✅ 갱신, 재검증).
 5. (선택) 제품명 확정 — 현재 코드네임 `Tessera`. 변경 시 파일명·헤딩 일괄 갱신 필요.
 
 ## 문서 인덱스
@@ -124,6 +121,11 @@
 | 사용자 여정 J2 (백엔드/컨테이너) | `tessera-journey-backend.md` |
 | 사용자 여정 J3 (브라우저 라우팅/인증) | `tessera-journey-browser-routing.md` |
 | 사용자 여정 J4 (상태 복원) | `tessera-journey-state-restoration.md` |
+| 디자인 시스템 (문서) | `design-system/tessera-design-system.md` |
+| 디자인 시스템 (CSS) | `design-system/tessera.css` |
+| mockup (24개) | `mockups/M-Jx-Sn.html` |
+| mockup 갤러리 | `mockups/index.html` |
+| mockup 인덱스 | `mockups/tessera-mockup-index.md` |
 | 상태 추적 | `tessera-doc-tracker.md` (이 문서) |
 
 ## 변경 이력
@@ -137,3 +139,6 @@
 | 2026-06-17 | 사용자 여정 J1~J4 추가(`tessera-user-journeys.md`) | 여정 0개 | 여정 4개(V1~V4 달성), 시각화 0/23 |
 | 2026-06-17 | 사용자 여정을 여정별 파일로 분리(`tessera-journey-*.md` 4개) + 인덱스 슬림화 | 여정 단일 파일 | 여정별 4파일 + 인덱스 1개 |
 | 2026-06-17 | J4 시나리오 A를 "백엔드 재기동 후 상태 재적용" 흐름으로 정교화(복원=사용 가능 상태) | J4 5단계, 총 0/23 | J4 6단계, 총 0/24 |
+| 2026-06-17 | 디자인 시스템 작성(`design-system/tessera-design-system.md` + `tessera.css`) — 토큰/컴포넌트(C-*)/패턴(P-*) 정의 | 디자인 시스템 없음 | 디자인 시스템 있음 |
+| 2026-06-17 | mockup 24개 작성(`mockups/M-Jx-Sn.html`) + 갤러리(`index.html`) + mockup 인덱스 | mockup 0개, 시각화 0/24 | mockup 24개, 시각화 24/24 |
+| 2026-06-17 | 여정 단계 시각화 칸 연결(여정별 4파일 + 인덱스의 ⬜ → ✅) 및 재검증 | 시각화 0/24, 프론트엔드 위험 3건 | 시각화 24/24, 프론트엔드 위험 0건 |

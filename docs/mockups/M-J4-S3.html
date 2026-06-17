@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J4-S3 · 상태 재적용(rehydrate) → 실제 사용 가능 복원 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J4-S3</span>
+    <span class="ctitle">상태 재적용(rehydrate) → 실제 사용 가능 복원</span>
+    <span class="cmeta"><span><b>가치</b> V4</span><span><b>AC</b> AC4.1·4.2·4.3</span><span><b>패턴</b> P-restore</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>복원됨</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane focused" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># new PTY · 아래 스크롤백은 보존된 히스토리</span>
+<span class="dim">root@ctr-api7f3:/workspace# npm test</span>
+<span class="dim">  ✓ users.spec.ts (12 passed)</span>
+<span class="dim">root@ctr-api7f3:/workspace# git status</span>
+<span class="dim">  modified: src/routes/users.ts</span>
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># <span class="cursor" style="position:static;display:inline-block;vertical-align:-2px"></span></div></div></div></div></div><div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>users.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">api-svc › src · 미저장 ●</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// /workspace/src/routes/users.ts</span>
+<span class="kw">import</span> { <span class="fn">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>
+<span class="kw">import</span> { z } <span class="kw">from</span> <span class="str">'zod'</span>
+
+<span class="kw">const</span> r = <span class="fn">Router</span>()
+<span class="kw">const</span> Id = z.<span class="fn">string</span>().<span class="fn">uuid</span>()<span class="caret"></span></div></div></div></div></div></div></div><div class="col"><div class="row"><div class="pane" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:4000<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab active"><span class="fav"></span>api · /users</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:4000</span><span class="rest">/users</span></div></div></div><div class="bview"><div class="page-bar"><div class="b-logo" style="background:var(--id-web)"></div><div class="skline" style="width:120px;background:#222a37"></div></div><div class="skline" style="width:70%;margin-bottom:9px"></div><div class="skline" style="width:52%"></div></div></div></div></div></div><div class="row"><div class="pane" data-kind="claude"><div class="tabbar"><div class="tab active" data-kind="claude"><span class="dot"></span>session<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="claude"><div class="turns"><div class="turn user"><div class="av">You</div><div class="msg">입력 검증을 zod로 바꿔줘</div></div><div class="turn asst"><div class="av">◆</div><div class="msg">세션을 이어서 <span class="mono">users.ts</span>에 zod 스키마를 적용 중이었습니다. 백엔드 복귀 후 그대로 재개합니다.</div></div></div><div class="composer"><span>메시지 입력…</span><span class="send">↑</span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">16:40</div>
+    </div>
+    <div style="position:absolute;left:0;right:0;top:38px;z-index:30"><div class="banner ok"><span class="bi">✓</span><span class="bmsg">상태 재적용 완료 — <b>새 PTY에 보존 스크롤백 복귀</b> · 편집기 버퍼·커서 재적용 · Claude 세션 재개. 이제 동작하는 상태입니다.</span></div></div><div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;width:440px;max-width:92%;background:var(--tile-raise);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-dialog);overflow:hidden"><div style="padding:12px 15px"><div class="restore-list" style="width:100%"><div class="rl-row done"><span class="rl-ic" style="background:var(--id-term)"></span><span>터미널 · 새 PTY + 보존 스크롤백</span><span class="rl-st">✓ 복원</span></div><div class="rl-row done"><span class="rl-ic" style="background:var(--id-edit)"></span><span>편집기 버퍼·커서 재적용</span><span class="rl-st">✓ 복원</span></div><div class="rl-row done"><span class="rl-ic" style="background:var(--id-claude)"></span><span>Claude Code 세션 재개</span><span class="rl-st">✓ 복원</span></div></div><div class="hint" style="margin-top:8px;text-align:center">동결된 화면이 아니라 <b>곧바로 이어서 작업 가능한 살아있는 상태</b>입니다.</div></div></div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J3-S4 · 콜백 포트를 호스트→컨테이너로 포워딩 (방향 B) — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J3-S4</span>
+    <span class="ctitle">콜백 포트를 호스트→컨테이너로 포워딩 (방향 B)</span>
+    <span class="cmeta"><span><b>가치</b> V3</span><span><b>AC</b> AC3.3</span><span><b>패턴</b> P-flowmap</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># container shell · node:20-bookworm</span>
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># acme auth login
+<span class="acc">→</span> Opening browser for authentication…
+<span class="dim">   https://idp.acme.dev/authorize?client_id=cli&redirect_uri=</span>
+<span class="dim">     http://localhost:53219/callback&scope=repo</span>
+   Waiting for callback on <span class="route">:53219</span> …</div><span class="cursor"></span></div></div></div></div></div><div class="col"><div class="row"><div class="pane focused" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:53219<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">브라우저 = 호스트 실행</div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab"><span class="fav"></span>api docs</div><div class="btab active"><span class="fav idp"></span>localhost:53219</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:53219</span><span class="rest">/callback</span></div></div></div><div class="bview"><div class="splash" style="gap:14px;padding:22px"><div class="bar shimmer" style="width:220px"><i style="width:88%"></i></div><div class="stitle">Redirecting…</div><div class="ssub mono" style="font-size:11.5px">→ http://localhost:53219/callback?code=ac_9f…</div><div class="faint" style="font-size:11px">콜백 포트가 컨테이너로 포워딩됩니다 (방향 B)</div></div></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">15:22</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;width:520px;max-width:92%;background:var(--tile-raise);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-dialog);overflow:hidden"><div style="padding:11px"><div class="flowmap"><div class="fnode host"><b>호스트 브라우저</b>콜백 :53219</div><div class="farrow"><div>방향 B · 포워딩</div><div class="ln">───▶</div></div><div class="fnode cont"><b>컨테이너 리스너</b>:53219</div></div><div class="hint" style="margin-top:8px;text-align:center">IdP 리다이렉트(<span class="mono">localhost:53219</span>)를 호스트→컨테이너로 포워딩합니다.</div></div></div>
+  </div>
+</div>
+</body></html>

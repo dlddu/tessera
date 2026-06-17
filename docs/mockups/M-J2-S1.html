@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J2-S1 · 컨테이너 백엔드 워크스페이스 생성 (이미지·마운트) — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J2-S1</span>
+    <span class="ctitle">컨테이너 백엔드 워크스페이스 생성 (이미지·마운트)</span>
+    <span class="cmeta"><span><b>가치</b> V2·V1</span><span><b>AC</b> AC2.1</span><span><b>패턴</b> P-modal-over-quiet</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws"><span class="muted">새 워크스페이스</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span></div>
+    </div>
+    <div class="surface"><div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;color:var(--faint)"><span class="mark lg"><i></i><i></i><i></i><i></i></span><div style="font-size:13px;color:var(--muted)">새 워크스페이스 구성 중</div></div></div>
+    <div class="statusbar"><div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span class="muted">api-svc · 구성 중</span></div><div class="spacer"></div><div class="clock">15:07</div></div>
+    <div class="scrim"><div class="dialog">
+  <div class="dhead"><span class="mark"><i></i><i></i><i></i><i></i></span><h3>새 워크스페이스</h3></div>
+  <div class="dbody">
+    <div class="field"><label>이름</label>
+      <div class="input"><span>api-svc</span></div></div>
+    <div class="field"><label>Backend</label>
+      <div class="segmented">
+        <div class="seg host"><span class="sdot"></span>호스트</div>
+        <div class="seg on cont"><span class="sdot"></span>컨테이너</div>
+      </div></div>
+    <div class="field"><label>이미지</label>
+      <div class="input mono focus"><span class="ic">⬡</span><span>node:20-bookworm</span></div></div>
+    <div class="field"><label>작업 디렉토리 <span class="faint">(컨테이너 내부)</span></label>
+      <div class="input mono"><span class="ic">📁</span><span>/workspace</span></div></div>
+    <div class="field"><label>마운트</label>
+      <div class="input mono"><span>~/code/api-svc</span><span class="route">→</span><span>/workspace</span><span class="pick">추가…</span></div>
+      <div class="hint">컨테이너 안에서 실행됩니다 · 이미지·마운트·backend는 생성 후 고정됩니다.</div>
+    </div>
+  </div>
+  <div class="dfoot"><div class="spacer"></div>
+    <button class="btn ghost">취소</button>
+    <button class="btn primary">컨테이너 워크스페이스 생성</button></div>
+</div></div>
+  </div>
+</div>
+</body></html>

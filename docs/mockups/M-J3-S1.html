@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J3-S1 · 컨테이너 터미널에서 OAuth 시작 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J3-S1</span>
+    <span class="ctitle">컨테이너 터미널에서 OAuth 시작</span>
+    <span class="cmeta"><span><b>가치</b> V3·V2</span><span><b>AC</b> AC3.2</span><span><b>패턴</b> P-single</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane focused" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># container shell · node:20-bookworm</span>
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># acme auth login
+<span class="acc">→</span> Opening browser for authentication…
+<span class="dim">   https://idp.acme.dev/authorize?client_id=cli&redirect_uri=</span>
+<span class="dim">     http://localhost:53219/callback&scope=repo</span>
+   Waiting for callback on <span class="route">:53219</span> …</div><span class="cursor"></span></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">15:22</div>
+    </div>
+    <div style="position:absolute;left:0;right:0;top:38px;z-index:30"><div class="banner info"><span class="bi">◆</span><span class="bmsg">컨테이너 내부 프로세스가 <b>브라우저 인증</b>을 요청했습니다 — Tessera가 이를 가로채 라우팅합니다.</span></div></div>
+  </div>
+</div>
+</body></html>

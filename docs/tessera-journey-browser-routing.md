@@ -24,12 +24,12 @@
 
 | 단계 | 사용자 행동 · 시스템 반응 | 근거 AC | 시각화 |
 |------|---------------------------|---------|--------|
-| 1 | 컨테이너 터미널에서 도구가 OAuth 시작 → 브라우저 open 시도(`xdg-open`/`$BROWSER`) 또는 "이 URL을 여세요" 출력. | AC3.2 | ⬜ (M-J3-S1) |
-| 2 | Tessera가 그 auth URL을 가로채 **호스트 Tessera 브라우저** 새 tab으로 라우팅(방향 A). 브라우저는 항상 호스트 실행. | AC3.1, AC3.2 | ⬜ (M-J3-S2) |
-| 3 | 사용자가 호스트 브라우저에서 IdP 로그인 — 호스트에 이미 로그인된 세션·신원을 그대로 재사용. | AC3.4 | ⬜ (M-J3-S3) |
-| 4 | IdP가 `http://localhost:CB/callback`로 리다이렉트. Tessera가 콜백 포트를 **호스트→컨테이너 포워딩**(방향 B). | AC3.3 | ⬜ (M-J3-S4) |
-| 5 | 컨테이너 내부 콜백 리스너가 리다이렉트를 수신 → 토큰 획득, 인증 루프 완결. | AC3.4 | ⬜ (M-J3-S5) |
-| 6 | (다중 컨테이너 시) 각 워크스페이스의 URL 전달·콜백이 자기 컨테이너로만 라우팅 — 포트 충돌·오배달 없음. | AC3.5 | ⬜ (M-J3-S6) |
+| 1 | 컨테이너 터미널에서 도구가 OAuth 시작 → 브라우저 open 시도(`xdg-open`/`$BROWSER`) 또는 "이 URL을 여세요" 출력. | AC3.2 | ✅ [M-J3-S1](./mockups/M-J3-S1.html) |
+| 2 | Tessera가 그 auth URL을 가로채 **호스트 Tessera 브라우저** 새 tab으로 라우팅(방향 A). 브라우저는 항상 호스트 실행. | AC3.1, AC3.2 | ✅ [M-J3-S2](./mockups/M-J3-S2.html) |
+| 3 | 사용자가 호스트 브라우저에서 IdP 로그인 — 호스트에 이미 로그인된 세션·신원을 그대로 재사용. | AC3.4 | ✅ [M-J3-S3](./mockups/M-J3-S3.html) |
+| 4 | IdP가 `http://localhost:CB/callback`로 리다이렉트. Tessera가 콜백 포트를 **호스트→컨테이너 포워딩**(방향 B). | AC3.3 | ✅ [M-J3-S4](./mockups/M-J3-S4.html) |
+| 5 | 컨테이너 내부 콜백 리스너가 리다이렉트를 수신 → 토큰 획득, 인증 루프 완결. | AC3.4 | ✅ [M-J3-S5](./mockups/M-J3-S5.html) |
+| 6 | (다중 컨테이너 시) 각 워크스페이스의 URL 전달·콜백이 자기 컨테이너로만 라우팅 — 포트 충돌·오배달 없음. | AC3.5 | ✅ [M-J3-S6](./mockups/M-J3-S6.html) |
 
 ## 완료 상태
 
@@ -38,7 +38,7 @@
 
 ## 시각화 상태
 
-이 여정의 6개 단계는 아직 mockup이 없다(⬜ 0/6). 전체 시각화 로드맵과 권장 진행 순서는
-`tessera-user-journeys.md`의 "시각화 상태와 다음 단계"를 참조한다.
+이 여정의 6개 단계가 모두 mockup으로 작성·연결되었다(✅ 6/6). 갤러리는 [`mockups/index.html`](./mockups/index.html),
+mockup↔여정↔가치 매핑은 [`mockups/tessera-mockup-index.md`](./mockups/tessera-mockup-index.md)를 참조한다.
 
-> 시각화 범례: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 괄호 안 `M-J3-Sn`은 제안 mockup ID(미작성).
+> 시각화 범례: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 위 표의 ✅ 항목은 `mockups/` 아래 자체 완결 HTML로 연결된다.

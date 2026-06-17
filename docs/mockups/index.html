@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tessera — Mockup 갤러리 (24)</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+<style>
+  body{display:block; padding:34px 24px 60px; overflow:auto; align-items:initial}
+  .wrap{max-width:1180px; margin:0 auto}
+  .top{display:flex; align-items:center; gap:14px; margin-bottom:6px}
+  .top .mark.lg{flex:0 0 auto}
+  .top h1{font-size:21px; font-weight:700; letter-spacing:.2px}
+  .lede{color:var(--muted); font-size:13px; margin:0 0 26px; max-width:760px; line-height:1.6}
+  .lede a{color:var(--brand); text-decoration:none}
+  .jsec{margin-bottom:34px}
+  .jhead{display:flex; align-items:center; gap:11px; margin-bottom:14px; padding-bottom:9px; border-bottom:1px solid var(--line-soft)}
+  .jhead .jid{font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--brand);
+    border:1px solid color-mix(in srgb,var(--brand) 40%,transparent); border-radius:6px; padding:2px 9px}
+  .jhead h2{font-size:15px; font-weight:600}
+  .jhead .jmeta{margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--faint)}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+  @media (max-width:880px){ .grid{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:560px){ .grid{grid-template-columns:1fr} }
+  .card{display:flex; flex-direction:column; text-decoration:none; color:inherit;
+    background:var(--tile); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    transition:border-color .15s, transform .15s}
+  .card:hover{border-color:color-mix(in srgb,var(--brand) 55%,var(--line)); transform:translateY(-2px)}
+  .thumb{position:relative; height:208px; overflow:hidden; background:var(--bg);
+    border-bottom:1px solid var(--line-soft)}
+  .thumb iframe{position:absolute; top:0; left:0; width:1280px; height:832px; border:0;
+    transform:scale(.305); transform-origin:top left; pointer-events:none}
+  .cap{padding:11px 13px; display:flex; flex-direction:column; gap:6px}
+  .cap .cid{font-family:var(--font-mono); font-size:11px; color:var(--brand); font-weight:600}
+  .cap .ctitle{font-size:12.5px; color:var(--ink); font-weight:500; line-height:1.35}
+  .cap .pills{display:flex; gap:6px; flex-wrap:wrap; margin-top:1px}
+  .cap .pills span{font-family:var(--font-mono); font-size:10px; color:var(--faint);
+    border:1px solid var(--line-soft); border-radius:999px; padding:1px 7px}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="top">
+    <span class="mark lg"><i></i><i></i><i></i><i></i></span>
+    <h1>Tessera — Mockup 갤러리</h1>
+  </div>
+  <p class="lede">4개 사용자 여정 × 6단계 = <b style="color:var(--ink)">24개 mockup</b>.
+    각 카드를 클릭하면 전체 화면으로 열린다. 매핑 표는
+    <a href="./tessera-mockup-index.md">tessera-mockup-index.md</a>,
+    디자인 시스템은 <a href="../design-system/tessera-design-system.md">tessera-design-system.md</a> 참조.</p>
+    <section class="jsec">
+      <div class="jhead"><span class="jid">J1</span><h2>통합된 단일 작업 표면</h2>
+        <span class="jmeta">V1 · host backend · 레이아웃 구성</span></div>
+      <div class="grid">
+      <a class="card" href="./M-J1-S1.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J1-S1.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J1-S1</span><span class="ctitle">새 워크스페이스 생성 (host)</span>
+          <span class="pills"><span>V1·V2</span><span>AC2.1</span></span></div>
+      </a>
+      <a class="card" href="./M-J1-S2.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J1-S2.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J1-S2</span><span class="ctitle">호스트 셸 터미널 (단일 pane)</span>
+          <span class="pills"><span>V1·V2</span><span>AC1.1·2.2</span></span></div>
+      </a>
+      <a class="card" href="./M-J1-S3.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J1-S3.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J1-S3</span><span class="ctitle">수직 분할 → 편집기</span>
+          <span class="pills"><span>V1</span><span>AC1.2</span></span></div>
+      </a>
+      <a class="card" href="./M-J1-S4.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J1-S4.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J1-S4</span><span class="ctitle">2×2 — 4종 컴포넌트 공존</span>
+          <span class="pills"><span>V1</span><span>AC1.1·1.2</span></span></div>
+      </a>
+      <a class="card" href="./M-J1-S5.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J1-S5.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J1-S5</span><span class="ctitle">탭 드래그 · 단축키</span>
+          <span class="pills"><span>V1</span><span>AC1.3·1.4</span></span></div>
+      </a>
+      <a class="card" href="./M-J1-S6.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J1-S6.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J1-S6</span><span class="ctitle">레이아웃 골격 직렬화</span>
+          <span class="pills"><span>V1</span><span>AC1.5</span></span></div>
+      </a>
+      </div>
+    </section>
+    <section class="jsec">
+      <div class="jhead"><span class="jid">J2</span><h2>환경 선택의 자유</h2>
+        <span class="jmeta">V2 · container backend</span></div>
+      <div class="grid">
+      <a class="card" href="./M-J2-S1.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J2-S1.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J2-S1</span><span class="ctitle">컨테이너 워크스페이스 생성</span>
+          <span class="pills"><span>V2·V1</span><span>AC2.1</span></span></div>
+      </a>
+      <a class="card" href="./M-J2-S2.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J2-S2.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J2-S2</span><span class="ctitle">컨테이너 터미널 — 격리</span>
+          <span class="pills"><span>V2</span><span>AC2.3</span></span></div>
+      </a>
+      <a class="card" href="./M-J2-S3.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J2-S3.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J2-S3</span><span class="ctitle">컨테이너 FS 편집 · Claude</span>
+          <span class="pills"><span>V2</span><span>AC2.3</span></span></div>
+      </a>
+      <a class="card" href="./M-J2-S4.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J2-S4.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J2-S4</span><span class="ctitle">2×2 — 컨테이너 환경 상속</span>
+          <span class="pills"><span>V2</span><span>AC2.4</span></span></div>
+      </a>
+      <a class="card" href="./M-J2-S5.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J2-S5.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J2-S5</span><span class="ctitle">host와 동일 단축키 (parity)</span>
+          <span class="pills"><span>V2</span><span>AC2.5</span></span></div>
+      </a>
+      <a class="card" href="./M-J2-S6.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J2-S6.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J2-S6</span><span class="ctitle">생명주기 · 호스트급 응답성</span>
+          <span class="pills"><span>V2</span><span>AC2.6</span></span></div>
+      </a>
+      </div>
+    </section>
+    <section class="jsec">
+      <div class="jhead"><span class="jid">J3</span><h2>격리를 깨지 않는 인증</h2>
+        <span class="jmeta">V3 · OAuth 라우팅</span></div>
+      <div class="grid">
+      <a class="card" href="./M-J3-S1.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J3-S1.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J3-S1</span><span class="ctitle">컨테이너 터미널 OAuth 시작</span>
+          <span class="pills"><span>V3·V2</span><span>AC3.2</span></span></div>
+      </a>
+      <a class="card" href="./M-J3-S2.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J3-S2.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J3-S2</span><span class="ctitle">호스트 브라우저 라우팅 (방향 A)</span>
+          <span class="pills"><span>V3</span><span>AC3.1·3.2</span></span></div>
+      </a>
+      <a class="card" href="./M-J3-S3.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J3-S3.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J3-S3</span><span class="ctitle">IdP 로그인 — 세션 재사용</span>
+          <span class="pills"><span>V3</span><span>AC3.4</span></span></div>
+      </a>
+      <a class="card" href="./M-J3-S4.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J3-S4.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J3-S4</span><span class="ctitle">콜백 포워딩 (방향 B)</span>
+          <span class="pills"><span>V3</span><span>AC3.3</span></span></div>
+      </a>
+      <a class="card" href="./M-J3-S5.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J3-S5.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J3-S5</span><span class="ctitle">컨테이너 토큰 수신 · 완결</span>
+          <span class="pills"><span>V3</span><span>AC3.4</span></span></div>
+      </a>
+      <a class="card" href="./M-J3-S6.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J3-S6.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J3-S6</span><span class="ctitle">다중 컨테이너 — 충돌 없음</span>
+          <span class="pills"><span>V3</span><span>AC3.5</span></span></div>
+      </a>
+      </div>
+    </section>
+    <section class="jsec">
+      <div class="jhead"><span class="jid">J4</span><h2>작업 손실 없는 복원력</h2>
+        <span class="jmeta">V4 · 크래시 복원</span></div>
+      <div class="grid">
+      <a class="card" href="./M-J4-S1.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J4-S1.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J4-S1</span><span class="ctitle">읽기 전용 중간 보존 뷰</span>
+          <span class="pills"><span>V4·V1</span><span>AC4.1·2·3</span></span></div>
+      </a>
+      <a class="card" href="./M-J4-S2.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J4-S2.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J4-S2</span><span class="ctitle">백엔드 재기동</span>
+          <span class="pills"><span>V4</span><span>AC4.5</span></span></div>
+      </a>
+      <a class="card" href="./M-J4-S3.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J4-S3.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J4-S3</span><span class="ctitle">상태 재적용 → 사용 가능</span>
+          <span class="pills"><span>V4</span><span>AC4.1·2·3</span></span></div>
+      </a>
+      <a class="card" href="./M-J4-S4.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J4-S4.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J4-S4</span><span class="ctitle">앱 종료 → 영속 복원</span>
+          <span class="pills"><span>V4·V1</span><span>AC1.5·4.4</span></span></div>
+      </a>
+      <a class="card" href="./M-J4-S5.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J4-S5.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J4-S5</span><span class="ctitle">영속 저장 독립 (docker rm)</span>
+          <span class="pills"><span>V4</span><span>AC4.5</span></span></div>
+      </a>
+      <a class="card" href="./M-J4-S6.html" target="_blank">
+        <div class="thumb"><iframe src="./M-J4-S6.html" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">M-J4-S6</span><span class="ctitle">불일치 감지·해소</span>
+          <span class="pills"><span>V4</span><span>AC4.6</span></span></div>
+      </a>
+      </div>
+    </section>
+</div>
+</body></html>

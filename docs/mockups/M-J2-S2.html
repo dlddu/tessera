@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J2-S2 · 컨테이너 터미널 exec — 호스트와 격리 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J2-S2</span>
+    <span class="ctitle">컨테이너 터미널 exec — 호스트와 격리</span>
+    <span class="cmeta"><span><b>가치</b> V2</span><span><b>AC</b> AC2.3</span><span><b>패턴</b> P-single</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane focused" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># container shell · node:20-bookworm</span>
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># hostname
+ctr-api7f3
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># echo $TESSERA_BACKEND
+container
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># ls
+Dockerfile  package.json  src  tsconfig.json
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># npm run dev
+<span class="acc">  api</span> listening on :4000
+<span class="ps">root@ctr-api7f3</span><span class="path">:/workspace</span># </div><span class="cursor"></span></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">15:08</div>
+    </div>
+    <div style="position:absolute;left:0;right:0;top:38px;z-index:30"><div class="banner info"><span class="bi">⬡</span><span class="bmsg">터미널이 <b>컨테이너 내부 셸</b>에 연결됨 — <span class="mono">hostname·env·파일트리</span>가 호스트와 격리됩니다.</span></div></div>
+  </div>
+</div>
+</body></html>

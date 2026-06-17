@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J1-S4 · 2×2 레이아웃 — 4종 컴포넌트 공존 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J1-S4</span>
+    <span class="ctitle">2×2 레이아웃 — 4종 컴포넌트 공존</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.1·AC1.2</span><span><b>패턴</b> P-grid-2x2</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % node -v
+v20.11.1
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % npm run dev
+<span class="acc">  ▲ vite</span> v5.2  ready in 412 ms
+  ➜  Local:   http://localhost:5173/
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % </div><span class="cursor"></span></div></div></div></div><div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>server.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">proj-web › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/server.ts</span>
+<span class="kw">import</span> { <span class="fn">createServer</span> } <span class="kw">from</span> <span class="str">'./app'</span>
+
+<span class="kw">const</span> port = <span class="num">5173</span>
+<span class="kw">const</span> server = <span class="fn">createServer</span>()
+server.<span class="fn">listen</span>(port, () => {
+  console.<span class="fn">log</span>(<span class="str">`up on :${port}`</span>)<span class="caret"></span>
+})</div></div></div></div></div></div></div><div class="col"><div class="row"><div class="pane" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:5173<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab active"><span class="fav"></span>Vite App</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:5173</span><span class="rest">/</span></div></div></div><div class="bview"><div class="page-bar"><div class="b-logo" style="background:var(--id-web)"></div><div class="skline" style="width:130px;background:#222a37"></div></div><div class="skline" style="width:64%;height:13px;margin-bottom:12px"></div><div class="skline" style="width:84%;margin-bottom:9px"></div><div class="skline" style="width:74%;margin-bottom:9px"></div><div class="skline" style="width:48%"></div></div></div></div></div></div><div class="row"><div class="pane focused" data-kind="claude"><div class="tabbar"><div class="tab active" data-kind="claude"><span class="dot"></span>session<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="claude"><div class="turns"><div class="turn user"><div class="av">You</div><div class="msg">이 라우트 서버에 구조화 에러 로깅 추가해줘</div></div><div class="turn asst"><div class="av">◆</div><div class="msg">listen 콜백을 분리하고 실패 시 종료 코드를 나눴습니다. <span class="mono">src/server.ts</span> 패치를 적용할게요.</div></div><div class="turn asst"><div class="av">◆</div><div class="run"><span class="spinner"></span>src/server.ts 편집 중…</div></div></div><div class="composer"><span>메시지 입력…</span><span class="send">↑</span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⌃</span><span class="plus">+</span><span class="kc">Tab</span></span></span></div>
+      <div class="clock">14:32</div>
+    </div>
+    
+  </div>
+</div>
+</body></html>
