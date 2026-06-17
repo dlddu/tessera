@@ -1,0 +1,53 @@
+/* ============================================================================
+   shell.css — renderer-only additions for the bootstrap skeleton.
+   Kept separate from the copied design-system `tessera.css` so the design
+   system stays the single source of truth (see docs/design-system/).
+   ============================================================================ */
+
+/* App fills the Electron window (override the mockup's centered preview). */
+html,
+body {
+  height: 100%;
+}
+body {
+  padding: 0;
+  display: block;
+}
+#root {
+  height: 100%;
+}
+#root > .win {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* Non-functional surface placeholder (SurfacePlaceholder.tsx). */
+.surface-stub {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--tile);
+  color: var(--muted);
+}
+.surface-stub__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.surface-stub__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.surface-stub__note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  letter-spacing: 0.3px;
+}
