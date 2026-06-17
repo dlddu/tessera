@@ -1,9 +1,9 @@
 # Tessera Mockup 인덱스
 
-24개 mockup이 어느 **사용자 여정 단계 / 제품 가치 / Acceptance Criteria / 디자인 시스템 항목**을
+25개 mockup이 각각 어느 **사용자 여정 단계 / 제품 가치 / Acceptance Criteria / 디자인 시스템 항목**을
 시각화하는지 매핑하는 단일 소스. mockup·여정·디자인 시스템 사이의 연결은 이 표를 기준으로 추적한다.
 
-- **갤러리**: [`index.html`](./index.html) — 24개 미리보기 한 페이지
+- **갤러리**: [`index.html`](./index.html) — 25개 미리보기 한 페이지
 - **디자인 시스템**: [`../design-system/tessera-design-system.md`](../design-system/tessera-design-system.md) · 스타일 구현 [`../design-system/tessera.css`](../design-system/tessera.css)
 - **여정 인덱스**: [`../tessera-user-journeys.md`](../tessera-user-journeys.md)
 - **가치 문서**: [`../tessera-values.md`](../tessera-values.md)
@@ -57,6 +57,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 | [M-J2-S4](./M-J2-S4.html) | 4 | 2×2 — 모든 pane이 동일 컨테이너 환경 상속 | V2 | AC2.4 | `P-grid-2x2` · C-badge(cont) |
 | [M-J2-S5](./M-J2-S5.html) | 5 | host와 동일한 단축키·UI (parity) | V2 | AC2.5 | `P-overlay` · C-palette, C-keycap |
 | [M-J2-S6](./M-J2-S6.html) | 6 | 컨테이너 생명주기 관리 · 호스트급 응답성 | V2 | AC2.6 | `P-overlay` · C-backend-panel(gauge·metric) |
+| [M-J2-S7](./M-J2-S7.html) | 7 | host 전용 영역에서 호스트 도구 실행 · 영역 경계 구분 | V2 | AC2.7·AC2.8 | `P-grid-2x2`(host 영역 표식) · C-badge(host), C-pane |
 
 ## J3 — 격리를 깨지 않는 인증 경험 (OAuth 라우팅)
 
@@ -90,7 +91,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ## 커버리지
 
-- **여정 단계 시각화**: 24 / 24 (J1 6/6 · J2 6/6 · J3 6/6 · J4 6/6)
+- **여정 단계 시각화**: 25 / 25 (J1 6/6 · J2 7/7 · J3 6/6 · J4 6/6)
 - **가치 커버리지**: V1(J1 전체 + J4 부) · V2(J2 전체 + J3 부) · V3(J3 전체) · V4(J4 전체) — 4/4 가치 모두 시각화됨
 - **디자인 시스템 컴포넌트**: 디자인 시스템 문서에 정의된 C-* 컴포넌트 전부가 최소 1개 mockup에서 사용됨
 

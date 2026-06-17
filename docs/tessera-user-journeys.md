@@ -6,7 +6,7 @@
 
 > **문서 체계 상 위치**: 가치 → PRD → AC → 테스트의 백엔드 사슬과,
 > 사용자 여정 → mockup ↔ 디자인 시스템의 프론트엔드 사슬이 모두 갖춰졌다.
-> 디자인 시스템과 24개 mockup이 작성·연결되어, 모든 여정의 시각화 칸이 **완료(✅)** 상태다.
+> 디자인 시스템과 25개 mockup이 작성·연결되어, 모든 여정의 시각화 칸이 **완료(✅)** 상태다(J2는 host 전용 영역 7단계 포함).
 > 전체 mockup은 [갤러리](./mockups/index.html)와 [mockup 인덱스](./mockups/tessera-mockup-index.md)에서 볼 수 있다.
 
 ---
@@ -30,12 +30,12 @@
 | 여정 | 제목 | 파일 | 주 가치 | 부 가치 | 경유 AC | 시각화 |
 |------|------|------|---------|---------|---------|--------|
 | **J1** | 통합 작업 표면 구성 | `tessera-journey-layout.md` | V1 | V2 | AC1.1~1.5, AC2.1, AC2.2 | ✅ 6/6 |
-| **J2** | 컨테이너 워크스페이스 격리 작업 | `tessera-journey-backend.md` | V2 | V1 | AC2.1, AC2.3, AC2.4, AC2.5, AC2.6 | ✅ 6/6 |
+| **J2** | 컨테이너 워크스페이스 격리 작업 | `tessera-journey-backend.md` | V2 | V1 | AC2.1, AC2.3, AC2.4, AC2.5, AC2.6, AC2.7, AC2.8 | ✅ 7/7 |
 | **J3** | 컨테이너 작업 중 OAuth 인증 완결 | `tessera-journey-browser-routing.md` | V3 | V2 | AC3.1~3.5 | ✅ 6/6 |
 | **J4** | 크래시에서 작업 복원 | `tessera-journey-state-restoration.md` | V4 | V1 | AC1.5, AC4.1~4.6 | ✅ 6/6 |
 
-> 4개 여정이 V1~V4 가치 전부를 달성하며, 단계 근거로 AC1.1~AC4.6(22개)을 모두 한 번 이상 경유한다. (고아 여정 없음)
-> 24개 단계 전부가 mockup으로 시각화됨(시각화 24/24). V1~V4 가치 전부가 시각화됨.
+> 4개 여정이 V1~V4 가치 전부를 달성하며, 단계 근거로 AC1.1~AC4.6(24개)을 모두 한 번 이상 경유한다. (고아 여정 없음)
+> 전체 25개 단계 전부가 mockup으로 시각화됨(시각화 25/25). V1~V4 가치 전부가 시각화됨.
 
 **시각화 범례**: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 각 여정 파일의 `M-Jx-Sn`은 제안 mockup ID(미작성).
 
@@ -43,10 +43,10 @@
 
 ## 시각화 상태와 다음 단계
 
-모든 여정(J1~J4)의 24개 단계가 mockup으로 시각화되어 연결되었다(✅ 24/24). 프론트엔드 사슬의
-구조적 공백이 모두 해소되었다.
+모든 여정(J1~J4)의 25개 단계가 mockup으로 시각화되어 연결되었다(✅ 25/25, J2는 host 전용 영역 7단계 포함).
+프론트엔드 사슬의 구조적 공백이 모두 해소되었다.
 
-- **시각화 누락 단계(unvisualized step)**: 없음. J1~J4의 전 단계(24/24)가 대응 mockup을 가리킨다.
+- **시각화 누락 단계(unvisualized step)**: 없음. J1~J4의 전 단계(25/25)가 대응 mockup을 가리킨다.
 - **디자인 시스템**: UI 시각 언어(토큰/컴포넌트/패턴)가 [디자인 시스템 문서](./design-system/tessera-design-system.md)와 공유 [`tessera.css`](./design-system/tessera.css)로 정의됨.
 - **mockup 인덱스**: mockup ↔ 가치/여정/디자인 시스템 연결의 단일 소스가 [mockup 인덱스](./mockups/tessera-mockup-index.md)로 존재.
 - **시각화 없는 가치(unvisualized value)**: 없음. V1~V4 모두 하나 이상의 mockup으로 시각화됨.
@@ -54,7 +54,7 @@
 진행 결과(`design-doc-structure-validator`의 협업 가이드 기준, 4단계 모두 완료):
 
 1. ✅ **디자인 시스템 셋업** — 토큰/컴포넌트/패턴을 `docs/design-system/`에 정의(문서 + `tessera.css`).
-2. ✅ **mockup 작성** — 각 여정 단계의 `M-Jx-Sn`에 대응하는 24개 화면을 `docs/mockups/`에 제작(공유 CSS 링크).
+2. ✅ **mockup 작성** — 각 여정 단계의 `M-Jx-Sn`에 대응하는 25개 화면을 `docs/mockups/`에 제작(공유 CSS 링크).
 3. ✅ **mockup 인덱스 작성** — 각 mockup의 여정 단계/가치/AC/디자인 시스템 항목 매핑을 기록.
 4. ✅ **여정 파일 갱신** — 각 단계의 시각화 칸을 ⬜ → ✅ 로 연결하고 인덱스를 재검증.
 

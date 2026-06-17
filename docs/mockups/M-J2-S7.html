@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J2-S7 · host 전용 영역에서 호스트 도구 실행 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J2-S7</span>
+    <span class="ctitle">host 전용 영역에서 호스트 도구 실행 · 영역 경계 구분</span>
+    <span class="cmeta"><span><b>가치</b> V2</span><span><b>AC</b> AC2.7·AC2.8</span><span><b>패턴</b> P-grid-2x2</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge host"><span class="led"></span>host 영역</span></div>
+    </div>
+    <div class="surface">
+
+      <!-- ===== 컨테이너 기본 영역 (workspace 기본 backend) ===== -->
+      <div style="flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; gap:var(--gutter); border:1px solid var(--line-soft); border-radius:10px; padding:7px">
+        <div style="flex:0 0 auto; display:flex; align-items:center; gap:9px; height:24px; padding:0 4px; background:var(--tile-raise); border-radius:7px">
+          <span style="font-family:var(--font-mono); font-size:10.5px; font-weight:600; color:var(--route); letter-spacing:.4px">▦ 컨테이너 기본 영역</span>
+          <span class="badge cont"><span class="led"></span>container</span>
+          <span class="muted" style="font-size:10.5px; margin-left:auto; padding-right:2px">workspace 기본 backend · 격리</span>
+        </div>
+        <div class="col">
+          <div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><span class="badge cont" style="align-self:center; margin-right:6px"><span class="led"></span>container</span></div><div class="body"><div class="term cont"><div class="o"><span class="dim"># container shell · node:20-bookworm</span>
+<span class="ps cont">root@ctr-api7f3</span><span class="path">:/workspace</span># hostname
+ctr-api7f3
+<span class="ps cont">root@ctr-api7f3</span><span class="path">:/workspace</span># npm run dev
+<span class="acc">  api</span> listening on :4000  <span class="dim">(컨테이너 내부)</span>
+<span class="ps cont">root@ctr-api7f3</span><span class="path">:/workspace</span># </div><span class="cursor"></span></div></div></div></div>
+          <div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>users.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">api-svc › src › routes</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5</div><div class="code"><span class="cm">// /workspace/src/routes/users.ts  · 컨테이너 fs</span>
+<span class="kw">import</span> { <span class="fn">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>
+<span class="kw">const</span> r = <span class="fn">Router</span>()
+r.<span class="fn">get</span>(<span class="str">'/health'</span>, (_q, s) => s.<span class="fn">json</span>({ ok: <span class="kw">true</span> }))<span class="caret"></span></div></div></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ===== HOST 전용 영역 (선택적 탈출구) ===== -->
+      <div style="flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; gap:var(--gutter); border:1.5px solid color-mix(in srgb,var(--id-term) 48%,var(--line)); border-radius:10px; padding:7px">
+        <div style="flex:0 0 auto; display:flex; align-items:center; gap:9px; height:24px; padding:0 4px; background:var(--tile-raise); border-radius:7px">
+          <span style="font-family:var(--font-mono); font-size:10.5px; font-weight:600; color:var(--id-term); letter-spacing:.4px">⌂ HOST 전용 영역</span>
+          <span class="badge host"><span class="led"></span>host</span>
+          <span class="muted" style="font-size:10.5px; margin-left:auto; padding-right:2px">이 영역의 도구만 호스트에서 실행</span>
+        </div>
+        <div class="col">
+          <div class="row"><div class="pane focused" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><span class="badge host" style="align-self:center; margin-right:6px"><span class="led"></span>host</span></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh · 호스트 도구</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj</span> % hostname
+MacBook-Pro.local
+<span class="ps">dev@mbp</span> <span class="path">~/proj</span> % docker compose -f deploy/prod.yml ps
+NAME        STATUS        PORTS
+prod-api    Up 3 days     0.0.0.0:443-&gt;443
+<span class="ps">dev@mbp</span> <span class="path">~/proj</span> % gh release create v1.4.2 --notes-file CHANGELOG.md
+<span class="ok">✓</span> github.com/acme/api/releases/tag/v1.4.2
+<span class="ps">dev@mbp</span> <span class="path">~/proj</span> % </div><span class="cursor"></span></div></div></div></div>
+          <div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>release.sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><span class="badge host" style="align-self:center; margin-right:6px"><span class="led"></span>host</span><div class="crumb">~ › proj › deploy</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5</div><div class="code"><span class="cm"># ~/proj/deploy/release.sh  · 호스트 fs · 컨테이너 밖</span>
+<span class="cm">#!/usr/bin/env bash</span>
+docker compose -f deploy/prod.yml up -d --build
+gh release create <span class="str">"$1"</span> --generate-notes<span class="caret"></span></div></div></div></div></div></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      <div class="seg host">+ host 영역 · 2 pane</div>
+
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>host 영역</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">H</span></span></span><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">→</span></span></span></div>
+      <div class="clock">15:22</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;width:560px;max-width:92%;background:var(--tile-raise);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow-dialog);overflow:hidden"><div style="padding:10px 14px;font-size:11.5px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><span class="badge host"><span class="led"></span>host</span><span class="muted">host 전용 영역의 도구만 호스트에서 실행 ·</span><span class="ok">컨테이너 기본 영역 격리 유지</span><span class="muted">· 영역 경계로 backend 구분</span></div></div>
+  </div>
+</div>
+</body></html>
