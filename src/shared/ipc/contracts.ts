@@ -9,6 +9,7 @@ import type {
   BackendLifecycleState,
   LayoutSnapshot,
   SurfaceKind,
+  Workspace,
   WorkspaceStateSnapshot
 } from '../types'
 
@@ -64,6 +65,24 @@ export interface BackendLifecycleRequest {
   workspaceId: string
 }
 
+/* ---------------------------------------------------------------- workspace */
+
+export interface CreateWorkspaceRequest {
+  name: string
+  /** Working directory for the workspace's backend. Required for host. */
+  cwd: string
+  backendKind: BackendKind
+}
+export interface CreateWorkspaceResult {
+  workspace: Workspace
+  layout: LayoutSnapshot
+}
+
+export interface PickDirectoryResult {
+  /** Absolute path the user chose, or null if the picker was cancelled. */
+  path: string | null
+}
+
 /* ---------------------------------------------------------- surface lifecycle */
 
 export interface CreateSurfaceRequest {
@@ -114,6 +133,11 @@ export interface BackendApi {
   lifecycle(req: BackendLifecycleRequest): Promise<BackendLifecycleState>
 }
 
+export interface WorkspaceApi {
+  create(req: CreateWorkspaceRequest): Promise<CreateWorkspaceResult>
+  pickDirectory(): Promise<PickDirectoryResult>
+}
+
 export interface SurfaceApi {
   create(req: CreateSurfaceRequest): Promise<CreateSurfaceResult>
   dispose(req: DisposeSurfaceRequest): Promise<void>
@@ -132,6 +156,7 @@ export interface RoutingApi {
 /** The full bridge exposed at `window.tessera`. */
 export interface TesseraApi {
   backend: BackendApi
+  workspace: WorkspaceApi
   surface: SurfaceApi
   persistence: PersistenceApi
   routing: RoutingApi

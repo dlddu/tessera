@@ -1,21 +1,36 @@
 /**
  * C-window: macOS-style window frame. Decorative title bar (traffic lights,
- * workspace name, backend badge) + grout surface (children) + status bar.
- * Native macOS traffic-light integration is a next step.
+ * workspace name, backend badge) + grout surface (children) + status bar, plus
+ * an optional `overlay` slot for modal scrims (rendered inside the positioned
+ * `.win` so the scrim covers exactly the window). Native macOS traffic-light
+ * integration is a next step.
  */
 import type { ReactNode } from 'react'
 import { StatusBar } from './StatusBar'
 
 interface WindowProps {
-  workspace: string
-  /** Status-bar backend label (e.g. "host · stub"). */
+  /** Workspace name, or `null` for the empty (no-workspace) state. */
+  workspace: string | null
+  /** Host working directory shown in the title bar (when a workspace exists). */
+  dir?: string
+  /** Status-bar backend label (e.g. "host"). */
   backendLabel: string
   /** Title-bar badge text. */
   backendBadge: string
   children: ReactNode
+  /** Modal content rendered over the window (e.g. a dialog scrim). */
+  overlay?: ReactNode
 }
 
-export function Window({ workspace, backendLabel, backendBadge, children }: WindowProps) {
+export function Window({
+  workspace,
+  dir,
+  backendLabel,
+  backendBadge,
+  children,
+  overlay
+}: WindowProps) {
+  const empty = workspace === null
   return (
     <div className="win">
       <div className="titlebar">
@@ -25,8 +40,14 @@ export function Window({ workspace, backendLabel, backendBadge, children }: Wind
           <i />
         </div>
         <div className="ws">
-          {workspace}
-          <span className="dir">~/{workspace}</span>
+          {empty ? (
+            <span className="muted">새 워크스페이스</span>
+          ) : (
+            <>
+              {workspace}
+              {dir ? <span className="dir">{dir}</span> : null}
+            </>
+          )}
         </div>
         <div className="right">
           <span className="badge host">
@@ -37,6 +58,7 @@ export function Window({ workspace, backendLabel, backendBadge, children }: Wind
       </div>
       <div className="surface">{children}</div>
       <StatusBar workspace={workspace} backend={backendLabel} />
+      {overlay}
     </div>
   )
 }
