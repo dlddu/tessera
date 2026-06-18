@@ -57,8 +57,8 @@ jobs:
       - name: Build bundles
         run: npm run build
 
-      - name: Package unsigned dmg (arm64 + x64)
-        run: npx electron-builder --mac --publish never
+      - name: Package unsigned dmg (arm64)
+        run: npx electron-builder --mac --arm64 --publish never
         env:
           # No Apple certs in CI — build unsigned (matches electron-builder.yml).
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'

@@ -119,7 +119,7 @@ here:
 - **`build` job** — every push to `main` and every PR:
   `npm ci` → typecheck → lint → unit test → build (bundle smoke).
 - **`package` job** — on PRs only (after `build` passes): packages an
-  **unsigned** macOS `.dmg` (arm64 + x64) with electron-builder and uploads it as
+  **unsigned** macOS `.dmg` (arm64) with electron-builder and uploads it as
   a workflow **artifact** named `tessera-dmg-pr<PR number>` (download it from the
   run's Artifacts section; 14-day retention).
 

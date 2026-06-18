@@ -19,7 +19,6 @@ mac:
     - target: dmg
       arch:
         - arm64
-        - x64
   # Unsigned build for bootstrap. Set `identity` + notarize once certs exist.
   identity: null
   # hardenedRuntime: true        # next step: enable with notarization
