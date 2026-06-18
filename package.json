@@ -18,14 +18,20 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "rebuild": "electron-rebuild -f -w node-pty",
+    "postinstall": "electron-rebuild -f -w node-pty",
     "dist": "npm run build && electron-builder --mac dmg --publish never",
     "dist:dir": "npm run build && electron-builder --mac --dir --publish never"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "node-pty": "^1.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.2",
     "@eslint/js": "^9.17.0",
     "@playwright/test": "^1.49.1",
     "@types/node": "^22.10.2",

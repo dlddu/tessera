@@ -98,6 +98,32 @@ export interface DisposeSurfaceRequest {
   surfaceId: string
 }
 
+/** main → renderer: a chunk of PTY output for one surface. */
+export interface PtyDataEvent {
+  surfaceId: string
+  chunk: string
+}
+
+/** main → renderer: the PTY backing one surface exited. */
+export interface PtyExitEvent {
+  surfaceId: string
+  /** Process exit code, or null when terminated by a signal. */
+  code: number | null
+}
+
+/** renderer → main: keyboard/paste input destined for a surface's PTY. */
+export interface PtyInputRequest {
+  surfaceId: string
+  data: string
+}
+
+/** renderer → main: a surface's terminal was resized. */
+export interface PtyResizeRequest {
+  surfaceId: string
+  cols: number
+  rows: number
+}
+
 /* --------------------------------------------------------------- persistence */
 
 export interface LoadStateRequest {
@@ -141,6 +167,14 @@ export interface WorkspaceApi {
 export interface SurfaceApi {
   create(req: CreateSurfaceRequest): Promise<CreateSurfaceResult>
   dispose(req: DisposeSurfaceRequest): Promise<void>
+  /** Forward keyboard/paste input to a surface's PTY (fire-and-forget). */
+  sendInput(req: PtyInputRequest): void
+  /** Resize a surface's PTY to new dimensions (fire-and-forget). */
+  resize(req: PtyResizeRequest): void
+  /** Subscribe to PTY output (all surfaces). Returns an unsubscribe function. */
+  onPtyData(listener: (event: PtyDataEvent) => void): () => void
+  /** Subscribe to PTY exits (all surfaces). Returns an unsubscribe function. */
+  onPtyExit(listener: (event: PtyExitEvent) => void): () => void
 }
 
 export interface PersistenceApi {

@@ -1,24 +1,43 @@
 /**
  * Host backend (AC2.2): runs processes directly on the macOS host.
  *
- * Skeleton stub — every capability throws. Feature work wires:
- *   - spawnPty   → node-pty (host PTY)         [native rebuild required]
+ * `spawnPty` is live (node-pty). The remaining capabilities are still stubs and
+ * land with their respective journeys:
  *   - readFile/writeFile → host fs
  *   - runProcess → child_process
  *   - getEnv     → host process.env / login shell env
  */
+import { randomUUID } from 'node:crypto'
 import { NotImplementedError } from '@shared/errors'
 import type { BackendKind } from '@shared/types'
 import type {
   Backend,
   ProcessResult,
   PtyProcess,
+  PtySpawn,
   PtySpawnOptions,
   RunProcessOptions
 } from './Backend'
+import { getNodePtySpawn } from './nodePty'
+
+/** Default shell: the user's login shell, falling back to zsh (macOS default). */
+const DEFAULT_SHELL = '/bin/zsh'
 
 export interface HostBackendOptions {
   cwd: string
+  /** Override the PTY spawner (tests inject a fake). Defaults to node-pty. */
+  spawn?: PtySpawn
+}
+
+/** Snapshot of the host environment as a plain string→string record. */
+function hostEnv(): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value
+    }
+  }
+  return env
 }
 
 export class HostBackend implements Backend {
@@ -30,8 +49,25 @@ export class HostBackend implements Backend {
     return this.options.cwd
   }
 
-  spawnPty(_options: PtySpawnOptions): Promise<PtyProcess> {
-    throw new NotImplementedError('HostBackend.spawnPty (node-pty)')
+  async spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
+    const spawn = this.options.spawn ?? (await getNodePtySpawn())
+    const shell = options.shell ?? process.env['SHELL'] ?? DEFAULT_SHELL
+    const pty = spawn(shell, [], {
+      name: 'xterm-256color',
+      cols: options.cols,
+      rows: options.rows,
+      cwd: options.cwd ?? this.options.cwd,
+      env: options.env ?? hostEnv()
+    })
+
+    return {
+      id: `pty-${randomUUID()}`,
+      write: (data) => pty.write(data),
+      resize: (cols, rows) => pty.resize(cols, rows),
+      onData: (listener) => pty.onData(listener),
+      onExit: (listener) => pty.onExit((event) => listener(event.exitCode)),
+      kill: () => pty.kill()
+    }
   }
 
   readFile(_path: string): Promise<Uint8Array> {

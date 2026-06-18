@@ -3,9 +3,9 @@
  * contextIsolation. Each method forwards to a main-process IPC handler (which,
  * in the skeleton, rejects with `not implemented`).
  */
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannels } from '@shared/ipc'
-import type { TesseraApi } from '@shared/ipc'
+import type { PtyDataEvent, PtyExitEvent, TesseraApi } from '@shared/ipc'
 
 const api: TesseraApi = {
   backend: {
@@ -22,7 +22,19 @@ const api: TesseraApi = {
   },
   surface: {
     create: (req) => ipcRenderer.invoke(IpcChannels.surface.create, req),
-    dispose: (req) => ipcRenderer.invoke(IpcChannels.surface.dispose, req)
+    dispose: (req) => ipcRenderer.invoke(IpcChannels.surface.dispose, req),
+    sendInput: (req) => ipcRenderer.send(IpcChannels.surface.ptyInput, req),
+    resize: (req) => ipcRenderer.send(IpcChannels.surface.ptyResize, req),
+    onPtyData: (listener) => {
+      const handler = (_event: IpcRendererEvent, payload: PtyDataEvent) => listener(payload)
+      ipcRenderer.on(IpcChannels.surface.ptyData, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.surface.ptyData, handler)
+    },
+    onPtyExit: (listener) => {
+      const handler = (_event: IpcRendererEvent, payload: PtyExitEvent) => listener(payload)
+      ipcRenderer.on(IpcChannels.surface.ptyExit, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.surface.ptyExit, handler)
+    }
   },
   persistence: {
     save: (snapshot) => ipcRenderer.invoke(IpcChannels.persistence.save, snapshot),

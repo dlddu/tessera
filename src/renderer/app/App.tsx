@@ -1,21 +1,21 @@
 /**
- * App shell. Holds the single-workspace state for M-J1-S1:
+ * App shell. Holds the single-workspace state for M-J1-S1 / M-J1-S2:
  *
  *   - no workspace  → quiet empty state + ⌘N opens the creation dialog.
- *   - workspace set → single-pane surface (`P-single`) with a terminal
- *     placeholder ("미구현"); live terminals are M-J1-S2.
+ *   - workspace set → single-pane surface (`P-single`) running a live host
+ *     shell terminal in its first (and only) tab.
  *
  * Creation itself runs in the main process (`workspace.create`); this component
- * only owns the resulting UI state.
+ * keeps the resulting `{ workspace, layout }` so the pane can bind its terminal
+ * to the workspace + its default area.
  */
 import { useEffect, useState } from 'react'
 import { Pane, Window, WorkspaceDialog } from '@renderer/components'
 import { SURFACE_META } from '@renderer/surfaces'
 import type { CreateWorkspaceResult } from '@shared/ipc'
-import type { Workspace } from '@shared/types'
 
 export function App() {
-  const [workspace, setWorkspace] = useState<Workspace | null>(null)
+  const [created, setCreated] = useState<CreateWorkspaceResult | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
   useEffect(() => {
@@ -30,11 +30,13 @@ export function App() {
   }, [])
 
   function handleCreated(result: CreateWorkspaceResult) {
-    setWorkspace(result.workspace)
+    setCreated(result)
     setDialogOpen(false)
   }
 
-  if (workspace) {
+  if (created) {
+    const { workspace, layout } = created
+    const areaId = layout.areas[0]?.id ?? 'area-default'
     return (
       <Window
         workspace={workspace.name}
@@ -44,7 +46,7 @@ export function App() {
       >
         <div className="col">
           <div className="row">
-            <Pane meta={SURFACE_META.terminal} focused />
+            <Pane meta={SURFACE_META.terminal} focused workspaceId={workspace.id} areaId={areaId} />
           </div>
         </div>
       </Window>

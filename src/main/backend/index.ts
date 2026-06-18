@@ -1,6 +1,9 @@
 export type {
   Backend,
+  NativePty,
+  NativePtyOptions,
   PtyProcess,
+  PtySpawn,
   PtySpawnOptions,
   ProcessResult,
   RunProcessOptions
@@ -9,4 +12,6 @@ export { HostBackend } from './HostBackend'
 export type { HostBackendOptions } from './HostBackend'
 export { ContainerBackend } from './ContainerBackend'
 export type { ContainerBackendOptions } from './ContainerBackend'
+export { BackendRegistry } from './BackendRegistry'
+export { getNodePtySpawn } from './nodePty'
 export { registerBackendIpc } from './registerBackendIpc'

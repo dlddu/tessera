@@ -13,5 +13,5 @@
     "src/shared/**/*.ts",
     "test/unit/**/*.ts"
   ],
-  "exclude": ["test/unit/workspace.test.ts"]
+  "exclude": ["test/unit/workspace.test.ts", "test/unit/surface.test.ts"]
 }
