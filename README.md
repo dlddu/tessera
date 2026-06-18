@@ -114,6 +114,25 @@ here:
 
 ## CI
 
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on a macOS runner:
-`npm ci` → typecheck → lint → unit test → build (bundle smoke). e2e and `.dmg`
-packaging are not in CI yet.
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) runs on a macOS runner.
+
+- **`build` job** — every push to `main`, every PR, and version tags:
+  `npm ci` → typecheck → lint → unit test → build (bundle smoke).
+- **`release` job** — only on version tags `v*.*.*` (after `build` passes):
+  syncs the package version to the tag, packages an **unsigned** macOS `.dmg`
+  (arm64 + x64) with electron-builder, and uploads it to a GitHub Release.
+
+Cut a release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release is created as a **draft** (a maintainer publishes it after review,
+since the build is unsigned). To auto-publish instead, set `draft: false` in the
+`Upload dmg to GitHub Release` step. e2e is not in CI yet (needs a display).
+
+> Signing/notarization are still placeholders (`electron-builder.yml`,
+> `CSC_IDENTITY_AUTO_DISCOVERY: false`) — fill them in once Apple Developer certs
+> exist; until then the `.dmg` is unsigned and Gatekeeper will warn.
