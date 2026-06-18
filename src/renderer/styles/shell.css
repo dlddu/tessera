@@ -93,6 +93,25 @@ body {
   cursor: not-allowed;
 }
 
+/* Live terminal surface (TerminalSurface.tsx) — fills the pane body and hosts
+   the xterm canvas/DOM. Matches the C-terminal grout from the design system. */
+.term-surface {
+  height: 100%;
+  width: 100%;
+  background: #0b0d12;
+  padding: 6px 8px;
+  overflow: hidden;
+}
+.term-surface .xterm,
+.term-surface .xterm-viewport,
+.term-surface .xterm-screen {
+  height: 100%;
+}
+/* The pane body owns the scroll/background; let xterm's viewport be transparent. */
+.term-surface .xterm-viewport {
+  background-color: transparent !important;
+}
+
 /* Non-functional surface placeholder (SurfacePlaceholder.tsx). */
 .surface-stub {
   height: 100%;

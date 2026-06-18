@@ -1,11 +1,24 @@
 /**
  * C-pane (tile): identity stripe (via `data-kind`) + a single-tab tab bar +
- * a placeholder body. Splitting, tab move/reorder, resize are not implemented.
+ * a body. A terminal pane renders a live {@link TerminalSurface} (M-J1-S2) when
+ * given the workspace/area it belongs to; every other kind still shows the
+ * non-functional placeholder. Splitting, tab move/reorder, resize are not
+ * implemented.
  */
-import { SurfacePlaceholder } from '@renderer/surfaces'
+import { SurfacePlaceholder, TerminalSurface } from '@renderer/surfaces'
 import type { SurfaceMeta } from '@renderer/surfaces'
 
-export function Pane({ meta, focused = false }: { meta: SurfaceMeta; focused?: boolean }) {
+interface PaneProps {
+  meta: SurfaceMeta
+  focused?: boolean
+  /** Set for a live surface; absent panes fall back to the placeholder. */
+  workspaceId?: string
+  areaId?: string
+}
+
+export function Pane({ meta, focused = false, workspaceId, areaId }: PaneProps) {
+  const live = meta.kind === 'terminal' && workspaceId !== undefined && areaId !== undefined
+
   return (
     <div className={focused ? 'pane focused' : 'pane'} data-kind={meta.dataKind}>
       <div className="tabbar">
@@ -18,7 +31,11 @@ export function Pane({ meta, focused = false }: { meta: SurfaceMeta; focused?: b
         <div className="spacer" />
       </div>
       <div className="body">
-        <SurfacePlaceholder meta={meta} />
+        {live ? (
+          <TerminalSurface workspaceId={workspaceId} areaId={areaId} />
+        ) : (
+          <SurfacePlaceholder meta={meta} />
+        )}
       </div>
     </div>
   )

@@ -26,6 +26,32 @@ export interface PtyProcess {
   kill(): void
 }
 
+/**
+ * The minimal slice of node-pty's `IPty` that {@link Backend} implementations
+ * depend on. Declaring it here (instead of importing node-pty) keeps the
+ * backend layer free of the native module so it can be unit-tested with a fake
+ * {@link PtySpawn}; production injects the real node-pty spawner.
+ */
+export interface NativePty {
+  readonly pid: number
+  write(data: string): void
+  resize(cols: number, rows: number): void
+  onData(listener: (data: string) => void): void
+  onExit(listener: (event: { exitCode: number; signal?: number | undefined }) => void): void
+  kill(signal?: string): void
+}
+
+export interface NativePtyOptions {
+  name: string
+  cols: number
+  rows: number
+  cwd: string
+  env: Record<string, string>
+}
+
+/** Spawns a native PTY. Injectable so backends can be tested without node-pty. */
+export type PtySpawn = (file: string, args: string[], options: NativePtyOptions) => NativePty
+
 export interface RunProcessOptions {
   cwd?: string
   env?: Record<string, string>

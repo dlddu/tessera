@@ -13,6 +13,13 @@ files:
   - out/**/*
   - package.json
 
+# Rebuild native deps (node-pty) against Electron's ABI during packaging, and
+# keep the native binding outside the asar archive so it can be dlopen'd at run
+# time (a packed .node cannot be loaded from within asar).
+npmRebuild: true
+asarUnpack:
+  - '**/node_modules/node-pty/**'
+
 mac:
   category: public.app-category.developer-tools
   target:
@@ -26,9 +33,3 @@ mac:
 
 dmg:
   title: ${productName}
-
-# --- native module rebuild (next step) ----------------------------------------
-# node-pty / dockerode are NOT installed yet (carried over to feature work).
-# When added, enable native rebuild so prebuilt binaries match Electron's ABI:
-#   npmRebuild: true
-# and add an afterPack/electron-rebuild step as needed.

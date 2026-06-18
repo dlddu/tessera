@@ -17,7 +17,15 @@ export const IpcChannels = {
   },
   surface: {
     create: 'tessera:surface:create',
-    dispose: 'tessera:surface:dispose'
+    dispose: 'tessera:surface:dispose',
+    /** main → renderer: a chunk of PTY output, keyed by surfaceId. */
+    ptyData: 'tessera:surface:pty-data',
+    /** main → renderer: the PTY for a surface exited, keyed by surfaceId. */
+    ptyExit: 'tessera:surface:pty-exit',
+    /** renderer → main: keyboard/paste input for a surface's PTY. */
+    ptyInput: 'tessera:surface:pty-input',
+    /** renderer → main: a surface's PTY was resized (cols/rows). */
+    ptyResize: 'tessera:surface:pty-resize'
   },
   persistence: {
     save: 'tessera:persistence:save',

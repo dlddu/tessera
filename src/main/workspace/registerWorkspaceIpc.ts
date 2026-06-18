@@ -9,6 +9,10 @@
  * Container creation is out of scope (M-J2-S1); only host is wired. The backend
  * runtime has no "create workspace" concept — that is a host-level concern, so
  * it lives here rather than in `src/main/backend`.
+ *
+ * On a successful create the workspace's live backend is registered in the
+ * shared {@link BackendRegistry} so surfaces (M-J1-S2 terminals) can spawn
+ * against it.
  */
 import { stat } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
@@ -19,6 +23,7 @@ import type {
   PickDirectoryResult
 } from '@shared/ipc'
 import { buildWorkspace, validateWorkspaceInput } from '@shared/workspace'
+import type { BackendRegistry } from '@main/backend'
 import { PersistenceStore } from '@main/persistence'
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -30,7 +35,15 @@ async function isDirectory(path: string): Promise<boolean> {
   }
 }
 
-export function registerWorkspaceIpc(store = new PersistenceStore(app.getPath('userData'))): void {
+export interface WorkspaceIpcDeps {
+  backends: BackendRegistry
+  store?: PersistenceStore
+}
+
+export function registerWorkspaceIpc({
+  backends,
+  store = new PersistenceStore(app.getPath('userData'))
+}: WorkspaceIpcDeps): void {
   ipcMain.handle(IpcChannels.workspace.pickDirectory, async (): Promise<PickDirectoryResult> => {
     const parent = BrowserWindow.getFocusedWindow() ?? undefined
     const result = parent
@@ -59,6 +72,9 @@ export function registerWorkspaceIpc(store = new PersistenceStore(app.getPath('u
 
       const { workspace, layout, snapshot } = buildWorkspace(req)
       await store.save(snapshot)
+
+      // Stand up the workspace's live backend so its surfaces can spawn PTYs.
+      backends.create(workspace.id, workspace.backend.cwd)
 
       return { workspace, layout }
     }
