@@ -1,0 +1,34 @@
+# electron-builder packaging config.
+# Bootstrap status: unsigned macOS dmg. Signing/notarization are placeholders —
+# fill in once the product name, organization, and Apple Developer certs are confirmed.
+appId: com.example.tessera
+productName: Tessera
+
+directories:
+  output: release
+  buildResources: build
+
+# electron-vite emits bundles to ./out; package those + the manifest.
+files:
+  - out/**/*
+  - package.json
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  # Unsigned build for bootstrap. Set `identity` + notarize once certs exist.
+  identity: null
+  # hardenedRuntime: true        # next step: enable with notarization
+  # notarize: false              # next step: configure Apple notarization
+
+dmg:
+  title: ${productName}
+
+# --- native module rebuild (next step) ----------------------------------------
+# node-pty / dockerode are NOT installed yet (carried over to feature work).
+# When added, enable native rebuild so prebuilt binaries match Electron's ABI:
+#   npmRebuild: true
+# and add an afterPack/electron-rebuild step as needed.

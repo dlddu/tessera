@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build output
+out/
+dist/
+release/
+
+# typescript build info
+*.tsbuildinfo
+.tmp/
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
+
+# logs
+*.log
+npm-debug.log*
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/

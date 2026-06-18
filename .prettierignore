@@ -1,0 +1,14 @@
+node_modules/
+out/
+dist/
+release/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+
+# existing spec docs are authored by hand — do not reformat
+docs/
+
+# verbatim copy of the design-system source of truth — keep byte-identical
+src/renderer/styles/tessera.css
