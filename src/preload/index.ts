@@ -16,6 +16,10 @@ const api: TesseraApi = {
     getEnv: (req) => ipcRenderer.invoke(IpcChannels.backend.getEnv, req),
     lifecycle: (req) => ipcRenderer.invoke(IpcChannels.backend.lifecycle, req)
   },
+  workspace: {
+    create: (req) => ipcRenderer.invoke(IpcChannels.workspace.create, req),
+    pickDirectory: () => ipcRenderer.invoke(IpcChannels.workspace.pickDirectory)
+  },
   surface: {
     create: (req) => ipcRenderer.invoke(IpcChannels.surface.create, req),
     dispose: (req) => ipcRenderer.invoke(IpcChannels.surface.dispose, req)

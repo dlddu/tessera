@@ -13,6 +13,7 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "eslint.config.mjs",
-    "test/e2e/**/*.ts"
+    "test/e2e/**/*.ts",
+    "test/unit/workspace.test.ts"
   ]
 }

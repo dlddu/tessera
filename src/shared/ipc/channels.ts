@@ -11,6 +11,10 @@ export const IpcChannels = {
     getEnv: 'tessera:backend:get-env',
     lifecycle: 'tessera:backend:lifecycle'
   },
+  workspace: {
+    create: 'tessera:workspace:create',
+    pickDirectory: 'tessera:workspace:pick-directory'
+  },
   surface: {
     create: 'tessera:surface:create',
     dispose: 'tessera:surface:dispose'
@@ -28,6 +32,7 @@ export const IpcChannels = {
 /** Union of every channel string, handy for typing/iteration. */
 export type IpcChannel =
   | (typeof IpcChannels.backend)[keyof typeof IpcChannels.backend]
+  | (typeof IpcChannels.workspace)[keyof typeof IpcChannels.workspace]
   | (typeof IpcChannels.surface)[keyof typeof IpcChannels.surface]
   | (typeof IpcChannels.persistence)[keyof typeof IpcChannels.persistence]
   | (typeof IpcChannels.routing)[keyof typeof IpcChannels.routing]

@@ -12,5 +12,6 @@
     "src/renderer/env.d.ts",
     "src/shared/**/*.ts",
     "test/unit/**/*.ts"
-  ]
+  ],
+  "exclude": ["test/unit/workspace.test.ts"]
 }

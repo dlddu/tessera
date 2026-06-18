@@ -7,6 +7,7 @@ import { ipcMain } from 'electron'
 import { NotImplementedError } from '@shared/errors'
 import { IpcChannels } from '@shared/ipc'
 import { registerBackendIpc } from '@main/backend'
+import { registerWorkspaceIpc } from '@main/workspace'
 import { registerRoutingIpc } from '@main/routing'
 import { registerPersistenceIpc } from '@main/persistence'
 
@@ -21,6 +22,7 @@ function registerSurfaceIpc(): void {
 
 export function registerIpc(): void {
   registerBackendIpc()
+  registerWorkspaceIpc()
   registerSurfaceIpc()
   registerRoutingIpc()
   registerPersistenceIpc()
