@@ -52,12 +52,12 @@ body{
   height:38px; flex:0 0 38px; background:var(--tile-raise);
   border-bottom:1px solid var(--line);
   display:flex; align-items:center; gap:12px; padding:0 12px;
+  -webkit-app-region:drag; /* native bar is hidden — make the bar drag the window */
 }
-.lights{display:flex; gap:8px; align-items:center}
-.lights i{width:12px; height:12px; border-radius:50%; display:block}
-.lights i:nth-child(1){background:#F0766B}
-.lights i:nth-child(2){background:#E2B25A}
-.lights i:nth-child(3){background:#56D3A6}
+/* Reserve room for the native macOS traffic-light cluster (drawn by Electron). */
+.is-mac .titlebar{padding-left:80px}
+/* Keep interactive title-bar elements clickable inside the drag region. */
+.titlebar :is(button, a, input, select){-webkit-app-region:no-drag}
 .titlebar .ws{font-weight:600; font-size:13px; letter-spacing:.1px}
 .titlebar .ws .dir{color:var(--faint); font-weight:400; font-family:var(--font-mono); font-size:12px; margin-left:8px}
 .titlebar .right{margin-left:auto; display:flex; align-items:center; gap:8px}

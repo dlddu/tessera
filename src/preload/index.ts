@@ -46,7 +46,8 @@ const api: TesseraApi = {
   },
   meta: {
     backendKinds: ['host', 'container'],
-    layoutVersion: 1
+    layoutVersion: 1,
+    platform: process.platform
   }
 }
 
