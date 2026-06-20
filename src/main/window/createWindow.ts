@@ -7,10 +7,14 @@ import { app, BrowserWindow } from 'electron'
  * Dev: electron-vite injects `ELECTRON_RENDERER_URL` (the Vite dev server).
  * Prod: loads the bundled `out/renderer/index.html`.
  *
- * Note: the renderer draws its own design-system title bar. Integrating native
- * macOS traffic lights (`titleBarStyle: 'hiddenInset'`) is a next step.
+ * On macOS we hide the native title bar background (`hiddenInset`) but keep the
+ * native traffic lights, then inset them to sit vertically centered in the
+ * renderer's 38px design-system title bar. The renderer reserves the space (see
+ * `.is-mac .titlebar`) and makes the bar a drag handle (`-webkit-app-region`).
+ * Other platforms keep the standard OS frame (their own window controls).
  */
 export function createWindow(): BrowserWindow {
+  const isMac = process.platform === 'darwin'
   const window = new BrowserWindow({
     width: 1120,
     height: 720,
@@ -18,6 +22,13 @@ export function createWindow(): BrowserWindow {
     minHeight: 480,
     show: false,
     backgroundColor: '#0D0F14',
+    ...(isMac
+      ? {
+          titleBarStyle: 'hiddenInset' as const,
+          // Center 12px lights in the 38px bar: top ≈ (38 - 12) / 2 = 13.
+          trafficLightPosition: { x: 12, y: 13 }
+        }
+      : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

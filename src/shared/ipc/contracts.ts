@@ -198,5 +198,7 @@ export interface TesseraApi {
   meta: {
     backendKinds: readonly BackendKind[]
     layoutVersion: LayoutSnapshot['version']
+    /** Host platform, so the renderer can guard macOS-only chrome. */
+    platform: NodeJS.Platform
   }
 }

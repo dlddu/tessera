@@ -105,9 +105,8 @@ here:
 5. **Browser routing.** Implement directions A/B in `BrowserRouter` (PRD-3).
 6. **Persistence.** Implement debounced host-side save/load + reconnect
    conflict handling (PRD-4).
-7. **Production hardening.** Add a Content-Security-Policy (via session headers),
-   bundle IBM Plex fonts locally (currently `@import`-ed from Google Fonts), and
-   integrate native macOS traffic lights (`titleBarStyle: 'hiddenInset'`).
+7. **Production hardening.** Add a Content-Security-Policy (via session headers)
+   and bundle IBM Plex fonts locally (currently `@import`-ed from Google Fonts).
 8. **Identity.** Confirm the product name (codename `Tessera`), owner, app id
    (placeholder `com.example.tessera`), and signing/notarization certs — then
    rename files/headings and fill the signing placeholders in `electron-builder.yml`.

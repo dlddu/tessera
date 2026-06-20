@@ -1,9 +1,10 @@
 /**
- * C-window: macOS-style window frame. Decorative title bar (traffic lights,
- * workspace name, backend badge) + grout surface (children) + status bar, plus
- * an optional `overlay` slot for modal scrims (rendered inside the positioned
- * `.win` so the scrim covers exactly the window). Native macOS traffic-light
- * integration is a next step.
+ * C-window: macOS-style window frame. Title bar (workspace name, backend badge)
+ * + grout surface (children) + status bar, plus an optional `overlay` slot for
+ * modal scrims (rendered inside the positioned `.win` so the scrim covers
+ * exactly the window). On macOS the native traffic lights are drawn into the
+ * inset title bar; the bar reserves space for them (`.is-mac .titlebar`) rather
+ * than rendering its own decorative dots.
  */
 import type { ReactNode } from 'react'
 import { StatusBar } from './StatusBar'
@@ -34,11 +35,6 @@ export function Window({
   return (
     <div className="win">
       <div className="titlebar">
-        <div className="lights">
-          <i />
-          <i />
-          <i />
-        </div>
         <div className="ws">
           {empty ? (
             <span className="muted">새 워크스페이스</span>
