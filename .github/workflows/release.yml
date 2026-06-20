@@ -15,7 +15,6 @@ name: Release
 # a PR ships that code to every user's auto-updater.
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
 
 # electron-builder creates the GitHub Release + tag for the version.
 permissions:
