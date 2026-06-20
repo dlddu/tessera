@@ -1,35 +1,62 @@
 name: Release
 
-# Publishes a signed + notarized macOS build to GitHub Releases whenever a PR is
-# OPENED — no manual tag/merge needed. The version is <major>.<minor> taken from
-# package.json plus the PR number as the patch (e.g. PR #6 -> 0.1.6). PR numbers
-# only ever increase, so the version is monotonic and electron-updater offers it
-# to installed builds on the stable channel.
+# Publishes a signed + notarized macOS build to GitHub Releases on every push to
+# an open PR (opened / synchronize / reopened) — no manual tag/merge needed.
 #
-# WARNING: this publishes a live release from un-merged PR code, so opening a PR
-# ships that code to every user's auto-updater. Bump major/minor in package.json
-# (the patch is ignored — the PR number replaces it).
+# Version = <major>.<minor> from package.json + the workflow run number as the
+# patch (e.g. 0.1.42). run_number is globally monotonic and unique per build, so
+# every push yields a strictly-higher version that electron-updater offers to
+# installed builds — unlike a per-PR number, which would collide across pushes of
+# the same PR and break the update feed. Bump major/minor in package.json when
+# you want those to move (the patch is always the run number). The originating PR
+# is recorded in the release notes instead.
+#
+# WARNING: this publishes a live release from un-merged PR code, so every push to
+# a PR ships that code to every user's auto-updater.
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize, reopened]
 
 # electron-builder creates the GitHub Release + tag for the version.
 permissions:
   contents: write
 
+# Within one PR, a newer push cancels an in-flight release build so only the
+# latest commit publishes.
 concurrency:
   group: release-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
+  # Cheap gate: decide whether to release at all. Skips (rather than fails) when
+  # signing secrets aren't configured yet, so PRs don't show a spurious red X and
+  # we never publish an unsigned release. Also blocks forks (no secrets / untrusted
+  # code must never reach the signed auto-update feed).
+  gate:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          if [ -n "${CSC_LINK:-}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signing secrets (CSC_LINK) not configured — release skipped."
+          fi
+
   release:
     name: build · sign · notarize · publish (arm64)
-    # Same-repo PRs only: forks can't read the signing secrets, and we must never
-    # sign + publish untrusted fork code to the auto-update feed.
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    needs: gate
+    if: needs.gate.outputs.ready == 'true'
     runs-on: macos-latest
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
+      RUN_NUMBER: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,12 +71,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Derive version from PR number
+      - name: Derive version from run number
         run: |
           BASE="$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")"
-          VERSION="$BASE.$PR_NUMBER"
-          echo "Publishing version $VERSION (PR #$PR_NUMBER)"
+          VERSION="$BASE.$RUN_NUMBER"
+          echo "Publishing version $VERSION (PR #$PR_NUMBER, run $RUN_NUMBER)"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
       - name: Build bundles
         run: npm run build
@@ -80,3 +108,13 @@ jobs:
             echo "::error::no .node binaries found under release/ — check asarUnpack/packaging"
             exit 1
           fi
+
+      - name: Record originating PR in release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --notes "Automated build from PR #$PR_NUMBER ($HEAD_REF @ ${HEAD_SHA:0:7})." \
+            || echo "::warning::could not annotate release v$VERSION with PR info"
