@@ -46,8 +46,11 @@ dmg:
 
 # Auto-update feed + release host. electron-builder writes app-update.yml into
 # the bundle from this block, and `--publish always` uploads artifacts plus
-# latest-mac.yml to the GitHub Release for the pushed tag.
+# latest-mac.yml to the GitHub Release. `releaseType: release` publishes it as a
+# live (non-draft, non-prerelease) release so electron-updater offers it to all
+# installed builds immediately — no manual "publish draft" step.
 publish:
   provider: github
   owner: dlddu
   repo: tessera
+  releaseType: release

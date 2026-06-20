@@ -1,21 +1,40 @@
 name: Release
 
-# Signed + notarized macOS build, published to GitHub Releases. Triggered by a
-# version tag (vX.Y.Z) that must match package.json's `version` (see verify step).
+# Publishes a signed + notarized macOS build to GitHub Releases whenever a PR is
+# OPENED — no manual tag/merge needed. The version is <major>.<minor> taken from
+# package.json plus the PR number as the patch (e.g. PR #6 -> 0.1.6). PR numbers
+# only ever increase, so the version is monotonic and electron-updater offers it
+# to installed builds on the stable channel.
+#
+# WARNING: this publishes a live release from un-merged PR code, so opening a PR
+# ships that code to every user's auto-updater. Bump major/minor in package.json
+# (the patch is ignored — the PR number replaces it).
 on:
-  push:
-    tags: ['v*']
+  pull_request:
+    types: [opened]
 
-# electron-builder uploads artifacts to the GitHub Release for the tag.
+# electron-builder creates the GitHub Release + tag for the version.
 permissions:
   contents: write
+
+concurrency:
+  group: release-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   release:
     name: build · sign · notarize · publish (arm64)
+    # Same-repo PRs only: forks can't read the signing secrets, and we must never
+    # sign + publish untrusted fork code to the auto-update feed.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: macos-latest
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Build the exact commit the PR author pushed (the PR head).
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -25,15 +44,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify tag matches package.json version
+      - name: Derive version from PR number
         run: |
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::tag $GITHUB_REF_NAME (v$TAG_VERSION) != package.json version $PKG_VERSION"
-            exit 1
-          fi
-          echo "version $PKG_VERSION matches tag $GITHUB_REF_NAME"
+          BASE="$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")"
+          VERSION="$BASE.$PR_NUMBER"
+          echo "Publishing version $VERSION (PR #$PR_NUMBER)"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Build bundles
         run: npm run build
@@ -48,7 +64,8 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          # Lets electron-builder create/update the GitHub Release for the tag.
+          # Lets electron-builder create/update the GitHub Release. Tags created
+          # with GITHUB_TOKEN don't re-trigger workflows, so there's no recursion.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify node-pty native binary is signed
