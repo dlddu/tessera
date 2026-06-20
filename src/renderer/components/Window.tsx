@@ -21,6 +21,10 @@ interface WindowProps {
   children: ReactNode
   /** Modal content rendered over the window (e.g. a dialog scrim). */
   overlay?: ReactNode
+  /** Pending update version when one is downloaded and ready to install. */
+  updateReadyVersion?: string | null
+  /** Invoked when the user clicks the status-bar "restart to update" affordance. */
+  onUpdateRestart?: (() => void) | undefined
 }
 
 export function Window({
@@ -29,7 +33,9 @@ export function Window({
   backendLabel,
   backendBadge,
   children,
-  overlay
+  overlay,
+  updateReadyVersion = null,
+  onUpdateRestart
 }: WindowProps) {
   const empty = workspace === null
   return (
@@ -53,7 +59,12 @@ export function Window({
         </div>
       </div>
       <div className="surface">{children}</div>
-      <StatusBar workspace={workspace} backend={backendLabel} />
+      <StatusBar
+        workspace={workspace}
+        backend={backendLabel}
+        updateReadyVersion={updateReadyVersion}
+        onUpdateRestart={onUpdateRestart}
+      />
       {overlay}
     </div>
   )

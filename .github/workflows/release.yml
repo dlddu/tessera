@@ -1,0 +1,65 @@
+name: Release
+
+# Signed + notarized macOS build, published to GitHub Releases. Triggered by a
+# version tag (vX.Y.Z) that must match package.json's `version` (see verify step).
+on:
+  push:
+    tags: ['v*']
+
+# electron-builder uploads artifacts to the GitHub Release for the tag.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: build · sign · notarize · publish (arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tag matches package.json version
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::tag $GITHUB_REF_NAME (v$TAG_VERSION) != package.json version $PKG_VERSION"
+            exit 1
+          fi
+          echo "version $PKG_VERSION matches tag $GITHUB_REF_NAME"
+
+      - name: Build bundles
+        run: npm run build
+
+      - name: Build · sign · notarize · publish (arm64)
+        run: npx electron-builder --mac --arm64 --publish always
+        env:
+          # Developer ID cert (base64 .p12) + its password — drives signing.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # notarytool credentials consumed by `mac.notarize: true`.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Lets electron-builder create/update the GitHub Release for the tag.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify node-pty native binary is signed
+        run: |
+          found=0
+          while IFS= read -r -d '' f; do
+            found=1
+            echo "Verifying signature: $f"
+            codesign --verify --strict --verbose=2 "$f"
+          done < <(find release -name '*.node' -print0)
+          if [ "$found" -eq 0 ]; then
+            echo "::error::no .node binaries found under release/ — check asarUnpack/packaging"
+            exit 1
+          fi

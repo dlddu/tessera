@@ -34,6 +34,20 @@ export const IpcChannels = {
   routing: {
     openUrlOnHost: 'tessera:routing:open-url-on-host',
     forwardCallback: 'tessera:routing:forward-callback'
+  },
+  update: {
+    /** main → renderer: a newer version is available and downloading. */
+    available: 'tessera:update:available',
+    /** main → renderer: download progress (percent + byte counters). */
+    progress: 'tessera:update:progress',
+    /** main → renderer: an update finished downloading and is ready to install. */
+    downloaded: 'tessera:update:downloaded',
+    /** main → renderer: the updater hit an error. */
+    error: 'tessera:update:error',
+    /** renderer → main: ask the updater to check the feed now. */
+    check: 'tessera:update:check',
+    /** renderer → main: quit and install the downloaded update. */
+    quitAndInstall: 'tessera:update:quit-and-install'
   }
 } as const
 
@@ -44,3 +58,4 @@ export type IpcChannel =
   | (typeof IpcChannels.surface)[keyof typeof IpcChannels.surface]
   | (typeof IpcChannels.persistence)[keyof typeof IpcChannels.persistence]
   | (typeof IpcChannels.routing)[keyof typeof IpcChannels.routing]
+  | (typeof IpcChannels.update)[keyof typeof IpcChannels.update]

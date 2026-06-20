@@ -5,7 +5,22 @@
  */
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannels } from '@shared/ipc'
-import type { PtyDataEvent, PtyExitEvent, TesseraApi } from '@shared/ipc'
+import type {
+  PtyDataEvent,
+  PtyExitEvent,
+  TesseraApi,
+  UpdateAvailableEvent,
+  UpdateDownloadedEvent,
+  UpdateErrorEvent,
+  UpdateProgressEvent
+} from '@shared/ipc'
+
+/** Subscribe to a main → renderer channel; returns an unsubscribe function. */
+function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
+  const handler = (_event: IpcRendererEvent, payload: T) => listener(payload)
+  ipcRenderer.on(channel, handler)
+  return () => ipcRenderer.removeListener(channel, handler)
+}
 
 const api: TesseraApi = {
   backend: {
@@ -43,6 +58,16 @@ const api: TesseraApi = {
   routing: {
     openUrlOnHost: (req) => ipcRenderer.invoke(IpcChannels.routing.openUrlOnHost, req),
     forwardCallback: (req) => ipcRenderer.invoke(IpcChannels.routing.forwardCallback, req)
+  },
+  update: {
+    check: () => ipcRenderer.invoke(IpcChannels.update.check),
+    quitAndInstall: () => ipcRenderer.send(IpcChannels.update.quitAndInstall),
+    onAvailable: (listener) =>
+      subscribe<UpdateAvailableEvent>(IpcChannels.update.available, listener),
+    onProgress: (listener) => subscribe<UpdateProgressEvent>(IpcChannels.update.progress, listener),
+    onDownloaded: (listener) =>
+      subscribe<UpdateDownloadedEvent>(IpcChannels.update.downloaded, listener),
+    onError: (listener) => subscribe<UpdateErrorEvent>(IpcChannels.update.error, listener)
   },
   meta: {
     backendKinds: ['host', 'container'],

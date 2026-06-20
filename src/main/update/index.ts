@@ -1,0 +1,1 @@
+export { initUpdater } from './initUpdater'

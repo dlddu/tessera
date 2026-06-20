@@ -1,6 +1,7 @@
 # electron-builder packaging config.
-# Bootstrap status: unsigned macOS dmg. Signing/notarization are placeholders —
-# fill in once the product name, organization, and Apple Developer certs are confirmed.
+# Signed + notarized macOS build, published to GitHub Releases for in-app updates.
+# NOTE: `appId` must be the real Developer ID bundle identifier before the first
+# signed release — `com.example.tessera` is a placeholder.
 appId: com.example.tessera
 productName: Tessera
 
@@ -23,13 +24,30 @@ asarUnpack:
 mac:
   category: public.app-category.developer-tools
   target:
+    # dmg = installer; zip = the artifact electron-updater downloads on macOS.
+    # Both are needed: without the zip there is no in-app update feed.
     - target: dmg
       arch:
         - arm64
-  # Unsigned build for bootstrap. Set `identity` + notarize once certs exist.
-  identity: null
-  # hardenedRuntime: true        # next step: enable with notarization
-  # notarize: false              # next step: configure Apple notarization
+    - target: zip
+      arch:
+        - arm64
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # Signing identity is auto-discovered from CSC_LINK / CSC_KEY_PASSWORD (the
+  # Developer ID cert), so no explicit `identity` is set. Notarization runs via
+  # notarytool using APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID from
+  # the environment (see .github/workflows/release.yml).
+  notarize: true
 
 dmg:
   title: ${productName}
+
+# Auto-update feed + release host. electron-builder writes app-update.yml into
+# the bundle from this block, and `--publish always` uploads artifacts plus
+# latest-mac.yml to the GitHub Release for the pushed tag.
+publish:
+  provider: github
+  owner: dlddu
+  repo: tessera

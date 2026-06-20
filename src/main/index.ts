@@ -5,10 +5,12 @@
 import { app, BrowserWindow } from 'electron'
 import { createWindow } from '@main/window'
 import { registerIpc } from '@main/ipc/registerIpc'
+import { initUpdater } from '@main/update'
 
 app.whenReady().then(() => {
   registerIpc()
-  createWindow()
+  const win = createWindow()
+  initUpdater(win)
 
   app.on('activate', () => {
     // macOS: re-open a window when the dock icon is clicked and none are open.

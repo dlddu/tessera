@@ -148,6 +148,32 @@ export interface ForwardCallbackResult {
   hostPort: number
 }
 
+/* --------------------------------------------------------------- auto-update */
+
+/** main → renderer: a newer version was found and is being downloaded. */
+export interface UpdateAvailableEvent {
+  version: string
+}
+
+/** main → renderer: download progress for the pending update. */
+export interface UpdateProgressEvent {
+  /** 0–100. */
+  percent: number
+  transferred: number
+  total: number
+  bytesPerSecond: number
+}
+
+/** main → renderer: an update finished downloading and is ready to install. */
+export interface UpdateDownloadedEvent {
+  version: string
+}
+
+/** main → renderer: the updater failed (network, signature, etc.). */
+export interface UpdateErrorEvent {
+  message: string
+}
+
 /* ------------------------------------------------------------- the API shape */
 
 export interface BackendApi {
@@ -187,6 +213,21 @@ export interface RoutingApi {
   forwardCallback(req: ForwardCallbackRequest): Promise<ForwardCallbackResult>
 }
 
+export interface UpdateApi {
+  /** Ask the updater to check the feed now (no-op in dev / unpackaged). */
+  check(): Promise<void>
+  /** Quit the app and install the downloaded update (fire-and-forget). */
+  quitAndInstall(): void
+  /** Subscribe to "update available" events. Returns an unsubscribe function. */
+  onAvailable(listener: (event: UpdateAvailableEvent) => void): () => void
+  /** Subscribe to download-progress events. Returns an unsubscribe function. */
+  onProgress(listener: (event: UpdateProgressEvent) => void): () => void
+  /** Subscribe to "update downloaded" events. Returns an unsubscribe function. */
+  onDownloaded(listener: (event: UpdateDownloadedEvent) => void): () => void
+  /** Subscribe to updater errors. Returns an unsubscribe function. */
+  onError(listener: (event: UpdateErrorEvent) => void): () => void
+}
+
 /** The full bridge exposed at `window.tessera`. */
 export interface TesseraApi {
   backend: BackendApi
@@ -194,6 +235,7 @@ export interface TesseraApi {
   surface: SurfaceApi
   persistence: PersistenceApi
   routing: RoutingApi
+  update: UpdateApi
   /** Static build/runtime info (no behavior wired yet). */
   meta: {
     backendKinds: readonly BackendKind[]

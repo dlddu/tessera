@@ -17,6 +17,9 @@ import type { CreateWorkspaceResult } from '@shared/ipc'
 export function App() {
   const [created, setCreated] = useState<CreateWorkspaceResult | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  // Set once an update has finished downloading; surfaces the StatusBar restart
+  // affordance. Holds the pending version string (for the tooltip).
+  const [updateReady, setUpdateReady] = useState<string | null>(null)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -29,9 +32,17 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  useEffect(() => {
+    return window.tessera.update.onDownloaded((e) => setUpdateReady(e.version))
+  }, [])
+
   function handleCreated(result: CreateWorkspaceResult) {
     setCreated(result)
     setDialogOpen(false)
+  }
+
+  function handleRestart() {
+    window.tessera.update.quitAndInstall()
   }
 
   if (created) {
@@ -43,6 +54,8 @@ export function App() {
         dir={workspace.backend.cwd}
         backendBadge="host"
         backendLabel="host"
+        updateReadyVersion={updateReady}
+        onUpdateRestart={handleRestart}
       >
         <div className="col">
           <div className="row">
@@ -58,6 +71,8 @@ export function App() {
       workspace={null}
       backendBadge="host"
       backendLabel="host"
+      updateReadyVersion={updateReady}
+      onUpdateRestart={handleRestart}
       overlay={
         dialogOpen ? (
           <WorkspaceDialog
