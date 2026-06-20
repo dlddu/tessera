@@ -94,17 +94,29 @@ jobs:
           # Lets electron-builder create/update the GitHub Release. Tags created
           # with GITHUB_TOKEN don't re-trigger workflows, so there's no recursion.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # electron-builder skips BOTH signing and publishing for pull_request
+          # builds by default (anti-fork-exfiltration). The gate job above already
+          # restricts this workflow to same-repo PRs, so forcing both on is safe.
+          CSC_FOR_PULL_REQUEST: 'true'
+          PUBLISH_FOR_PULL_REQUEST: 'true'
 
-      - name: Verify node-pty native binary is signed
+      - name: Verify macOS native binaries are signed
         run: |
           found=0
           while IFS= read -r -d '' f; do
+            # node-pty bundles prebuilt .node binaries for other platforms
+            # (win32 / linux) that aren't Mach-O and can't be signed — skip them
+            # so the check only asserts the macOS binaries are properly signed.
+            if ! file -b "$f" | grep -q 'Mach-O'; then
+              echo "Skipping non-Mach-O: $f"
+              continue
+            fi
             found=1
             echo "Verifying signature: $f"
             codesign --verify --strict --verbose=2 "$f"
           done < <(find release -name '*.node' -print0)
           if [ "$found" -eq 0 ]; then
-            echo "::error::no .node binaries found under release/ — check asarUnpack/packaging"
+            echo "::error::no Mach-O .node binaries found under release/ — check asarUnpack/packaging"
             exit 1
           fi
 
