@@ -83,6 +83,14 @@ export interface PickDirectoryResult {
   path: string | null
 }
 
+export interface DefaultCwdResult {
+  /**
+   * A sensible directory to prefill the create dialog with: the cwd of the last
+   * workspace created this session, falling back to the host home directory.
+   */
+  path: string
+}
+
 /* ---------------------------------------------------------- surface lifecycle */
 
 export interface CreateSurfaceRequest {
@@ -188,6 +196,8 @@ export interface BackendApi {
 export interface WorkspaceApi {
   create(req: CreateWorkspaceRequest): Promise<CreateWorkspaceResult>
   pickDirectory(): Promise<PickDirectoryResult>
+  /** A sensible default working directory to prefill the create dialog. */
+  defaultCwd(): Promise<DefaultCwdResult>
 }
 
 export interface SurfaceApi {

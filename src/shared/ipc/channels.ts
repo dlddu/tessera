@@ -13,7 +13,9 @@ export const IpcChannels = {
   },
   workspace: {
     create: 'tessera:workspace:create',
-    pickDirectory: 'tessera:workspace:pick-directory'
+    pickDirectory: 'tessera:workspace:pick-directory',
+    /** renderer → main: a sensible default cwd to prefill the create dialog. */
+    defaultCwd: 'tessera:workspace:default-cwd'
   },
   surface: {
     create: 'tessera:surface:create',
