@@ -14,7 +14,47 @@ function Mark() {
   )
 }
 
-export function StatusBar({ workspace, backend }: { workspace: string | null; backend: string }) {
+interface StatusBarProps {
+  workspace: string | null
+  backend: string
+  /** Pending update version when one is downloaded and ready to install. */
+  updateReadyVersion?: string | null
+  /** Invoked when the user clicks the restart affordance. */
+  onUpdateRestart?: (() => void) | undefined
+}
+
+/**
+ * Right-side affordance shown once an update is downloaded. Clicking it quits
+ * and relaunches into the new version. Hidden until `version` is set.
+ */
+function UpdateAffordance({
+  version,
+  onRestart
+}: {
+  version: string | null
+  onRestart?: (() => void) | undefined
+}) {
+  if (version === null) return null
+  return (
+    <button
+      type="button"
+      className="seg update"
+      onClick={onRestart}
+      title={`v${version} 다운로드 완료`}
+      data-testid="update-affordance"
+    >
+      <span className="udot" />
+      업데이트 준비됨 — 재시작
+    </button>
+  )
+}
+
+export function StatusBar({
+  workspace,
+  backend,
+  updateReadyVersion = null,
+  onUpdateRestart
+}: StatusBarProps) {
   if (workspace === null) {
     return (
       <div className="statusbar" data-testid="statusbar">
@@ -33,6 +73,7 @@ export function StatusBar({ workspace, backend }: { workspace: string | null; ba
             </span>
           </span>
         </div>
+        <UpdateAffordance version={updateReadyVersion} onRestart={onUpdateRestart} />
         <div className="clock">—:—</div>
       </div>
     )
@@ -72,6 +113,7 @@ export function StatusBar({ workspace, backend }: { workspace: string | null; ba
           </span>
         </span>
       </div>
+      <UpdateAffordance version={updateReadyVersion} onRestart={onUpdateRestart} />
       <div className="clock">—:—</div>
     </div>
   )
