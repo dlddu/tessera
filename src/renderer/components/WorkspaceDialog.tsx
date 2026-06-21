@@ -30,6 +30,25 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
     nameRef.current?.focus()
   }, [])
 
+  // Prefill the working directory with a sensible default (last-created cwd this
+  // session, else the host home dir) so creation doesn't demand a manual pick.
+  useEffect(() => {
+    let cancelled = false
+    window.tessera.workspace
+      .defaultCwd()
+      .then(({ path }) => {
+        if (cancelled || !path) return
+        // Only seed an untouched field; never clobber what the user has typed.
+        setCwd((prev) => (prev.length === 0 ? path : prev))
+      })
+      .catch(() => {
+        // No default available — leave it empty for the user to fill in.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
