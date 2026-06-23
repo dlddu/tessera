@@ -16,6 +16,7 @@
   "exclude": [
     "test/unit/workspace.test.ts",
     "test/unit/surface.test.ts",
-    "test/unit/file-io.test.ts"
+    "test/unit/file-io.test.ts",
+    "test/unit/update.test.ts"
   ]
 }
