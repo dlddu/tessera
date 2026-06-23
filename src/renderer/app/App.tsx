@@ -10,9 +10,9 @@
  * to the workspace + its default area.
  */
 import { useEffect, useState } from 'react'
-import { Pane, Window, WorkspaceDialog } from '@renderer/components'
-import { SURFACE_META } from '@renderer/surfaces'
+import { Window, WorkspaceDialog } from '@renderer/components'
 import type { CreateWorkspaceResult } from '@shared/ipc'
+import { WorkspaceView } from './WorkspaceView'
 
 export function App() {
   const [created, setCreated] = useState<CreateWorkspaceResult | null>(null)
@@ -46,8 +46,7 @@ export function App() {
   }
 
   if (created) {
-    const { workspace, layout } = created
-    const areaId = layout.areas[0]?.id ?? 'area-default'
+    const { workspace } = created
     return (
       <Window
         workspace={workspace.name}
@@ -57,11 +56,7 @@ export function App() {
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
       >
-        <div className="col">
-          <div className="row">
-            <Pane meta={SURFACE_META.terminal} focused workspaceId={workspace.id} areaId={areaId} />
-          </div>
-        </div>
+        <WorkspaceView key={workspace.id} created={created} />
       </Window>
     )
   }

@@ -122,6 +122,20 @@ body{
 .code .num{color:var(--id-web)} .code .cm{color:var(--faint)} .code .ty{color:#7fd3c1}
 .code .modified{background:linear-gradient(90deg, color-mix(in srgb,var(--warn) 14%,transparent), transparent)}
 .caret{display:inline-block; width:2px; height:16px; background:var(--id-edit); vertical-align:-3px; animation:blink 1.1s steps(1) infinite}
+/* live editor host (CodeMirror mounts here; theme is set in EditorSurface) */
+.editor-surface{height:100%; overflow:hidden; background:#10131A; position:relative}
+.editor-surface__host{height:100%}
+.editor-surface .cm-editor{height:100%}
+.editor-surface .cm-editor.cm-focused{outline:none}
+/* scratch hint: a bottom pill over the empty/unbound buffer. The layer is
+   click-through so the buffer below still takes focus to type (the top-left
+   cursor area stays clear); only the pill is interactive. */
+.editor-surface__scratch{position:absolute; inset:0; display:flex; justify-content:center;
+  align-items:flex-end; padding-bottom:16px; pointer-events:none}
+.editor-surface .scratch-pill{pointer-events:auto; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--faint); background:var(--tile-raise); border:1px solid var(--line-soft);
+  border-radius:999px; padding:5px 12px; cursor:pointer}
+.editor-surface .scratch-pill:hover{color:var(--ink); border-color:var(--line)}
 
 /* ============================================================ C-browser */
 .browser{height:100%; display:flex; flex-direction:column; background:#0F1218}

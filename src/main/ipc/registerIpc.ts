@@ -16,7 +16,7 @@ export function registerIpc(): void {
   const backends = new BackendRegistry((cwd) => new HostBackend({ cwd }))
   const surfaces = new SurfaceRegistry()
 
-  registerBackendIpc()
+  registerBackendIpc({ backends })
   registerWorkspaceIpc({ backends })
   registerSurfaceIpc({ backends, surfaces })
   registerRoutingIpc()

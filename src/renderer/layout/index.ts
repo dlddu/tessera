@@ -1,2 +1,6 @@
-export { LayoutEngine } from './LayoutEngine'
+export { LayoutEngine, basename, dirname } from './LayoutEngine'
+export type { FocusDirection, PaneRect } from './LayoutEngine'
+export { useLayout } from './useLayout'
+export type { LayoutActions, UseLayout } from './useLayout'
 export { buildInitialLayout } from './sampleLayout'
+export { LayoutView } from './LayoutView'
