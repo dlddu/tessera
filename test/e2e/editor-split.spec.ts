@@ -3,10 +3,10 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { test, expect, _electron as electron } from '@playwright/test'
 
-// M-J1-S3: from the single terminal pane, ⌘D splits vertically into an editor
-// pane (P-split-v, AC1.2). The editor opens as a scratch buffer (no file
-// required); ⌘S runs Save As to write it to a host file (AC2.2), and ⌘O opens an
-// existing host file into the buffer.
+// M-J1-S3 + S4: from the single terminal pane, ⌘D opens the surface picker;
+// choosing Editor splits vertically into an editor pane (P-split-v, AC1.2). The
+// editor opens as a scratch buffer (no file required); ⌘S runs Save As to write
+// it to a host file (AC2.2), and ⌘O opens an existing host file into the buffer.
 //
 // The native save/open dialogs are stubbed in the main process.
 test('vertical split → scratch editor → Save As, then ⌘O opens a file', async () => {
@@ -43,8 +43,11 @@ test('vertical split → scratch editor → Save As, then ⌘O opens a file', as
     await expect(window.getByTestId('terminal-surface')).toBeVisible()
     await expect(window.locator('.surface > .col')).toHaveCount(1)
 
-    // ⌘D (Cmd only) → vertical split into a scratch editor (no file dialog).
+    // ⌘D (Cmd only) → surface picker → choose Editor → vertical split into a
+    // scratch editor (no file dialog).
     await window.keyboard.press('Meta+d')
+    await expect(window.getByTestId('surface-picker')).toBeVisible()
+    await window.getByTestId('surface-pick-editor').click()
     const editor = window.getByTestId('editor-surface')
     await expect(editor).toBeVisible()
     await expect(window.locator('.surface > .col')).toHaveCount(2)
