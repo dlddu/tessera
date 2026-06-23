@@ -20,6 +20,7 @@ import type {
   UpdateErrorEvent,
   UpdateProgressEvent
 } from '@shared/ipc'
+import { startPeriodicUpdateCheck } from './periodicCheck'
 
 export function initUpdater(win: BrowserWindow): void {
   // Accessed lazily (not at module load): the `autoUpdater` getter instantiates
@@ -64,5 +65,9 @@ export function initUpdater(win: BrowserWindow): void {
     } satisfies UpdateErrorEvent)
   })
 
+  // Check once on launch, then keep polling on an interval so a long-running
+  // session still picks up releases cut after startup.
   void autoUpdater.checkForUpdates()
+  const stopPeriodicCheck = startPeriodicUpdateCheck(() => autoUpdater.checkForUpdates())
+  app.once('before-quit', stopPeriodicCheck)
 }
