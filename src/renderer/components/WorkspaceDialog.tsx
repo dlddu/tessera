@@ -87,6 +87,16 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
     }
   }
 
+  // Enter from a text field submits straight away (P-modal-over-quiet: the
+  // primary action is one keystroke). `create` no-ops while required fields are
+  // empty or a submit is already in flight, so this is safe to fire eagerly.
+  function onFieldKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void create()
+    }
+  }
+
   const hasContainer = backendKinds.includes('container')
 
   return (
@@ -122,6 +132,7 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
                 value={name}
                 placeholder="proj-web"
                 onChange={(e) => setName(e.target.value)}
+                onKeyDown={onFieldKeyDown}
                 data-testid="ws-name"
               />
             </div>
@@ -135,6 +146,7 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
                 value={cwd}
                 placeholder="~/proj-web"
                 onChange={(e) => setCwd(e.target.value)}
+                onKeyDown={onFieldKeyDown}
                 data-testid="ws-cwd"
               />
               <button type="button" className="pick" onClick={pickDirectory} data-testid="ws-pick">
