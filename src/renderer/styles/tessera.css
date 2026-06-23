@@ -122,6 +122,10 @@ body{
 .code .num{color:var(--id-web)} .code .cm{color:var(--faint)} .code .ty{color:#7fd3c1}
 .code .modified{background:linear-gradient(90deg, color-mix(in srgb,var(--warn) 14%,transparent), transparent)}
 .caret{display:inline-block; width:2px; height:16px; background:var(--id-edit); vertical-align:-3px; animation:blink 1.1s steps(1) infinite}
+/* live editor host (CodeMirror mounts here; theme is set in EditorSurface) */
+.editor-surface{height:100%; overflow:hidden; background:#10131A}
+.editor-surface .cm-editor{height:100%}
+.editor-surface .cm-editor.cm-focused{outline:none}
 
 /* ============================================================ C-browser */
 .browser{height:100%; display:flex; flex-direction:column; background:#0F1218}

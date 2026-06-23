@@ -29,6 +29,12 @@ export interface TabNode {
   surface: SurfaceKind
   /** The area whose backend/env this tab inherits. AC2.4. */
   areaId: string
+  /**
+   * For editor tabs: the host path of the open file (AC2.2). Absent until a file
+   * is chosen; drives the tab title (basename) and the path breadcrumb. Carried
+   * in the snapshot so it survives serialize/restore (PRD-4).
+   */
+  path?: string
 }
 
 /** Leaf node: a pane holding an ordered set of tabs. */

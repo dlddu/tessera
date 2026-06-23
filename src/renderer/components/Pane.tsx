@@ -1,41 +1,113 @@
 /**
- * C-pane (tile): identity stripe (via `data-kind`) + a single-tab tab bar +
- * a body. A terminal pane renders a live {@link TerminalSurface} (M-J1-S2) when
- * given the workspace/area it belongs to; every other kind still shows the
- * non-functional placeholder. Splitting, tab move/reorder, resize are not
- * implemented.
+ * C-pane (tile): identity stripe (via `data-kind`) + a multi-tab tab bar + the
+ * active tab's surface. Terminal tabs mount a live {@link TerminalSurface}
+ * (M-J1-S2); editor tabs mount a live {@link EditorSurface} (M-J1-S3) and show a
+ * path breadcrumb; browser/Claude tabs still show the placeholder.
+ *
+ * The pane is presentational: clicks (focus, tab activate/close, add, split) are
+ * forwarded to the {@link LayoutActions} bundle the engine provides. Tab
+ * drag/reorder UI is M-J1-S5 (the engine method exists already).
  */
-import { SurfacePlaceholder, TerminalSurface } from '@renderer/surfaces'
-import type { SurfaceMeta } from '@renderer/surfaces'
+import type { MouseEvent, ReactNode } from 'react'
+import type { PaneNode, TabNode } from '@shared/types'
+import {
+  EditorSurface,
+  SURFACE_META,
+  SurfacePlaceholder,
+  TerminalSurface
+} from '@renderer/surfaces'
+import { basename, dirname } from '@renderer/layout/LayoutEngine'
+import type { LayoutActions } from '@renderer/layout'
 
 interface PaneProps {
-  meta: SurfaceMeta
-  focused?: boolean
-  /** Set for a live surface; absent panes fall back to the placeholder. */
-  workspaceId?: string
-  areaId?: string
+  node: PaneNode
+  focused: boolean
+  workspaceId: string
+  workspaceName: string
+  actions: LayoutActions
 }
 
-export function Pane({ meta, focused = false, workspaceId, areaId }: PaneProps) {
-  const live = meta.kind === 'terminal' && workspaceId !== undefined && areaId !== undefined
+/** Editor breadcrumb: "workspace › parent-dir" (matches the M-J1-S3 mockup). */
+function breadcrumb(workspaceName: string, path: string): string {
+  const parent = basename(dirname(path))
+  return parent ? `${workspaceName} › ${parent}` : workspaceName
+}
+
+function renderSurface(tab: TabNode, workspaceId: string, actions: LayoutActions): ReactNode {
+  switch (tab.surface) {
+    case 'terminal':
+      return <TerminalSurface key={tab.id} workspaceId={workspaceId} areaId={tab.areaId} />
+    case 'editor':
+      return (
+        <EditorSurface
+          key={tab.id}
+          tab={tab}
+          workspaceId={workspaceId}
+          onSetTabPath={actions.setTabPath}
+        />
+      )
+    default:
+      return <SurfacePlaceholder meta={SURFACE_META[tab.surface]} />
+  }
+}
+
+export function Pane({ node, focused, workspaceId, workspaceName, actions }: PaneProps) {
+  const activeTab = node.tabs.find((t) => t.id === node.activeTabId) ?? node.tabs[0]
+  const activeMeta = SURFACE_META[activeTab?.surface ?? 'terminal']
+  const showCrumb = activeTab?.surface === 'editor' && activeTab.path !== undefined
+
+  function stop(e: MouseEvent) {
+    e.stopPropagation()
+  }
 
   return (
-    <div className={focused ? 'pane focused' : 'pane'} data-kind={meta.dataKind}>
+    <div
+      className={focused ? 'pane focused' : 'pane'}
+      data-kind={activeMeta.dataKind}
+      data-testid="pane"
+      onMouseDown={() => actions.focusPane(node.id)}
+    >
       <div className="tabbar">
-        <div className="tab active" data-kind={meta.dataKind}>
-          <span className="dot" />
-          {meta.label}
-          <span className="x">×</span>
-        </div>
-        <span className="add">+</span>
+        {node.tabs.map((tab) => {
+          const meta = SURFACE_META[tab.surface]
+          const active = tab.id === node.activeTabId
+          return (
+            <div
+              key={tab.id}
+              className={active ? 'tab active' : 'tab'}
+              data-kind={meta.dataKind}
+              data-testid="pane-tab"
+              onMouseDown={() => actions.activateTab(node.id, tab.id)}
+            >
+              <span className="dot" />
+              {tab.title}
+              <span
+                className="x"
+                data-testid="tab-close"
+                onMouseDown={(e) => {
+                  stop(e)
+                  actions.closeTab(tab.id)
+                }}
+              >
+                ×
+              </span>
+            </div>
+          )
+        })}
+        <span
+          className="add"
+          data-testid="tab-add"
+          onMouseDown={() => actions.addTab(node.id, 'terminal')}
+        >
+          +
+        </span>
         <div className="spacer" />
+        {showCrumb ? (
+          <div className="crumb">{breadcrumb(workspaceName, activeTab.path!)}</div>
+        ) : null}
       </div>
       <div className="body">
-        {live ? (
-          <TerminalSurface workspaceId={workspaceId} areaId={areaId} />
-        ) : (
-          <SurfacePlaceholder meta={meta} />
-        )}
+        {activeTab ? renderSurface(activeTab, workspaceId, actions) : null}
       </div>
     </div>
   )

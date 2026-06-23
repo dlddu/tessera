@@ -83,6 +83,11 @@ export interface PickDirectoryResult {
   path: string | null
 }
 
+export interface PickFileResult {
+  /** Absolute file path the user chose, or null if the picker was cancelled. */
+  path: string | null
+}
+
 export interface DefaultCwdResult {
   /**
    * A sensible directory to prefill the create dialog with: the cwd of the last
@@ -196,6 +201,8 @@ export interface BackendApi {
 export interface WorkspaceApi {
   create(req: CreateWorkspaceRequest): Promise<CreateWorkspaceResult>
   pickDirectory(): Promise<PickDirectoryResult>
+  /** Native file picker for opening a host file in the editor (AC2.2). */
+  pickFile(): Promise<PickFileResult>
   /** A sensible default working directory to prefill the create dialog. */
   defaultCwd(): Promise<DefaultCwdResult>
 }

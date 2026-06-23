@@ -25,7 +25,8 @@ import type {
   CreateWorkspaceRequest,
   CreateWorkspaceResult,
   DefaultCwdResult,
-  PickDirectoryResult
+  PickDirectoryResult,
+  PickFileResult
 } from '@shared/ipc'
 import { buildWorkspace, validateWorkspaceInput } from '@shared/workspace'
 import type { BackendRegistry } from '@main/backend'
@@ -65,6 +66,18 @@ export function registerWorkspaceIpc({
           properties: ['openDirectory', 'createDirectory']
         })
       : await dialog.showOpenDialog({ properties: ['openDirectory', 'createDirectory'] })
+
+    if (result.canceled || result.filePaths.length === 0) {
+      return { path: null }
+    }
+    return { path: result.filePaths[0] ?? null }
+  })
+
+  ipcMain.handle(IpcChannels.workspace.pickFile, async (): Promise<PickFileResult> => {
+    const parent = BrowserWindow.getFocusedWindow() ?? undefined
+    const result = parent
+      ? await dialog.showOpenDialog(parent, { properties: ['openFile'] })
+      : await dialog.showOpenDialog({ properties: ['openFile'] })
 
     if (result.canceled || result.filePaths.length === 0) {
       return { path: null }

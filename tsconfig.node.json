@@ -15,6 +15,7 @@
     "eslint.config.mjs",
     "test/e2e/**/*.ts",
     "test/unit/workspace.test.ts",
-    "test/unit/surface.test.ts"
+    "test/unit/surface.test.ts",
+    "test/unit/file-io.test.ts"
   ]
 }

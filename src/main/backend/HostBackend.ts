@@ -1,13 +1,14 @@
 /**
  * Host backend (AC2.2): runs processes directly on the macOS host.
  *
- * `spawnPty` is live (node-pty). The remaining capabilities are still stubs and
- * land with their respective journeys:
- *   - readFile/writeFile → host fs
+ * `spawnPty` (node-pty) and readFile/writeFile (host fs, AC2.2) are live. The
+ * remaining capabilities are still stubs and land with their journeys:
  *   - runProcess → child_process
  *   - getEnv     → host process.env / login shell env
  */
 import { randomUUID } from 'node:crypto'
+import { readFile, writeFile } from 'node:fs/promises'
+import { isAbsolute, resolve } from 'node:path'
 import { NotImplementedError } from '@shared/errors'
 import type { BackendKind } from '@shared/types'
 import type {
@@ -70,12 +71,20 @@ export class HostBackend implements Backend {
     }
   }
 
-  readFile(_path: string): Promise<Uint8Array> {
-    throw new NotImplementedError('HostBackend.readFile')
+  /**
+   * Resolve a request path against the workspace cwd. Relative paths are bound
+   * to the cwd; absolute paths (e.g. from the host file picker) pass through.
+   */
+  private resolvePath(path: string): string {
+    return isAbsolute(path) ? path : resolve(this.options.cwd, path)
   }
 
-  writeFile(_path: string, _data: Uint8Array): Promise<void> {
-    throw new NotImplementedError('HostBackend.writeFile')
+  async readFile(path: string): Promise<Uint8Array> {
+    return await readFile(this.resolvePath(path))
+  }
+
+  async writeFile(path: string, data: Uint8Array): Promise<void> {
+    await writeFile(this.resolvePath(path), data)
   }
 
   runProcess(
