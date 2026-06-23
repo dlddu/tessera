@@ -39,8 +39,9 @@ test('vertical split opens a host file in the editor and saves edits', async () 
     await expect(window.getByTestId('terminal-surface')).toBeVisible()
     await expect(window.locator('.surface > .col')).toHaveCount(1)
 
-    // ⌘D → vertical split into an editor pane that opens the picked file.
-    await window.keyboard.press('ControlOrMeta+d')
+    // ⌘D (Cmd only) → vertical split into an editor pane that opens the picked
+    // file. Ctrl+D is intentionally NOT a split (it stays terminal EOF).
+    await window.keyboard.press('Meta+d')
 
     const editor = window.getByTestId('editor-surface')
     await expect(editor).toBeVisible()

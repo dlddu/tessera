@@ -19,10 +19,11 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
   const { snapshot, engine, actions } = useLayout(layout)
 
   useEffect(() => {
-    // Capture phase: intercept ⌘D before the focused surface (xterm/CodeMirror)
-    // can swallow it, and stop it from reaching the terminal as a keystroke.
+    // ⌘D (Cmd only): split the focused pane into an editor. Captured before the
+    // focused surface so xterm/CodeMirror can't swallow it. Ctrl is excluded so
+    // Ctrl+D still reaches the terminal as EOF.
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'd' || e.key === 'D')) {
+      if (e.metaKey && !e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault()
         e.stopPropagation()
         const focused = engine.focusedPaneId
