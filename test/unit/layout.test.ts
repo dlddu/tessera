@@ -281,27 +281,6 @@ describe('LayoutEngine tab keyboard helpers (M-J1-S5)', () => {
     expect(collectPanes(engine.serialize().root)[0]!.activeTabId).toBe('P0-t0')
   })
 
-  it('nudgeActiveTab reorders the active tab within the pane and stops at the ends', () => {
-    const engine = threeTabPane()
-    const surfaces = () => collectPanes(engine.serialize().root)[0]!.tabs.map((t) => t.surface)
-    const activeId = collectPanes(engine.serialize().root)[0]!.activeTabId
-
-    // editor (rightmost) is at the end: nudging right is a no-op.
-    engine.nudgeActiveTab('right')
-    expect(surfaces()).toEqual(['terminal', 'browser', 'editor'])
-
-    // nudge left twice → editor walks to the front; active tab is preserved.
-    engine.nudgeActiveTab('left')
-    expect(surfaces()).toEqual(['terminal', 'editor', 'browser'])
-    engine.nudgeActiveTab('left')
-    expect(surfaces()).toEqual(['editor', 'terminal', 'browser'])
-    expect(collectPanes(engine.serialize().root)[0]!.activeTabId).toBe(activeId)
-
-    // at the front, nudging left is a no-op.
-    engine.nudgeActiveTab('left')
-    expect(surfaces()).toEqual(['editor', 'terminal', 'browser'])
-  })
-
   it('paneInDirection returns the geometric neighbor of the focused pane', () => {
     const engine = new LayoutEngine(singlePane())
     const rightId = engine.splitVertical('P0', 'editor')! // P0 | right

@@ -26,9 +26,6 @@ export type FocusDirection = 'left' | 'right' | 'up' | 'down'
 /** Direction for cycling the active tab within a pane (S5 keyboard). */
 export type TabCycle = 'next' | 'prev'
 
-/** Direction for nudging the active tab within its pane (S5 keyboard). */
-export type TabNudge = 'left' | 'right'
-
 /** Normalized [0,1] rectangle of a pane within the workspace surface. */
 export interface PaneRect {
   x: number
@@ -490,22 +487,8 @@ export class LayoutEngine {
   }
 
   /**
-   * Reorder the focused pane's active tab one slot left/right (⇧⌘[ / ⇧⌘],
-   * AC1.4). No-op at the ends, or without a focused active tab.
-   */
-  nudgeActiveTab(dir: TabNudge): void {
-    const pane = this.focusedPane()
-    if (!pane || !pane.activeTabId || pane.tabs.length < 2) return
-    const i = pane.tabs.findIndex((t) => t.id === pane.activeTabId)
-    if (i < 0) return
-    const target = dir === 'left' ? i - 1 : i + 1
-    if (target < 0 || target >= pane.tabs.length) return
-    this.moveTab(pane.activeTabId, pane.id, target)
-  }
-
-  /**
    * Move the focused pane's active tab to the nearest pane in `dir`
-   * (⌃⌘⇧+arrows, AC1.4). No-op if there's no neighbor that way.
+   * (⌃⌘+arrows, AC1.4). No-op if there's no neighbor that way.
    */
   moveActiveTabToDirection(dir: FocusDirection): void {
     const pane = this.focusedPane()

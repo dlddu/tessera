@@ -11,7 +11,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react'
 import type { LayoutSnapshot, SurfaceKind } from '@shared/types'
 import { LayoutEngine } from './LayoutEngine'
-import type { FocusDirection, TabCycle, TabNudge } from './LayoutEngine'
+import type { FocusDirection, TabCycle } from './LayoutEngine'
 
 /** The layout mutations the shell + surfaces invoke. */
 export interface LayoutActions {
@@ -24,11 +24,9 @@ export interface LayoutActions {
   focusPane(paneId: string): void
   focusDirection(dir: FocusDirection): void
   setTabPath(tabId: string, path: string): void
-  /** Activate the next/prev tab of the focused pane (⌃Tab / ⌃⇧Tab). AC1.4. */
+  /** Activate the next/prev tab of the focused pane (⌘⇧[ / ⌘⇧]). AC1.4. */
   cycleTab(dir: TabCycle): void
-  /** Reorder the focused pane's active tab one slot (⇧⌘[ / ⇧⌘]). AC1.4. */
-  nudgeActiveTab(dir: TabNudge): void
-  /** Move the focused pane's active tab to the neighbor in `dir`. AC1.4. */
+  /** Move the focused pane's active tab to the neighbor in `dir` (⌃⌘+arrows). AC1.4. */
   moveActiveTabToDirection(dir: FocusDirection): void
   /** Close the focused pane's active tab (⌘W). AC1.4. */
   closeActiveTab(): void
@@ -56,7 +54,6 @@ export function useLayout(initial: LayoutSnapshot): UseLayout {
       focusDirection: (dir) => engine.focusDirection(dir),
       setTabPath: (tabId, path) => engine.setTabPath(tabId, path),
       cycleTab: (dir) => engine.cycleTab(dir),
-      nudgeActiveTab: (dir) => engine.nudgeActiveTab(dir),
       moveActiveTabToDirection: (dir) => engine.moveActiveTabToDirection(dir),
       closeActiveTab: () => engine.closeActiveTab()
     }),

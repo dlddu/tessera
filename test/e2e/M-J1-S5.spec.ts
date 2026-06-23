@@ -96,11 +96,11 @@ test('keyboard drives pane focus, tab switch, and cross-pane tab move (AC1.4)', 
     await expect(window.getByTestId('pane-tab')).toHaveCount(2)
     await expect(window.getByTestId('editor-surface')).toBeVisible()
 
-    // ⌃⇧Tab → previous tab (terminal); ⌃Tab → back to editor.
-    await window.keyboard.press('Control+Shift+Tab')
+    // ⌘⇧[ → previous tab (terminal); ⌘⇧] → back to editor.
+    await window.keyboard.press('Meta+Shift+BracketLeft')
     await expect(window.getByTestId('terminal-surface')).toBeVisible()
     await expect(window.getByTestId('editor-surface')).toBeHidden()
-    await window.keyboard.press('Control+Tab')
+    await window.keyboard.press('Meta+Shift+BracketRight')
     await expect(window.getByTestId('editor-surface')).toBeVisible()
 
     // ⌘D → picker → Browser: split into a second pane (browser, now focused).
@@ -110,18 +110,42 @@ test('keyboard drives pane focus, tab switch, and cross-pane tab move (AC1.4)', 
     await expect(window.getByTestId('browser-surface')).toBeVisible()
     await expect(window.getByTestId('pane')).toHaveCount(2)
 
-    // ⌃⌘← moves focus to the left (editor/terminal) pane; ⌃⌘→ back to browser.
-    await window.keyboard.press('Control+Meta+ArrowLeft')
+    // ⌥⌘← moves focus to the left (editor/terminal) pane; ⌥⌘→ back to browser.
+    await window.keyboard.press('Alt+Meta+ArrowLeft')
     await expect(window.locator('.pane.focused').getByTestId('editor-surface')).toBeVisible()
-    await window.keyboard.press('Control+Meta+ArrowRight')
+    await window.keyboard.press('Alt+Meta+ArrowRight')
     await expect(window.locator('.pane.focused').getByTestId('browser-surface')).toBeVisible()
 
-    // ⌃⌘⇧← moves the browser tab into the left pane; the right pane collapses,
+    // ⌃⌘← moves the browser tab into the left pane; the right pane collapses,
     // leaving a single pane with all three tabs.
-    await window.keyboard.press('Control+Meta+Shift+ArrowLeft')
+    await window.keyboard.press('Control+Meta+ArrowLeft')
     await expect(window.getByTestId('pane')).toHaveCount(1)
     await expect(window.getByTestId('pane-tab')).toHaveCount(3)
     await expect(window.getByTestId('browser-surface')).toBeVisible()
+  } finally {
+    await app.close()
+  }
+})
+
+test('clicking a pane surface (not its tab bar) focuses that pane', async () => {
+  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+
+  try {
+    const window = await app.firstWindow()
+    await createWorkspace(window, 'e2e-s5-click')
+
+    // ⌘D → picker → Editor: terminal | editor, with the editor pane focused.
+    await window.keyboard.press('Meta+d')
+    await expect(window.getByTestId('surface-picker')).toBeVisible()
+    await window.getByTestId('surface-pick-editor').click()
+    await expect(window.getByTestId('editor-surface')).toBeVisible()
+    await expect(window.locator('.pane.focused').getByTestId('editor-surface')).toBeVisible()
+
+    // Click inside the terminal *surface* itself — focus follows even though the
+    // surface is portaled in by SurfaceHost (not a child of the pane in React).
+    await window.getByTestId('terminal-surface').click()
+    await expect(window.locator('.pane.focused').getByTestId('terminal-surface')).toBeVisible()
+    await expect(window.locator('.pane.focused').getByTestId('editor-surface')).toHaveCount(0)
   } finally {
     await app.close()
   }

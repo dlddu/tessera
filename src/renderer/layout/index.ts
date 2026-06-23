@@ -1,5 +1,5 @@
 export { LayoutEngine, basename, dirname } from './LayoutEngine'
-export type { FocusDirection, PaneRect, TabCycle, TabNudge } from './LayoutEngine'
+export type { FocusDirection, PaneRect, TabCycle } from './LayoutEngine'
 export { useLayout } from './useLayout'
 export type { LayoutActions, UseLayout } from './useLayout'
 export { buildInitialLayout } from './sampleLayout'

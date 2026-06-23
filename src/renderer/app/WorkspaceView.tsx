@@ -8,11 +8,11 @@
  * Holds the surface-creation keymap and the S5 interaction keymap. Creation
  * paths run through the shared {@link SurfacePicker} (M-J1-S4, AC1.1): ⌘D / ⌘⇧D
  * split the focused pane, ⌘T adds a tab, the pane "+" adds a tab. The S5 keys
- * drive the layout without a mouse (AC1.4): ⌃⌘+arrows move focus, ⌃Tab / ⌃⇧Tab
- * switch tabs, ⇧⌘[ / ⇧⌘] reorder the active tab, ⌃⌘⇧+arrows move it across
- * panes, and ⌘W closes it. Tabs can also be dragged between panes (AC1.3).
- * All keys are captured before the focused surface so xterm/CodeMirror can't
- * swallow them; ⌘S / ⌘O stay with the editor.
+ * drive the layout without a mouse (AC1.4): ⌘⌥+arrows move focus, ⌘⇧[ / ⌘⇧]
+ * switch tabs, ⌃⌘+arrows move the active tab across panes, and ⌘W closes it.
+ * Tabs can also be dragged between panes (AC1.3), and clicking a pane — its tab
+ * bar or its surface — focuses it. All keys are captured before the focused
+ * surface so xterm/CodeMirror can't swallow them; ⌘S / ⌘O stay with the editor.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -113,27 +113,27 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
         actions.closeActiveTab()
         return
       }
-      // ⌃Tab / ⌃⇧Tab — switch tabs within the focused pane.
-      if (e.ctrlKey && !e.metaKey && e.key === 'Tab') {
+      // ⌘⇧[ / ⌘⇧] — switch the active tab within the focused pane. Match the
+      // shifted glyphs ({ }) the bracket keys actually produce, plus the bare
+      // brackets for layouts that report them.
+      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && '[]{}'.includes(e.key)) {
         e.preventDefault()
         e.stopPropagation()
-        actions.cycleTab(e.shiftKey ? 'prev' : 'next')
+        actions.cycleTab(e.key === ']' || e.key === '}' ? 'next' : 'prev')
         return
       }
-      // ⇧⌘[ / ⇧⌘] — reorder the active tab (match shifted glyphs too).
-      if (e.metaKey && e.shiftKey && !e.ctrlKey && '[]{}'.includes(e.key)) {
-        e.preventDefault()
-        e.stopPropagation()
-        actions.nudgeActiveTab(e.key === ']' || e.key === '}' ? 'right' : 'left')
-        return
-      }
-      // Arrow keys: ⌃⌘⇧ moves the active tab across panes; ⌃⌘ moves focus.
+      // Arrow keys: ⌘⌥ moves focus; ⌃⌘ moves the active tab across panes.
       const dir = arrowDirection(e.key)
-      if (dir && e.ctrlKey && e.metaKey) {
-        e.preventDefault()
-        e.stopPropagation()
-        if (e.shiftKey) actions.moveActiveTabToDirection(dir)
-        else actions.focusDirection(dir)
+      if (dir && e.metaKey && !e.shiftKey) {
+        if (e.altKey && !e.ctrlKey) {
+          e.preventDefault()
+          e.stopPropagation()
+          actions.focusDirection(dir)
+        } else if (e.ctrlKey && !e.altKey) {
+          e.preventDefault()
+          e.stopPropagation()
+          actions.moveActiveTabToDirection(dir)
+        }
       }
     }
     window.addEventListener('keydown', onKey, true)

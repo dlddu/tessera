@@ -99,7 +99,7 @@ export function StatusBar({
         <span>
           <b>포커스</b>{' '}
           <span className="kcrow">
-            <span className="kc">⌃⌘</span>
+            <span className="kc">⌥⌘</span>
             <span className="plus">+</span>
             <span className="kc">→</span>
           </span>
@@ -107,9 +107,9 @@ export function StatusBar({
         <span>
           <b>탭</b>{' '}
           <span className="kcrow">
-            <span className="kc">⌃</span>
+            <span className="kc">⇧⌘</span>
             <span className="plus">+</span>
-            <span className="kc">Tab</span>
+            <span className="kc">]</span>
           </span>
         </span>
       </div>

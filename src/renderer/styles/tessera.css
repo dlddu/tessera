@@ -104,6 +104,7 @@ body{
    active tab's slot is shown (inactive slots stay mounted but hidden). */
 .surface-slot{position:absolute; inset:0}
 .surface-slot[hidden]{display:none}
+.surface-mount{height:100%; width:100%}
 
 /* ============================================================ C-terminal */
 .term{height:100%; background:#0B0D12; font-family:var(--font-mono); font-size:12.5px; line-height:1.55;

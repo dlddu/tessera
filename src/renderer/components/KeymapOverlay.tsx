@@ -12,7 +12,7 @@ export function KeymapOverlay() {
       <span className="row-gap">
         <span className="muted">포커스</span>{' '}
         <span className="kcrow">
-          <span className="kc">⌃⌘</span>
+          <span className="kc">⌥⌘</span>
           <span className="plus">+</span>
           <span className="kc">←</span>
           <span className="kc">→</span>
@@ -23,17 +23,21 @@ export function KeymapOverlay() {
       <span className="row-gap">
         <span className="muted">탭 전환</span>{' '}
         <span className="kcrow">
-          <span className="kc">⌃</span>
+          <span className="kc">⇧⌘</span>
           <span className="plus">+</span>
-          <span className="kc">Tab</span>
+          <span className="kc">[</span>
+          <span className="kc">]</span>
         </span>
       </span>
       <span className="row-gap">
         <span className="muted">탭 이동</span>{' '}
         <span className="kcrow">
-          <span className="kc">⇧⌘</span>
+          <span className="kc">⌃⌘</span>
           <span className="plus">+</span>
-          <span className="kc">]</span>
+          <span className="kc">←</span>
+          <span className="kc">→</span>
+          <span className="kc">↑</span>
+          <span className="kc">↓</span>
         </span>{' '}
         <span className="faint">또는 드래그</span>
       </span>

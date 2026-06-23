@@ -122,9 +122,16 @@ export function SurfaceHost({ snapshot, workspaceId, actions, paneBodies }: Surf
 
   return (
     <>
-      {live.map(({ tab }) =>
+      {live.map(({ tab, paneId }) =>
         createPortal(
-          <TabSurface tab={tab} workspaceId={workspaceId} actions={actions} />,
+          // Click-to-focus: portaled surface events bubble through SurfaceHost's
+          // React tree, not the pane's, so the pane's own onMouseDown never sees
+          // them. Catch it here in the capture phase (before xterm/CodeMirror can
+          // stop propagation) and focus the owning pane. focusPane only sets
+          // state, so it doesn't fight the surface for DOM focus.
+          <div className="surface-mount" onMouseDownCapture={() => actions.focusPane(paneId)}>
+            <TabSurface tab={tab} workspaceId={workspaceId} actions={actions} />
+          </div>,
           slotFor(tab.id),
           tab.id
         )
