@@ -88,6 +88,11 @@ export interface PickFileResult {
   path: string | null
 }
 
+export interface PickSaveFileResult {
+  /** Absolute path the user chose to save to, or null if cancelled. */
+  path: string | null
+}
+
 export interface DefaultCwdResult {
   /**
    * A sensible directory to prefill the create dialog with: the cwd of the last
@@ -203,6 +208,8 @@ export interface WorkspaceApi {
   pickDirectory(): Promise<PickDirectoryResult>
   /** Native file picker for opening a host file in the editor (AC2.2). */
   pickFile(): Promise<PickFileResult>
+  /** Native save dialog for writing a scratch buffer to a new host file. */
+  pickSaveFile(): Promise<PickSaveFileResult>
   /** A sensible default working directory to prefill the create dialog. */
   defaultCwd(): Promise<DefaultCwdResult>
 }

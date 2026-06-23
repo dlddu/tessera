@@ -4,26 +4,31 @@ import { join, resolve } from 'node:path'
 import { test, expect, _electron as electron } from '@playwright/test'
 
 // M-J1-S3: from the single terminal pane, ⌘D splits vertically into an editor
-// pane (P-split-v, AC1.2) that opens a host file (AC2.2), shows it with a gutter
-// + syntax colors (AC1.1), and saves edits back with ⌘S.
+// pane (P-split-v, AC1.2). The editor opens as a scratch buffer (no file
+// required); ⌘S runs Save As to write it to a host file (AC2.2), and ⌘O opens an
+// existing host file into the buffer.
 //
-// The native file picker is stubbed in the main process to return a fixed temp
-// file (mirrors how workspace-create bypasses the folder picker).
-test('vertical split opens a host file in the editor and saves edits', async () => {
+// The native save/open dialogs are stubbed in the main process.
+test('vertical split → scratch editor → Save As, then ⌘O opens a file', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'tessera-e2e-editor-'))
-  const filePath = join(dir, 'server.ts')
-  await writeFile(filePath, 'const port = 5173\n', 'utf8')
+  const savePath = join(dir, 'note.txt')
+  const openPath = join(dir, 'existing.ts')
+  await writeFile(openPath, 'export const OPENED = 42\n', 'utf8')
 
   const app = await electron.launch({ args: [resolve('out/main/index.js')] })
 
   try {
-    // Stub the host file picker to return our fixed file.
-    await app.evaluate(({ dialog }, picked) => {
+    // Stub the host save/open dialogs to fixed paths.
+    await app.evaluate(({ dialog }, paths) => {
+      dialog.showSaveDialog = (async () => ({
+        canceled: false,
+        filePath: paths.savePath
+      })) as typeof dialog.showSaveDialog
       dialog.showOpenDialog = (async () => ({
         canceled: false,
-        filePaths: [picked]
+        filePaths: [paths.openPath]
       })) as typeof dialog.showOpenDialog
-    }, filePath)
+    }, { savePath, openPath })
 
     const window = await app.firstWindow()
 
@@ -35,31 +40,33 @@ test('vertical split opens a host file in the editor and saves edits', async () 
     await window.getByTestId('ws-cwd').fill(dir)
     await window.getByTestId('ws-create').click()
 
-    // Single terminal pane first (one column).
     await expect(window.getByTestId('terminal-surface')).toBeVisible()
     await expect(window.locator('.surface > .col')).toHaveCount(1)
 
-    // ⌘D (Cmd only) → vertical split into an editor pane that opens the picked
-    // file. Ctrl+D is intentionally NOT a split (it stays terminal EOF).
+    // ⌘D (Cmd only) → vertical split into a scratch editor (no file dialog).
     await window.keyboard.press('Meta+d')
-
     const editor = window.getByTestId('editor-surface')
     await expect(editor).toBeVisible()
     await expect(window.locator('.surface > .col')).toHaveCount(2)
+    // Starts as scratch: the hint pill shows, no breadcrumb yet.
+    await expect(window.getByTestId('scratch-open')).toBeVisible()
+    await expect(window.locator('.crumb')).toHaveCount(0)
 
-    // File content is shown, and the breadcrumb names the workspace.
-    await expect(editor).toContainText('const port = 5173', { timeout: 15_000 })
+    // Type into the scratch buffer; the hint disappears once it has content.
+    await editor.locator('.cm-editor').click()
+    await window.keyboard.type('scratch note 42')
+    await expect(window.getByTestId('scratch-open')).toHaveCount(0)
+
+    // ⌘S → Save As writes the buffer to the host file and binds the tab.
+    await window.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => readFile(savePath, 'utf8'), { timeout: 15_000 })
+      .toContain('scratch note 42')
     await expect(window.locator('.crumb')).toContainText('e2e-edit')
 
-    // Edit the buffer and save it back to the host file.
-    await editor.click()
-    await window.keyboard.press('ControlOrMeta+a')
-    await window.keyboard.type('const port = 4000\n')
-    await window.keyboard.press('ControlOrMeta+s')
-
-    await expect
-      .poll(() => readFile(filePath, 'utf8'), { timeout: 15_000 })
-      .toContain('const port = 4000')
+    // ⌘O → open an existing host file into the editor.
+    await window.keyboard.press('ControlOrMeta+o')
+    await expect(editor).toContainText('OPENED', { timeout: 15_000 })
   } finally {
     await app.close()
     await rm(dir, { recursive: true, force: true })

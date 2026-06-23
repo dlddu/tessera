@@ -1,16 +1,18 @@
 /**
- * C-editor (live): a CodeMirror 6 editor bound to a host file (M-J1-S3, AC2.2).
+ * C-editor (live): a CodeMirror 6 editor that doubles as a scratch buffer and a
+ * host-file editor (M-J1-S3, AC1.1/AC2.2).
  *
- * Flow: an editor tab with no path opens the host file picker
- * (`workspace.pickFile`); once a path is set it reads the file
- * (`backend.readFile`, base64) into the document. The buffer is editable and
- * ⌘S writes it back (`backend.writeFile`). Line-number gutter + minimal syntax
- * colors follow the editor identity hue via a theme mapped to the design tokens.
+ * A new editor opens as an empty **scratch** buffer — no file is required. You
+ * can type immediately; a top pill (or ⌘O) opens a host file into the buffer
+ * (`workspace.pickFile` → `backend.readFile`). ⌘S saves: to the bound file if
+ * there is one, otherwise it runs Save As (`workspace.pickSaveFile`) and binds
+ * the tab to the chosen path. Line-number gutter + minimal syntax colors follow
+ * the editor identity hue via a theme mapped to the design tokens.
  *
  * Like {@link TerminalSurface}, the view mounts into a ref'd div on `useEffect`
  * and is disposed on unmount. CodeMirror is pure JS, so no native rebuild.
  */
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { EditorState } from '@codemirror/state'
 import {
   EditorView,
@@ -91,29 +93,73 @@ const editorTheme = EditorView.theme(
 export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
-  // Latest path/area for the save keymap, which is bound once at mount.
+  // Latest path/area/callback for the keymaps, which are bound once at mount.
   const pathRef = useRef<string | undefined>(tab.path)
   const areaRef = useRef(tab.areaId)
-  // Guards the one-shot file picker against React StrictMode double-invocation.
-  const pickedRef = useRef(false)
+  const tabIdRef = useRef(tab.id)
+  const onSetTabPathRef = useRef(onSetTabPath)
+  // Path whose content currently fills the buffer — guards against re-reading a
+  // file we just saved (Save As) or already loaded.
+  const loadedPathRef = useRef<string | undefined>(undefined)
+  // Whether the buffer is empty AND unbound — drives the scratch hint pill.
+  const [scratchEmpty, setScratchEmpty] = useState(tab.path === undefined)
 
   pathRef.current = tab.path
   areaRef.current = tab.areaId
+  tabIdRef.current = tab.id
+  onSetTabPathRef.current = onSetTabPath
 
-  // Mount the editor view once; ⌘S persists the current buffer.
+  // Open a host file into this editor: bind the path; the load effect reads it.
+  const openFile = useCallback(() => {
+    window.tessera.workspace
+      .pickFile()
+      .then(({ path }) => {
+        if (path) onSetTabPathRef.current(tabIdRef.current, path)
+      })
+      .catch(() => {
+        // Picker failed/cancelled — keep the current buffer.
+      })
+  }, [])
+  const openFileRef = useRef(openFile)
+  openFileRef.current = openFile
+
+  // Mount the editor view once. ⌘S saves (Save As when unbound); ⌘O opens.
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
 
     function save(view: EditorView): boolean {
+      const content = view.state.doc.toString()
       const path = pathRef.current
-      if (!path) return false
-      void window.tessera.backend.writeFile({
-        workspaceId,
-        areaId: areaRef.current,
-        path,
-        dataBase64: encodeBase64(view.state.doc.toString())
-      })
+      if (path) {
+        void window.tessera.backend.writeFile({
+          workspaceId,
+          areaId: areaRef.current,
+          path,
+          dataBase64: encodeBase64(content)
+        })
+        return true
+      }
+      // Scratch buffer → Save As: pick a path, write, and bind the tab to it.
+      window.tessera.workspace
+        .pickSaveFile()
+        .then(({ path: chosen }) => {
+          if (!chosen) return
+          // The buffer already holds this content; don't let the load effect
+          // re-read it.
+          loadedPathRef.current = chosen
+          return window.tessera.backend
+            .writeFile({
+              workspaceId,
+              areaId: areaRef.current,
+              path: chosen,
+              dataBase64: encodeBase64(content)
+            })
+            .then(() => onSetTabPathRef.current(tabIdRef.current, chosen))
+        })
+        .catch(() => {
+          // Save cancelled/failed — keep the scratch buffer as-is.
+        })
       return true
     }
 
@@ -133,39 +179,40 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
           javascript({ typescript: true }),
           keymap.of([
             { key: 'Mod-s', preventDefault: true, run: save },
+            {
+              key: 'Mod-o',
+              preventDefault: true,
+              run: () => {
+                openFileRef.current()
+                return true
+              }
+            },
             indentWithTab,
             ...defaultKeymap,
             ...historyKeymap
           ]),
+          EditorView.updateListener.of((u) => {
+            if (u.docChanged) {
+              setScratchEmpty(pathRef.current === undefined && u.state.doc.length === 0)
+            }
+          }),
           editorTheme
         ]
       })
     })
     viewRef.current = view
+    // Focus so a fresh scratch buffer is ready to type into immediately.
+    view.focus()
     return () => {
       view.destroy()
       viewRef.current = null
     }
   }, [workspaceId])
 
-  // No path yet → open the host file picker once and record the choice.
-  useEffect(() => {
-    if (tab.path !== undefined || pickedRef.current) return
-    pickedRef.current = true
-    window.tessera.workspace
-      .pickFile()
-      .then(({ path }) => {
-        if (path) onSetTabPath(tab.id, path)
-      })
-      .catch(() => {
-        // Picker failed/cancelled — leave the editor empty.
-      })
-  }, [tab.path, tab.id, onSetTabPath])
-
-  // Path set → read the host file and load it into the document.
+  // Path set (via open / restore) → read the host file into the document.
   useEffect(() => {
     const path = tab.path
-    if (path === undefined) return
+    if (path === undefined || path === loadedPathRef.current) return
     let cancelled = false
     window.tessera.backend
       .readFile({ workspaceId, areaId: tab.areaId, path })
@@ -174,6 +221,8 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
         if (cancelled || !view) return
         const text = decodeBase64(dataBase64)
         view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } })
+        loadedPathRef.current = path
+        setScratchEmpty(false)
       })
       .catch((err: unknown) => {
         const view = viewRef.current
@@ -192,5 +241,21 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
     }
   }, [tab.path, tab.areaId, workspaceId])
 
-  return <div className="editor-surface" ref={hostRef} data-testid="editor-surface" />
+  return (
+    <div className="editor-surface" data-testid="editor-surface">
+      <div className="editor-surface__host" ref={hostRef} />
+      {scratchEmpty ? (
+        <div className="editor-surface__scratch">
+          <button
+            type="button"
+            className="scratch-pill"
+            onClick={openFile}
+            data-testid="scratch-open"
+          >
+            빈 문서 · scratch — ⌘O로 파일 열기
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 }

@@ -16,6 +16,8 @@ export const IpcChannels = {
     pickDirectory: 'tessera:workspace:pick-directory',
     /** renderer → main: native file picker (open a host file in the editor). */
     pickFile: 'tessera:workspace:pick-file',
+    /** renderer → main: native save dialog (Save As for a scratch buffer). */
+    pickSaveFile: 'tessera:workspace:pick-save-file',
     /** renderer → main: a sensible default cwd to prefill the create dialog. */
     defaultCwd: 'tessera:workspace:default-cwd'
   },

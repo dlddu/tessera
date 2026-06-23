@@ -26,7 +26,8 @@ import type {
   CreateWorkspaceResult,
   DefaultCwdResult,
   PickDirectoryResult,
-  PickFileResult
+  PickFileResult,
+  PickSaveFileResult
 } from '@shared/ipc'
 import { buildWorkspace, validateWorkspaceInput } from '@shared/workspace'
 import type { BackendRegistry } from '@main/backend'
@@ -83,6 +84,18 @@ export function registerWorkspaceIpc({
       return { path: null }
     }
     return { path: result.filePaths[0] ?? null }
+  })
+
+  ipcMain.handle(IpcChannels.workspace.pickSaveFile, async (): Promise<PickSaveFileResult> => {
+    const parent = BrowserWindow.getFocusedWindow() ?? undefined
+    const result = parent
+      ? await dialog.showSaveDialog(parent, {})
+      : await dialog.showSaveDialog({})
+
+    if (result.canceled || !result.filePath) {
+      return { path: null }
+    }
+    return { path: result.filePath }
   })
 
   ipcMain.handle(
