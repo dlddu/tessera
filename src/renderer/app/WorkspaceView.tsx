@@ -1,19 +1,32 @@
 /**
  * The live surface of one workspace: owns its {@link LayoutEngine} (via
- * `useLayout`) and renders the pane/tab tree (M-J1-S3+). Mounted only once a
- * workspace exists and keyed by its id, so each workspace gets a fresh engine.
+ * `useLayout`) and renders the pane/tab tree plus the keep-alive
+ * {@link SurfaceHost} that actually mounts the surfaces (M-J1-S5). Mounted only
+ * once a workspace exists and keyed by its id, so each workspace gets a fresh
+ * engine.
  *
- * Holds the surface-creation keymap. Every creation path runs through the shared
- * {@link SurfacePicker} (M-J1-S4, AC1.1): ⌘D opens it to split the focused pane
- * vertically (P-split-v, a new column), ⌘⇧D to split it horizontally (a new
- * row), and the pane "+" opens it to add a tab. Repeated splits compose the
- * 2×2 mosaic (AC1.2). The chosen kind drives the matching engine mutation.
+ * Holds the surface-creation keymap and the S5 interaction keymap. Creation
+ * paths run through the shared {@link SurfacePicker} (M-J1-S4, AC1.1): ⌘D / ⌘⇧D
+ * split the focused pane, ⌘T adds a tab, the pane "+" adds a tab. The S5 keys
+ * drive the layout without a mouse (AC1.4): ⌃⌘+arrows move focus, ⌃Tab / ⌃⇧Tab
+ * switch tabs, ⇧⌘[ / ⇧⌘] reorder the active tab, ⌃⌘⇧+arrows move it across
+ * panes, and ⌘W closes it. Tabs can also be dragged between panes (AC1.3).
+ * All keys are captured before the focused surface so xterm/CodeMirror can't
+ * swallow them; ⌘S / ⌘O stay with the editor.
  */
-import { useCallback, useEffect, useState } from 'react'
-import { LayoutView, useLayout } from '@renderer/layout'
-import { SurfacePicker } from '@renderer/components'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  LayoutView,
+  SurfaceHost,
+  createPaneBodyRegistry,
+  useLayout,
+  useTabDrag
+} from '@renderer/layout'
+import type { FocusDirection } from '@renderer/layout'
+import { KeymapOverlay, SurfacePicker } from '@renderer/components'
+import { SURFACE_META } from '@renderer/surfaces'
 import type { CreateWorkspaceResult } from '@shared/ipc'
-import type { SurfaceKind } from '@shared/types'
+import type { LayoutSnapshot, SurfaceKind } from '@shared/types'
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
@@ -31,29 +44,101 @@ const PICKER_TITLE: Record<PendingPick['action'], string> = {
   'split-h': '가로 분할'
 }
 
+/** Map an arrow key to a focus direction (S5 keyboard), or `null`. */
+function arrowDirection(key: string): FocusDirection | null {
+  switch (key) {
+    case 'ArrowLeft':
+      return 'left'
+    case 'ArrowRight':
+      return 'right'
+    case 'ArrowUp':
+      return 'up'
+    case 'ArrowDown':
+      return 'down'
+    default:
+      return null
+  }
+}
+
+/** Short label for a pane (its active tab's identity), for the drag toast. */
+function paneLabel(snapshot: LayoutSnapshot, paneId: string | null): string {
+  if (!paneId) return '…'
+  const stack = [snapshot.root]
+  while (stack.length) {
+    const node = stack.pop()!
+    if (node.type === 'pane') {
+      if (node.id === paneId) {
+        const active = node.tabs.find((t) => t.id === node.activeTabId) ?? node.tabs[0]
+        return active ? `${SURFACE_META[active.surface].dataKind} pane` : 'pane'
+      }
+    } else {
+      stack.push(...node.children)
+    }
+  }
+  return 'pane'
+}
+
 export function WorkspaceView({ created }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
   const [pending, setPending] = useState<PendingPick | null>(null)
+  // Stable registry the panes register their bodies in and SurfaceHost portals
+  // surfaces into — created once for this workspace.
+  const paneBodies = useRef(createPaneBodyRegistry()).current
+  const { drag, onTabPointerDown } = useTabDrag(actions)
 
   useEffect(() => {
-    // ⌘D / ⌘⇧D (Cmd only) open the picker to split the focused pane — vertically
-    // into a new column (P-split-v) or horizontally into a new row. Captured
-    // before the focused surface so xterm/CodeMirror can't swallow it. Ctrl is
-    // excluded so Ctrl+D still reaches the terminal as EOF.
     function onKey(e: KeyboardEvent) {
+      const focused = engine.focusedPaneId
+
+      // ⌘D / ⌘⇧D — split the focused pane (vertical / horizontal) via the picker.
+      // Ctrl is excluded so Ctrl+D still reaches the terminal as EOF.
       if (e.metaKey && !e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault()
         e.stopPropagation()
-        const focused = engine.focusedPaneId
-        if (focused) {
-          setPending({ action: e.shiftKey ? 'split-h' : 'split-v', paneId: focused })
-        }
+        if (focused) setPending({ action: e.shiftKey ? 'split-h' : 'split-v', paneId: focused })
+        return
+      }
+      // ⌘T — add a tab to the focused pane (via the picker).
+      if (e.metaKey && !e.ctrlKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (focused) setPending({ action: 'add', paneId: focused })
+        return
+      }
+      // ⌘W — close the focused pane's active tab (last tab standing is a no-op).
+      if (e.metaKey && !e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault()
+        e.stopPropagation()
+        actions.closeActiveTab()
+        return
+      }
+      // ⌃Tab / ⌃⇧Tab — switch tabs within the focused pane.
+      if (e.ctrlKey && !e.metaKey && e.key === 'Tab') {
+        e.preventDefault()
+        e.stopPropagation()
+        actions.cycleTab(e.shiftKey ? 'prev' : 'next')
+        return
+      }
+      // ⇧⌘[ / ⇧⌘] — reorder the active tab (match shifted glyphs too).
+      if (e.metaKey && e.shiftKey && !e.ctrlKey && '[]{}'.includes(e.key)) {
+        e.preventDefault()
+        e.stopPropagation()
+        actions.nudgeActiveTab(e.key === ']' || e.key === '}' ? 'right' : 'left')
+        return
+      }
+      // Arrow keys: ⌃⌘⇧ moves the active tab across panes; ⌃⌘ moves focus.
+      const dir = arrowDirection(e.key)
+      if (dir && e.ctrlKey && e.metaKey) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.shiftKey) actions.moveActiveTabToDirection(dir)
+        else actions.focusDirection(dir)
       }
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [engine])
+  }, [engine, actions])
 
   const requestAddTab = useCallback((paneId: string) => {
     setPending({ action: 'add', paneId })
@@ -82,11 +167,31 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
     <>
       <LayoutView
         snapshot={snapshot}
-        workspaceId={workspace.id}
         workspaceName={workspace.name}
         actions={actions}
+        paneBodies={paneBodies}
+        drag={drag}
+        onTabPointerDown={onTabPointerDown}
         onRequestAddTab={requestAddTab}
       />
+      <SurfaceHost
+        snapshot={snapshot}
+        workspaceId={workspace.id}
+        actions={actions}
+        paneBodies={paneBodies}
+      />
+      <KeymapOverlay />
+      {drag ? (
+        <div className="toast" data-testid="tab-drag-toast">
+          <span className="ti">⤷</span>
+          <div>
+            <div className="tt">탭 이동 중</div>
+            <div className="td">
+              <span className="mono">{drag.title}</span> → {paneLabel(snapshot, drag.overPaneId)}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {pending ? (
         <SurfacePicker title={PICKER_TITLE[pending.action]} onPick={pick} onCancel={cancelPick} />
       ) : null}

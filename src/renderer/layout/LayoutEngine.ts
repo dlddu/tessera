@@ -23,6 +23,12 @@ import type {
 
 export type FocusDirection = 'left' | 'right' | 'up' | 'down'
 
+/** Direction for cycling the active tab within a pane (S5 keyboard). */
+export type TabCycle = 'next' | 'prev'
+
+/** Direction for nudging the active tab within its pane (S5 keyboard). */
+export type TabNudge = 'left' | 'right'
+
 /** Normalized [0,1] rectangle of a pane within the workspace surface. */
 export interface PaneRect {
   x: number
@@ -448,16 +454,77 @@ export class LayoutEngine {
     this.commit({ ...this.snapshot, focusedPaneId: paneId })
   }
 
-  /** Move focus to the nearest pane in `dir` (keyboard focus, S5 UI pending). */
+  /** Move focus to the nearest pane in `dir` (keyboard focus, AC1.4). */
   focusDirection(dir: FocusDirection): void {
-    const current = this.snapshot.focusedPaneId
-    if (!current) return
-    const rects = new Map<string, PaneRect>()
-    paneRects(this.snapshot.root, { x: 0, y: 0, w: 1, h: 1 }, rects)
-    const next = nearestInDirection(current, rects, dir)
+    const next = this.paneInDirection(dir)
     if (next) {
       this.commit({ ...this.snapshot, focusedPaneId: next })
     }
+  }
+
+  /**
+   * The nearest pane to the focused one in `dir` (geometric, cross-axis
+   * overlap). Pure query — the basis for both directional focus and cross-pane
+   * tab moves (AC1.4). Returns `null` if there's no focus or no pane that way.
+   */
+  paneInDirection(dir: FocusDirection): string | null {
+    const current = this.snapshot.focusedPaneId
+    if (!current) return null
+    const rects = new Map<string, PaneRect>()
+    paneRects(this.snapshot.root, { x: 0, y: 0, w: 1, h: 1 }, rects)
+    return nearestInDirection(current, rects, dir)
+  }
+
+  /**
+   * Activate the next/prev tab of the focused pane, wrapping around (⌃Tab /
+   * ⌃⇧Tab, AC1.4). No-op without a focus or with fewer than two tabs.
+   */
+  cycleTab(dir: TabCycle): void {
+    const pane = this.focusedPane()
+    if (!pane || pane.tabs.length < 2) return
+    const activeId = pane.activeTabId ?? pane.tabs[0]!.id
+    const i = pane.tabs.findIndex((t) => t.id === activeId)
+    const n = pane.tabs.length
+    const j = dir === 'next' ? (i + 1) % n : (i - 1 + n) % n
+    this.activateTab(pane.id, pane.tabs[j]!.id)
+  }
+
+  /**
+   * Reorder the focused pane's active tab one slot left/right (⇧⌘[ / ⇧⌘],
+   * AC1.4). No-op at the ends, or without a focused active tab.
+   */
+  nudgeActiveTab(dir: TabNudge): void {
+    const pane = this.focusedPane()
+    if (!pane || !pane.activeTabId || pane.tabs.length < 2) return
+    const i = pane.tabs.findIndex((t) => t.id === pane.activeTabId)
+    if (i < 0) return
+    const target = dir === 'left' ? i - 1 : i + 1
+    if (target < 0 || target >= pane.tabs.length) return
+    this.moveTab(pane.activeTabId, pane.id, target)
+  }
+
+  /**
+   * Move the focused pane's active tab to the nearest pane in `dir`
+   * (⌃⌘⇧+arrows, AC1.4). No-op if there's no neighbor that way.
+   */
+  moveActiveTabToDirection(dir: FocusDirection): void {
+    const pane = this.focusedPane()
+    if (!pane || !pane.activeTabId) return
+    const target = this.paneInDirection(dir)
+    if (!target || target === pane.id) return
+    this.moveTab(pane.activeTabId, target)
+  }
+
+  /** Close the focused pane's active tab (⌘W, AC1.4). */
+  closeActiveTab(): void {
+    const pane = this.focusedPane()
+    if (pane?.activeTabId) this.closeTab(pane.activeTabId)
+  }
+
+  /** The focused pane node, or `null`. */
+  private focusedPane(): PaneNode | null {
+    const id = this.snapshot.focusedPaneId
+    return id ? findPane(this.snapshot.root, id) : null
   }
 
   /** Pane rectangles in normalized [0,1] space (geometry for tests / S5). */

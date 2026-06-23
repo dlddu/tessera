@@ -247,6 +247,104 @@ describe('LayoutEngine focus + resize', () => {
   })
 })
 
+describe('LayoutEngine tab keyboard helpers (M-J1-S5)', () => {
+  /** A focused pane with three tabs: [terminal, browser, editor], active editor. */
+  function threeTabPane(): LayoutEngine {
+    const engine = new LayoutEngine(singlePane())
+    engine.addTab('P0', 'browser')
+    engine.addTab('P0', 'editor')
+    engine.focusPane('P0')
+    return engine
+  }
+
+  it('cycleTab moves to the next/prev tab of the focused pane and wraps', () => {
+    const engine = threeTabPane()
+    const pane = () => collectPanes(engine.serialize().root)[0]!
+    const ids = pane().tabs.map((t) => t.id) // [terminal, browser, editor]
+
+    // Active is the last-added (editor); next wraps to the first (terminal).
+    expect(pane().activeTabId).toBe(ids[2])
+    engine.cycleTab('next')
+    expect(pane().activeTabId).toBe(ids[0])
+    // prev wraps back to the last.
+    engine.cycleTab('prev')
+    expect(pane().activeTabId).toBe(ids[2])
+    // next steps forward normally.
+    engine.cycleTab('prev')
+    expect(pane().activeTabId).toBe(ids[1])
+  })
+
+  it('cycleTab is a no-op with fewer than two tabs', () => {
+    const engine = new LayoutEngine(singlePane())
+    engine.focusPane('P0')
+    engine.cycleTab('next')
+    expect(collectPanes(engine.serialize().root)[0]!.activeTabId).toBe('P0-t0')
+  })
+
+  it('nudgeActiveTab reorders the active tab within the pane and stops at the ends', () => {
+    const engine = threeTabPane()
+    const surfaces = () => collectPanes(engine.serialize().root)[0]!.tabs.map((t) => t.surface)
+    const activeId = collectPanes(engine.serialize().root)[0]!.activeTabId
+
+    // editor (rightmost) is at the end: nudging right is a no-op.
+    engine.nudgeActiveTab('right')
+    expect(surfaces()).toEqual(['terminal', 'browser', 'editor'])
+
+    // nudge left twice → editor walks to the front; active tab is preserved.
+    engine.nudgeActiveTab('left')
+    expect(surfaces()).toEqual(['terminal', 'editor', 'browser'])
+    engine.nudgeActiveTab('left')
+    expect(surfaces()).toEqual(['editor', 'terminal', 'browser'])
+    expect(collectPanes(engine.serialize().root)[0]!.activeTabId).toBe(activeId)
+
+    // at the front, nudging left is a no-op.
+    engine.nudgeActiveTab('left')
+    expect(surfaces()).toEqual(['editor', 'terminal', 'browser'])
+  })
+
+  it('paneInDirection returns the geometric neighbor of the focused pane', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')! // P0 | right
+
+    engine.focusPane('P0')
+    expect(engine.paneInDirection('right')).toBe(rightId)
+    expect(engine.paneInDirection('left')).toBeNull()
+    expect(engine.paneInDirection('up')).toBeNull()
+
+    engine.focusPane(rightId)
+    expect(engine.paneInDirection('left')).toBe('P0')
+    expect(engine.paneInDirection('right')).toBeNull()
+  })
+
+  it('moveActiveTabToDirection relocates the active tab into the neighbor pane', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')! // P0 | right(editor)
+    const moved = engine.addTab('P0', 'browser')! // P0: [terminal, browser], active browser
+    engine.focusPane('P0')
+
+    engine.moveActiveTabToDirection('right')
+
+    const panes = collectPanes(engine.serialize().root)
+    const left = panes.find((p) => p.id === 'P0')!
+    const right = panes.find((p) => p.id === rightId)!
+    expect(left.tabs.some((t) => t.id === moved)).toBe(false)
+    expect(right.tabs.some((t) => t.id === moved)).toBe(true)
+    expect(engine.serialize().focusedPaneId).toBe(rightId)
+  })
+
+  it('closeActiveTab closes the focused pane active tab', () => {
+    const engine = new LayoutEngine(singlePane())
+    const second = engine.addTab('P0', 'browser')!
+    engine.focusPane('P0')
+
+    engine.closeActiveTab() // closes the active (just-added) browser tab
+
+    const pane = collectPanes(engine.serialize().root)[0]!
+    expect(pane.tabs.some((t) => t.id === second)).toBe(false)
+    expect(pane.tabs).toHaveLength(1)
+  })
+})
+
 describe('LayoutEngine serialize/restore', () => {
   it('round-trips a mutated layout', () => {
     const engine = new LayoutEngine(singlePane())
