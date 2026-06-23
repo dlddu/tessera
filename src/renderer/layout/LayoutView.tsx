@@ -19,6 +19,8 @@ interface LayoutViewProps {
   workspaceId: string
   workspaceName: string
   actions: LayoutActions
+  /** Open the surface picker to add a tab to a pane ("+"). M-J1-S4. */
+  onRequestAddTab: (paneId: string) => void
 }
 
 interface RenderContext {
@@ -26,6 +28,7 @@ interface RenderContext {
   workspaceId: string
   workspaceName: string
   actions: LayoutActions
+  onRequestAddTab: (paneId: string) => void
 }
 
 function flexStyle(size: number | undefined): CSSProperties {
@@ -40,6 +43,7 @@ function renderPane(pane: Extract<LayoutNode, { type: 'pane' }>, ctx: RenderCont
       workspaceId={ctx.workspaceId}
       workspaceName={ctx.workspaceName}
       actions={ctx.actions}
+      onRequestAddTab={ctx.onRequestAddTab}
     />
   )
 }
@@ -94,12 +98,19 @@ function renderNode(node: LayoutNode, ctx: RenderContext): ReactNode {
   )
 }
 
-export function LayoutView({ snapshot, workspaceId, workspaceName, actions }: LayoutViewProps) {
+export function LayoutView({
+  snapshot,
+  workspaceId,
+  workspaceName,
+  actions,
+  onRequestAddTab
+}: LayoutViewProps) {
   const ctx: RenderContext = {
     focusedPaneId: snapshot.focusedPaneId,
     workspaceId,
     workspaceName,
-    actions
+    actions,
+    onRequestAddTab
   }
   return <>{renderNode(snapshot.root, ctx)}</>
 }
