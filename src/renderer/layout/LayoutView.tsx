@@ -7,27 +7,35 @@
  * - a pane leaf → a {@link Pane}, sized by its parent split's ratios
  *
  * The single-pane root collapses to one `.col > .row > .pane`, matching the
- * M-J1-S2 surface so the live terminal renders exactly as before.
+ * M-J1-S2 surface so the live terminal renders exactly as before. Surfaces
+ * themselves are mounted by the keep-alive {@link SurfaceHost}, not here; panes
+ * only expose their body element (via `paneBodies`) for it to portal into.
  */
 import type { CSSProperties, ReactNode } from 'react'
 import type { LayoutNode, LayoutSnapshot } from '@shared/types'
 import { Pane } from '@renderer/components'
 import type { LayoutActions } from './useLayout'
+import type { PaneBodyRegistry } from './paneBodies'
+import type { TabDragController, TabDragState } from './useTabDrag'
 
 interface LayoutViewProps {
   snapshot: LayoutSnapshot
-  workspaceId: string
   workspaceName: string
   actions: LayoutActions
+  paneBodies: PaneBodyRegistry
+  drag: TabDragState | null
+  onTabPointerDown: TabDragController['onTabPointerDown']
   /** Open the surface picker to add a tab to a pane ("+"). M-J1-S4. */
   onRequestAddTab: (paneId: string) => void
 }
 
 interface RenderContext {
   focusedPaneId: string | null
-  workspaceId: string
   workspaceName: string
   actions: LayoutActions
+  paneBodies: PaneBodyRegistry
+  drag: TabDragState | null
+  onTabPointerDown: TabDragController['onTabPointerDown']
   onRequestAddTab: (paneId: string) => void
 }
 
@@ -40,9 +48,11 @@ function renderPane(pane: Extract<LayoutNode, { type: 'pane' }>, ctx: RenderCont
     <Pane
       node={pane}
       focused={ctx.focusedPaneId === pane.id}
-      workspaceId={ctx.workspaceId}
       workspaceName={ctx.workspaceName}
       actions={ctx.actions}
+      paneBodies={ctx.paneBodies}
+      drag={ctx.drag}
+      onTabPointerDown={ctx.onTabPointerDown}
       onRequestAddTab={ctx.onRequestAddTab}
     />
   )
@@ -72,7 +82,8 @@ function renderColumnBody(node: LayoutNode, ctx: RenderContext): ReactNode {
 function renderNode(node: LayoutNode, ctx: RenderContext): ReactNode {
   if (node.type === 'pane') {
     // Key by pane id so a single pane and that same pane as a split child
-    // reconcile as one element — splitting keeps the live surface (PTY) alive.
+    // reconcile as one element — keeping its body element (a portal target)
+    // stable across splits.
     return (
       <div className="col" key={node.id}>
         <div className="row">{renderPane(node, ctx)}</div>
@@ -100,16 +111,20 @@ function renderNode(node: LayoutNode, ctx: RenderContext): ReactNode {
 
 export function LayoutView({
   snapshot,
-  workspaceId,
   workspaceName,
   actions,
+  paneBodies,
+  drag,
+  onTabPointerDown,
   onRequestAddTab
 }: LayoutViewProps) {
   const ctx: RenderContext = {
     focusedPaneId: snapshot.focusedPaneId,
-    workspaceId,
     workspaceName,
     actions,
+    paneBodies,
+    drag,
+    onTabPointerDown,
     onRequestAddTab
   }
   return <>{renderNode(snapshot.root, ctx)}</>
