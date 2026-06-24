@@ -29,15 +29,17 @@
 | 4 | 추가 분할로 **브라우저** tab·**Claude Code GUI** tab을 더해 2×2 레이아웃 완성(4종 공존). | AC1.1, AC1.2 | ✅ [M-J1-S4](./mockups/M-J1-S4.html) |
 | 5 | tab을 다른 pane으로 드래그 이동·순서 재정렬, 마우스 없이 단축키로 포커스/tab 전환. | AC1.3, AC1.4 | ✅ [M-J1-S5](./mockups/M-J1-S5.html) |
 | 6 | 구성한 레이아웃 골격을 저장(직렬화) → 다음 실행 시 동일 골격으로 재구성. | AC1.5 | ✅ [M-J1-S6](./mockups/M-J1-S6.html) |
+| 7 | 한 작업에 집중할 때 포커스된 pane을 일시 전체화면으로 확대(zoom)했다가 단축키/Esc로 2×2 레이아웃 그대로 복귀. | AC1.6 | ✅ [M-J1-S7](./mockups/M-J1-S7.html) |
 
 ## 완료 상태
 
-4종 컴포넌트를 단일 window/pane/tab 표면에서 배치·전환·재정렬할 수 있다 → **V1 달성**.
+4종 컴포넌트를 단일 window/pane/tab 표면에서 배치·전환·재정렬하고, 필요할 때 한 pane을 일시 전체화면으로
+확대했다가 레이아웃 손실 없이 복귀할 수 있다 → **V1 달성**.
 개발자는 앱 사이를 오가지 않고 하나의 표면에서 작업을 시작한다.
 
 ## 시각화 상태
 
-이 여정의 6개 단계가 모두 mockup으로 작성·연결되었다(✅ 6/6). 갤러리는 [`mockups/index.html`](./mockups/index.html),
+이 여정의 7개 단계가 모두 mockup으로 작성·연결되었다(✅ 7/7). 갤러리는 [`mockups/index.html`](./mockups/index.html),
 mockup↔여정↔가치 매핑은 [`mockups/tessera-mockup-index.md`](./mockups/tessera-mockup-index.md)를 참조한다.
 
 > 시각화 범례: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 위 표의 ✅ 항목은 `mockups/` 아래 자체 완결 HTML로 연결된다.

@@ -121,11 +121,11 @@
 
 | ID | 이름 | 설명 | 주 사용 여정 |
 |---|---|---|---|
-| `P-single` | 단일 타일 | 하나의 pane이 workspace를 채움 | J1-S2, J2-S2 |
+| `P-single` | 단일 타일 | 하나의 pane이 workspace를 채움 | J1-S2, J1-S7, J2-S2 |
 | `P-split-v` | 수직 분할 | 두 pane이 좌우로 | J1-S3 |
 | `P-grid-2x2` | 2×2 모자이크 | 4종 컴포넌트 타일이 격자로 공존 | J1-S4, J2-S4 |
 | `P-modal-over-quiet` | 빈 표면 위 모달 | 조용한/빈 workspace 위 다이얼로그 | J1-S1, J2-S1 |
-| `P-overlay` | 라이브 위 오버레이 | 동작 중 레이아웃 위 토스트·팔레트·드롭 타깃 | J1-S5, J2-S5, J3-S2 |
+| `P-overlay` | 라이브 위 오버레이 | 동작 중 레이아웃 위 토스트·팔레트·드롭 타깃 | J1-S5, J1-S7, J2-S5, J3-S2 |
 | `P-restore` | 복원 프레이밍 | 흐려진(read-only) 타일 + 상태 배너 | J4-S1~S4 |
 | `P-multi-workspace` | 다중 workspace | 두 workspace 윈도우 병치(격리/충돌 없음 표현) | J3-S6, J4-S5 |
 
