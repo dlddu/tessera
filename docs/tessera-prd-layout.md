@@ -22,7 +22,7 @@ Tessera의 화면 모델은 3계층이다.
 |---|---|---|
 | 터미널 | xterm.js + PTY (호스트 node-pty / 컨테이너 exec) | 스크롤백 보유 |
 | 인터넷 브라우저 | Electron WebContentsView(실 Chromium) | **항상 호스트 실행**(PRD-3) |
-| 텍스트 편집기 | 인앱 에디터 surface(Monaco급) + 파일 버퍼 | 버퍼/커서 상태 보유 |
+| 텍스트 편집기 | 인앱 코드 에디터(CodeMirror 6) + 파일 버퍼 | 버퍼/커서 상태 보유 |
 | Claude Code GUI | Claude Code 세션을 감싸는 GUI surface | 세션 상태 보유 |
 
 ## Acceptance Criteria

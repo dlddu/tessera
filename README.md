@@ -5,14 +5,23 @@
 > GUI) into one window / pane / tab surface, and runs each workspace on a **host**
 > or **container** backend.
 >
-> This repository is currently a **bootstrap skeleton**: the app builds and runs,
-> the module boundaries (backend abstraction · layout · surfaces · routing ·
-> persistence) exist as **types, interfaces, IPC contracts, and throwing stubs**,
-> and the UI is a **static design-system shell**. No feature behavior is wired yet.
+> This repository is **past the initial skeleton**: the first journey (**J1, steps
+> 1–5**) is implemented — create a host workspace, run a live shell terminal
+> (xterm.js + host PTY), edit host files (CodeMirror 6), compose a 2×2 pane/tab
+> mosaic, and drive the layout by keyboard or tab drag. The remaining capabilities —
+> container backend, browser routing, state restoration/persistence load, pane zoom,
+> and workspace switching — still exist as **types, interfaces, IPC contracts, and
+> throwing stubs** (`NotImplementedError`), and the browser/Claude panes are
+> **static design-system visuals** for now.
 
 Product specs live in [`docs/`](./docs) — values (`tessera-values.md`), PRDs
 (`tessera-prd-*.md`), tests (`tessera-test-*.md`), journeys, and the design system
 (`docs/design-system/`).
+
+> Note: app **auto-update** (`src/main/update/`, electron-updater — periodic check,
+> background download, restart prompt) is platform infrastructure outside the four
+> product values (V1–V4). It is wired and unit-tested in code, but intentionally not
+> part of the `docs/` product specs.
 
 ## Requirements
 
@@ -31,7 +40,7 @@ npm install
 
 | Command             | What it does                                                             |
 | ------------------- | ------------------------------------------------------------------------ |
-| `npm run dev`       | Launch the app with HMR (electron-vite dev). Opens the static shell.     |
+| `npm run dev`       | Launch the app with HMR (electron-vite dev). Opens the app shell.        |
 | `npm run build`     | Typecheck, then bundle main/preload/renderer to `out/`.                  |
 | `npm run preview`   | Preview the production bundle.                                           |
 | `npm run typecheck` | `tsc -b` across the node + web project configs (strict).                 |
@@ -56,16 +65,19 @@ src/
   main/                 Electron main process
     index.ts              app bootstrap (registers IPC, opens window)
     window/               BrowserWindow factory
-    backend/              Backend interface + Host/Container stubs (PRD-2)
+    workspace/            workspace create + native dialogs (host; live)
+    backend/              Backend interface + HostBackend (live) / ContainerBackend (stub) (PRD-2)
+    surface/              surface (terminal PTY) lifecycle + output streaming (live)
     routing/              cross-isolation browser routing stub (PRD-3)
-    persistence/          host-side state store stub (PRD-4)
+    persistence/          host-side state store — save live, load stub (PRD-4)
+    update/               auto-update (electron-updater): periodic check + restart prompt
     ipc/                  IPC handler registration (aggregator)
   preload/              contextBridge → typed window.tessera
   renderer/             React renderer
-    app/                  App shell (static 2×2 mosaic)
-    components/           Window / StatusBar / Pane (design-system C-*)
-    surfaces/             surface registry + non-functional placeholder
-    layout/               LayoutEngine stub + static layout fixture (PRD-1)
+    app/                  App shell + single-workspace view (live)
+    components/           Window / StatusBar / Pane / dialogs (design-system C-*)
+    surfaces/             terminal + editor live; browser/Claude static; placeholder for the rest
+    layout/               LayoutEngine — live split/resize/tab-move/keyboard (PRD-1)
     styles/               tessera.css (copied) + shell.css
   shared/               code shared across processes
     types/                domain types (backend, surface, layout, persistence)
@@ -81,33 +93,32 @@ Path aliases (tsconfig + build configs): `@main/*`, `@renderer/*`, `@shared/*`.
 
 - **Renderer** calls `window.tessera.*` (typed by `@shared/ipc`'s `TesseraApi`).
 - **Preload** (`src/preload/index.ts`) maps each method to an IPC channel.
-- **Main** registers handlers for those channels — every one currently throws
-  `NotImplementedError` (grep `not implemented` to find what needs wiring).
-- **Backend / routing / persistence / layout** classes expose real signatures
-  and throw the same error.
+- **Main** registers handlers for those channels — the **J1 paths are live**
+  (workspace create, terminal surface + PTY streaming, host file read/write), while
+  the rest still throw `NotImplementedError` (grep `not implemented` to find what
+  needs wiring).
+- **HostBackend** (PTY + host file IO) and the **LayoutEngine** are implemented;
+  **ContainerBackend**, **BrowserRouter**, and `PersistenceStore.load` still throw.
 
-## Next steps (carried-over feature work)
+## Next steps (remaining feature work)
 
-The skeleton intentionally stops at contracts + a static shell. Build order from
-here:
+J1 steps 1–5 (workspace create · terminal · editor · 2×2 layout · keyboard/drag) are
+done. Remaining build order:
 
-1. **Terminal first → native rebuild.** Install `node-pty` and configure Electron
-   **native module rebuild** (electron-rebuild / `npmRebuild` in
-   `electron-builder.yml`). This is the biggest hurdle for the first real feature;
-   wire `HostBackend.spawnPty` + an xterm.js surface.
-2. **Container backend.** Add `dockerode` (or chosen runtime), implement
+1. **Container backend.** Add `dockerode` (or chosen runtime), implement
    `ContainerBackend`, lifecycle + latency (AC2.6), and the host-only area (AC2.7/8).
-3. **Real surfaces.** Replace `SurfacePlaceholder` with terminal (xterm.js),
-   browser (`WebContentsView`), editor (Monaco — mind Vite worker bundling), and
-   the Claude Code GUI.
-4. **Layout engine.** Implement `LayoutEngine.serialize/restore` and live
-   split/resize/tab-move/keyboard control (PRD-1).
-5. **Browser routing.** Implement directions A/B in `BrowserRouter` (PRD-3).
-6. **Persistence.** Implement debounced host-side save/load + reconnect
-   conflict handling (PRD-4).
-7. **Production hardening.** Add a Content-Security-Policy (via session headers)
+2. **Remaining surfaces.** Replace the static browser/Claude visuals with a real
+   browser (`WebContentsView`) and the Claude Code GUI. (The terminal already uses
+   xterm.js and the editor uses **CodeMirror 6** — both live.)
+3. **Pane zoom + workspace switching.** Wire the focused-pane fullscreen toggle
+   (AC1.6) and the workspace list/rail + switching (AC1.7) — both are already designed
+   (mockups + design-system `C/P-workspace-rail`) but not implemented.
+4. **Browser routing.** Implement directions A/B in `BrowserRouter` (PRD-3).
+5. **Persistence.** `PersistenceStore.save` is live on workspace create; implement
+   debounced `load` + restore-on-restart and reconnect conflict handling (PRD-4).
+6. **Production hardening.** Add a Content-Security-Policy (via session headers)
    and bundle IBM Plex fonts locally (currently `@import`-ed from Google Fonts).
-8. **Identity.** Confirm the product name (codename `Tessera`), owner, app id
+7. **Identity.** Confirm the product name (codename `Tessera`), owner, app id
    (placeholder `com.example.tessera`), and signing/notarization certs — then
    rename files/headings and fill the signing placeholders in `electron-builder.yml`.
 
