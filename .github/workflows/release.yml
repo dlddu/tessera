@@ -14,7 +14,21 @@ name: Release
 # WARNING: this publishes a live release from un-merged PR code, so every push to
 # a PR ships that code to every user's auto-updater.
 on:
+  # Only changes that actually alter the shipped app trigger a release; editing
+  # docs, tests, lint/format config, or CI no longer ships a build to users'
+  # auto-updaters. This is an allow-list, so a genuinely new build input must be
+  # added here to take effect (fail-closed: when in doubt, no release).
   pull_request:
+    paths:
+      - 'src/**'                         # app code → bundled into out/**
+      - 'build/**'                       # buildResources (entitlements, icons)
+      - 'package.json'                   # version + runtime deps
+      - 'package-lock.json'              # locked dependency tree (e.g. node-pty)
+      - 'electron-builder.yml'           # packaging config
+      - 'electron.vite.config.ts'        # how bundles are emitted to out/
+      - 'tsconfig*.json'                 # type/build config feeding the bundle
+      - '.nvmrc'                         # Node version the build runs on
+      - '.github/workflows/release.yml'  # the release pipeline itself
 
 # electron-builder creates the GitHub Release + tag for the version.
 permissions:
