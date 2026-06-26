@@ -127,7 +127,11 @@ jobs:
   # ----- Release: build · sign · notarize · publish -----------------------
   release:
     name: build · sign · notarize · publish (arm64)
-    needs: gate
+    # Publish only after CI (typecheck · lint · test · build) passes — a red CI
+    # must never ship a build to users' auto-updaters. `gate` carries the
+    # same-repo + signing-secret + release-worthy checks; a skipped/failed `ci`
+    # or `gate` skips this job.
+    needs: [ci, gate]
     if: needs.gate.outputs.ready == 'true'
     runs-on: macos-latest
     # electron-builder creates the GitHub Release + tag for the version.
