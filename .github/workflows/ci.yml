@@ -1,19 +1,44 @@
-name: CI
+name: CI & Release
 
+# Combined pipeline. Two independent concerns share one file (and one trigger):
+#
+#   • CI      — typecheck · lint · test · build. Runs on every push to main and
+#               every PR, with no path filter, so all changes get checked.
+#   • Release — signed + notarized macOS build published to GitHub Releases for
+#               in-app auto-updates. Runs on PRs only, and only when a change
+#               actually alters the shipped app (see the `changes` job).
+#
+# A single workflow file has ONE trigger block, so the release path filter can't
+# live in `on:` — that would gate CI too. It is enforced per-job instead: the
+# `changes` job detects release-worthy edits and `gate`/`release` key off it.
+#
+# Version = <major>.<minor> from package.json + the workflow run number as the
+# patch (e.g. 0.1.42). run_number is globally monotonic and unique per build, so
+# every build yields a strictly-higher version that electron-updater offers to
+# installed builds. Bump major/minor in package.json to move those; the patch is
+# always the run number. The originating PR is recorded in the release notes.
+#
+# WARNING: release publishes a live build from un-merged PR code, so every
+# release-worthy push to a PR ships that code to every user's auto-updater.
 on:
   push:
     branches: [main]
   pull_request:
 
-# Cancel superseded runs on the same ref.
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+# Least privilege by default; only the release job is granted write (it creates
+# the GitHub Release + tag via electron-builder).
+permissions:
+  contents: read
 
 jobs:
-  build:
+  # ----- CI: runs on every push to main and every PR ----------------------
+  ci:
     name: typecheck · lint · test · build
     runs-on: macos-latest
+    # Cancel superseded CI runs on the same ref.
+    concurrency:
+      group: ci-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -36,3 +61,164 @@ jobs:
 
       - name: Build (bundle smoke)
         run: npm run build
+
+  # ----- Release gating ---------------------------------------------------
+  # Detect whether this PR touches anything that changes the shipped app. This
+  # is the allow-list release.yml's `on.paths` used to carry; it lives here as a
+  # job because the shared trigger can't path-filter release without also
+  # path-filtering CI. Skipped on push events (release is PR-only).
+  changes:
+    name: detect release-worthy changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    outputs:
+      release: ${{ steps.filter.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need the merge base to diff only the PR's own changes (A...B).
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          echo "Changed files:"
+          echo "$changed"
+          release=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              src/*|build/*|package.json|package-lock.json|electron-builder.yml|electron.vite.config.ts|tsconfig*.json|.nvmrc|.github/workflows/ci.yml)
+                release=true
+                break
+                ;;
+            esac
+          done <<< "$changed"
+          echo "Release-worthy change: $release"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
+  # Cheap gate: skip (don't fail) when signing secrets aren't configured, so PRs
+  # don't show a spurious red X and we never publish an unsigned release. Only
+  # considered for same-repo PRs carrying a release-worthy change — forks must
+  # never reach the signed auto-update feed.
+  gate:
+    needs: changes
+    runs-on: ubuntu-latest
+    if: >-
+      needs.changes.outputs.release == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+        run: |
+          if [ -n "${CSC_LINK:-}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signing secrets (CSC_LINK) not configured — release skipped."
+          fi
+
+  # ----- Release: build · sign · notarize · publish -----------------------
+  release:
+    name: build · sign · notarize · publish (arm64)
+    # Publish only after CI (typecheck · lint · test · build) passes — a red CI
+    # must never ship a build to users' auto-updaters. `gate` carries the
+    # same-repo + signing-secret + release-worthy checks; a skipped/failed `ci`
+    # or `gate` skips this job.
+    needs: [ci, gate]
+    if: needs.gate.outputs.ready == 'true'
+    runs-on: macos-latest
+    # electron-builder creates the GitHub Release + tag for the version.
+    permissions:
+      contents: write
+    # Within one PR, a newer push cancels an in-flight release build so only the
+    # latest commit publishes.
+    concurrency:
+      group: release-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    # Cap the job so a stalled Apple notarization fails instead of holding an
+    # (expensive) macOS runner for GitHub's 6-hour default. Normal runs finish
+    # well under 15 min; 60 leaves headroom for a slow Notary Service.
+    timeout-minutes: 60
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      RUN_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Build the exact commit the PR author pushed (the PR head).
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive version from run number
+        run: |
+          BASE="$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")"
+          VERSION="$BASE.$RUN_NUMBER"
+          echo "Publishing version $VERSION (PR #$PR_NUMBER, run $RUN_NUMBER)"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Build bundles
+        run: npm run build
+
+      - name: Build · sign · notarize · publish (arm64)
+        run: npx electron-builder --mac --arm64 --publish always
+        env:
+          # Developer ID cert (base64 .p12) + its password — drives signing.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # notarytool credentials consumed by `mac.notarize: true`.
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Lets electron-builder create/update the GitHub Release. Tags created
+          # with GITHUB_TOKEN don't re-trigger workflows, so there's no recursion.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # electron-builder skips BOTH signing and publishing for pull_request
+          # builds by default (anti-fork-exfiltration). The gate job already
+          # restricts this to same-repo PRs, so forcing both on is safe.
+          CSC_FOR_PULL_REQUEST: 'true'
+          PUBLISH_FOR_PULL_REQUEST: 'true'
+
+      - name: Verify macOS native binaries are signed
+        run: |
+          found=0
+          while IFS= read -r -d '' f; do
+            # node-pty bundles prebuilt .node binaries for other platforms
+            # (win32 / linux) that aren't Mach-O and can't be signed — skip them
+            # so the check only asserts the macOS binaries are properly signed.
+            if ! file -b "$f" | grep -q 'Mach-O'; then
+              echo "Skipping non-Mach-O: $f"
+              continue
+            fi
+            found=1
+            echo "Verifying signature: $f"
+            codesign --verify --strict --verbose=2 "$f"
+          done < <(find release -name '*.node' -print0)
+          if [ "$found" -eq 0 ]; then
+            echo "::error::no Mach-O .node binaries found under release/ — check asarUnpack/packaging"
+            exit 1
+          fi
+
+      - name: Record originating PR in release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          gh release edit "v$VERSION" --repo "$GITHUB_REPOSITORY" \
+            --notes "Automated build from PR #$PR_NUMBER ($HEAD_REF @ ${HEAD_SHA:0:7})." \
+            || echo "::warning::could not annotate release v$VERSION with PR info"
