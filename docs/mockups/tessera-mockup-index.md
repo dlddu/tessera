@@ -1,9 +1,9 @@
 # Tessera Mockup 인덱스
 
-26개 mockup이 각각 어느 **사용자 여정 단계 / 제품 가치 / Acceptance Criteria / 디자인 시스템 항목**을
+27개 mockup이 각각 어느 **사용자 여정 단계 / 제품 가치 / Acceptance Criteria / 디자인 시스템 항목**을
 시각화하는지 매핑하는 단일 소스. mockup·여정·디자인 시스템 사이의 연결은 이 표를 기준으로 추적한다.
 
-- **갤러리**: [`index.html`](./index.html) — 26개 미리보기 한 페이지
+- **갤러리**: [`index.html`](./index.html) — 27개 미리보기 한 페이지
 - **디자인 시스템**: [`../design-system/tessera-design-system.md`](../design-system/tessera-design-system.md) · 스타일 구현 [`../design-system/tessera.css`](../design-system/tessera.css)
 - **여정 인덱스**: [`../tessera-user-journeys.md`](../tessera-user-journeys.md)
 - **가치 문서**: [`../tessera-values.md`](../tessera-values.md)
@@ -45,6 +45,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 | [M-J1-S5](./M-J1-S5.html) | 5 | 탭 드래그 이동 · 단축키 포커스/전환 | V1 | AC1.3·AC1.4 | `P-overlay` · C-tab(drag), C-keycap, C-toast |
 | [M-J1-S6](./M-J1-S6.html) | 6 | 레이아웃 골격 직렬화 저장 → 다음 실행 재구성 | V1 | AC1.5 | `P-overlay` · C-toast, C-mark |
 | [M-J1-S7](./M-J1-S7.html) | 7 | **포커스된 pane 일시 전체화면 토글 (zoom) → 레이아웃 보존 복귀** | V1 | AC1.6 | `P-single`·`P-overlay` · C-pane(zoom), C-keycap, C-toast, C-badge |
+| [M-J1-S8](./M-J1-S8.html) | 8 | **워크스페이스 목록에서 전환 — 단일 창, 활성 workspace 표시** | V1 | AC1.7 | `P-workspace-rail` · C-workspace-rail, C-window, C-pane ×2, C-terminal, C-editor |
 
 ## J2 — 환경 선택의 자유 (container backend)
 
@@ -92,7 +93,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ## 커버리지
 
-- **여정 단계 시각화**: 26 / 26 (J1 7/7 · J2 7/7 · J3 6/6 · J4 6/6)
+- **여정 단계 시각화**: 27 / 27 (J1 8/8 · J2 7/7 · J3 6/6 · J4 6/6)
 - **가치 커버리지**: V1(J1 전체 + J4 부) · V2(J2 전체 + J3 부) · V3(J3 전체) · V4(J4 전체) — 4/4 가치 모두 시각화됨
 - **디자인 시스템 컴포넌트**: 디자인 시스템 문서에 정의된 C-* 컴포넌트 전부가 최소 1개 mockup에서 사용됨
 

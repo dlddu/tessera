@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-J1-S8 · 워크스페이스 목록에서 전환 — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+</head><body>
+<div class="shell">
+  <div class="caption">
+    <span class="cid">M-J1-S8</span>
+    <span class="ctitle">워크스페이스 목록에서 전환 — 단일 창, 활성 workspace 표시</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.7</span><span><b>패턴</b> P-workspace-rail</span></span>
+  </div>
+
+  <div class="win">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+
+    <div class="winmain">
+      <!-- C-workspace-rail: 단일 창 좌측 workspace 목록/스위처 -->
+      <div class="wsrail">
+        <div class="wsrail-head">워크스페이스</div>
+        <div class="wsitem active"><span class="wsdot cont"></span><span class="wsname">api-svc</span><span class="wskey">⌘1</span></div>
+        <div class="wsitem"><span class="wsdot cont"></span><span class="wsname">web-svc</span><span class="wskey">⌘2</span></div>
+        <div class="wsitem"><span class="wsdot host"></span><span class="wsname">docs</span><span class="wskey">⌘3</span></div>
+        <div class="wsrail-spacer"></div>
+        <div class="wsnew">＋ 새 워크스페이스</div>
+      </div>
+
+      <!-- 활성 workspace(api-svc)의 표면 -->
+      <div class="surface">
+        <div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># container · node:20</span>
+<span class="ps">root@ctr-api7f3</span> <span class="path">/workspace</span> # npm run dev
+<span class="acc">  ▲ next</span> dev — ready on :3000
+<span class="ps">root@ctr-api7f3</span> <span class="path">/workspace</span> # </div><span class="cursor"></span></div></div></div></div></div>
+        <div class="col"><div class="row"><div class="pane focused" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>route.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">api-svc › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/route.ts</span>
+<span class="kw">import</span> { <span class="fn">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>
+
+<span class="kw">const</span> r = <span class="fn">Router</span>()
+r.<span class="fn">get</span>(<span class="str">'/health'</span>, (_q, s) => s.<span class="fn">json</span>({ ok: <span class="num">1</span> }))<span class="caret"></span>
+<span class="kw">export</span> <span class="kw">default</span> r</div></div></div></div></div></div></div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>전환</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">1-3</span></span></span></div>
+      <div class="clock">15:40</div>
+    </div>
+  </div>
+</div>
+</body></html>

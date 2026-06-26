@@ -91,6 +91,7 @@
 |---|---|---|
 | `C-window` | 앱 윈도우 | macOS 윈도우 프레임. 좌측 신호등(빨강/노랑/초록), 타이틀바에 workspace 이름·backend 배지 |
 | `C-statusbar` | 상태줄 | 하단 tmux 스타일 모노스페이스 바. 좌: mark+workspace / 중: backend / 우: 키맵 힌트+시계 |
+| `C-workspace-rail` | 워크스페이스 레일 | 단일 창 좌측의 workspace 목록/스위처. 각 항목: backend 점 + 이름 + ⌘N 힌트, 활성 항목 강조, 하단 "새 워크스페이스" (J1) |
 | `C-pane` | pane(타일) | 그라우트 위 타일. 상단 2px 정체성 스트라이프 + 탭바 + 콘텐츠 |
 | `C-tabbar` | 탭바 | pane 상단 탭 스트립. `+`로 새 탭 |
 | `C-tab` | 탭 | 6px 정체성 점 + 라벨 + 닫기 `×`. 활성 탭은 밝고 점 불투명, 비활성은 muted |
@@ -126,8 +127,9 @@
 | `P-grid-2x2` | 2×2 모자이크 | 4종 컴포넌트 타일이 격자로 공존 | J1-S4, J2-S4 |
 | `P-modal-over-quiet` | 빈 표면 위 모달 | 조용한/빈 workspace 위 다이얼로그 | J1-S1, J2-S1 |
 | `P-overlay` | 라이브 위 오버레이 | 동작 중 레이아웃 위 토스트·팔레트·드롭 타깃 | J1-S5, J1-S7, J2-S5, J3-S2 |
+| `P-flowmap` | 라우팅 흐름맵 | host↔container URL 전달·콜백 포워딩을 보여주는 미니 다이어그램 레이아웃 | J3-S2, J3-S4, J3-S6 |
 | `P-restore` | 복원 프레이밍 | 흐려진(read-only) 타일 + 상태 배너 | J4-S1~S4 |
-| `P-multi-workspace` | 다중 workspace | 두 workspace 윈도우 병치(격리/충돌 없음 표현) | J3-S6, J4-S5 |
+| `P-workspace-rail` | 워크스페이스 레일 | 단일 창 안에서 좌측 workspace 목록 레일과 활성 workspace 표면을 나란히 배치(목록에서 전환) | J1-S8 |
 
 ---
 

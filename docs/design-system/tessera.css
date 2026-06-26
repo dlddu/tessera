@@ -376,3 +376,27 @@ body{
   border:1px solid var(--line-soft); border-radius:999px; padding:2px 8px}
 .caption .cmeta span b{color:var(--muted); font-weight:500}
 @media (max-width:760px){ .caption .cmeta{margin-left:0; width:100%} }
+
+/* ============================== C-workspace-rail / P-workspace-rail (J1) */
+/* 단일 창 좌측의 workspace 목록/스위처 + 활성 workspace 표면을 나란히 배치.
+   .win 안에서 .titlebar 와 .statusbar 사이를 .winmain 이 채우고, 그 안에 레일+표면. (mockup: M-J1-S8) */
+.winmain{display:flex; flex:1 1 auto; min-height:0}
+.wsrail{flex:0 0 184px; min-width:0; background:var(--grout); border-right:1px solid var(--line);
+  display:flex; flex-direction:column; padding:8px 8px 10px}
+.wsrail-head{font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--faint); padding:4px 8px 9px}
+.wsitem{display:flex; align-items:center; gap:9px; padding:8px 9px; margin-bottom:3px; border-radius:7px;
+  cursor:pointer; color:var(--muted); border:1px solid transparent; text-align:left; width:100%; font-size:12.5px}
+.wsitem:hover{background:var(--tile); color:var(--ink)}
+.wsitem.active{background:color-mix(in srgb,var(--brand) 16%,var(--tile)); color:var(--ink);
+  border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
+.wsitem .wsdot{width:7px; height:7px; border-radius:50%; flex:0 0 7px; background:var(--faint)}
+.wsitem .wsdot.cont{background:var(--route)} .wsitem .wsdot.host{background:var(--id-term)}
+.wsitem .wsname{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500}
+.wsitem .wskey{font-family:var(--font-mono); font-size:10px; color:var(--faint); flex:0 0 auto}
+.wsitem.active .wskey{color:color-mix(in srgb,var(--brand) 78%,var(--ink))}
+.wsrail-spacer{flex:1}
+.wsnew{display:flex; align-items:center; gap:8px; padding:8px 9px; border-radius:7px; cursor:pointer;
+  color:var(--faint); border:1px dashed var(--line); background:transparent; font-size:12px; width:100%; text-align:left}
+.wsnew:hover{color:var(--ink); border-color:var(--muted)}
+@media (max-width:760px){ .wsrail{flex-basis:140px} }
