@@ -1,7 +1,8 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { WORKSPACE_SNAPSHOT_VERSION } from '@shared/types'
 import type { LayoutNode, PaneNode, WorkspaceStateSnapshot } from '@shared/types'
 import { buildWorkspace, validateWorkspaceInput } from '@shared/workspace'
 import { PersistenceStore } from '@main/persistence/PersistenceStore'
@@ -53,9 +54,12 @@ describe('buildWorkspace', () => {
     expect(layout.workspaceId).toBe(workspace.id)
     expect(layout.areas).toEqual([{ id: 'area-default', kind: 'default', backend: 'host' }])
 
-    // Snapshot is empty-of-content but layout-complete.
+    // Snapshot is empty-of-content but layout-complete, and carries the full
+    // workspace identity (id, name, backend cwd) so restore can rebuild it.
+    expect(snapshot.version).toBe(WORKSPACE_SNAPSHOT_VERSION)
     expect(snapshot.surfaces).toEqual([])
     expect(snapshot.workspaceId).toBe(workspace.id)
+    expect(snapshot.workspace).toBe(workspace)
     expect(snapshot.layout).toBe(layout)
     expect(snapshot.savedAt).toBeGreaterThan(0)
   })
@@ -85,5 +89,92 @@ describe('PersistenceStore.save', () => {
     const target = join(baseDir, 'workspaces', `${snapshot.workspaceId}.json`)
     const parsed = JSON.parse(await readFile(target, 'utf8')) as WorkspaceStateSnapshot
     expect(parsed).toEqual(snapshot)
+  })
+
+  it('saveSync writes a snapshot that load reads back', async () => {
+    const { snapshot } = buildWorkspace({ name: 'sync', cwd: '/tmp/sync', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+
+    store.saveSync(snapshot)
+
+    expect(await store.load(snapshot.workspaceId)).toEqual(snapshot)
+  })
+})
+
+describe('PersistenceStore.load', () => {
+  let baseDir: string
+
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'tessera-persist-'))
+  })
+
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true })
+  })
+
+  it('reads back a saved snapshot', async () => {
+    const { snapshot } = buildWorkspace({ name: 'proj', cwd: '/tmp/proj', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+    await store.save(snapshot)
+
+    expect(await store.load(snapshot.workspaceId)).toEqual(snapshot)
+  })
+
+  it('returns null when the workspace file is absent', async () => {
+    const store = new PersistenceStore(baseDir)
+    expect(await store.load('ws-missing')).toBeNull()
+  })
+
+  it('returns null for malformed JSON rather than throwing', async () => {
+    const store = new PersistenceStore(baseDir)
+    await mkdir(join(baseDir, 'workspaces'), { recursive: true })
+    await writeFile(join(baseDir, 'workspaces', 'ws-bad.json'), '{ not valid json', 'utf8')
+
+    expect(await store.load('ws-bad')).toBeNull()
+  })
+
+  it('discards a snapshot written under an unsupported schema version', async () => {
+    const { snapshot } = buildWorkspace({ name: 'old', cwd: '/tmp/old', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+    await mkdir(join(baseDir, 'workspaces'), { recursive: true })
+    await writeFile(
+      join(baseDir, 'workspaces', `${snapshot.workspaceId}.json`),
+      JSON.stringify({ ...snapshot, version: WORKSPACE_SNAPSHOT_VERSION - 1 }),
+      'utf8'
+    )
+
+    expect(await store.load(snapshot.workspaceId)).toBeNull()
+  })
+})
+
+describe('PersistenceStore.list', () => {
+  let baseDir: string
+
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'tessera-persist-'))
+  })
+
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true })
+  })
+
+  it('returns an empty list when nothing has been persisted', async () => {
+    const store = new PersistenceStore(baseDir)
+    expect(await store.list()).toEqual([])
+  })
+
+  it('returns every valid snapshot newest-first, skipping corrupt files', async () => {
+    const store = new PersistenceStore(baseDir)
+    const older = buildWorkspace({ name: 'older', cwd: '/tmp/older', backendKind: 'host' }).snapshot
+    const newer = buildWorkspace({ name: 'newer', cwd: '/tmp/newer', backendKind: 'host' }).snapshot
+    older.savedAt = 1000
+    newer.savedAt = 2000
+    await store.save(older)
+    await store.save(newer)
+    // A corrupt entry alongside the good ones must be skipped, not throw.
+    await writeFile(join(baseDir, 'workspaces', 'ws-broken.json'), 'not json', 'utf8')
+
+    const list = await store.list()
+    expect(list.map((s) => s.workspaceId)).toEqual([newer.workspaceId, older.workspaceId])
   })
 })

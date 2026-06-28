@@ -10,6 +10,7 @@
 import { randomUUID } from 'node:crypto'
 import type { BackendKind, Workspace } from '../types/backend'
 import type { LayoutSnapshot } from '../types/layout'
+import { buildWorkspaceSnapshot } from '../types/persistence'
 import type { WorkspaceStateSnapshot } from '../types/persistence'
 
 /** Layout version emitted by the factory (mirrors `meta.layoutVersion`). */
@@ -87,13 +88,7 @@ export function buildWorkspace(input: BuildWorkspaceInput): BuildWorkspaceResult
     }
   }
 
-  const snapshot: WorkspaceStateSnapshot = {
-    version: LAYOUT_VERSION,
-    workspaceId: id,
-    layout,
-    surfaces: [],
-    savedAt: Date.now()
-  }
+  const snapshot: WorkspaceStateSnapshot = buildWorkspaceSnapshot(workspace, layout, Date.now())
 
   return { workspace, layout, snapshot }
 }

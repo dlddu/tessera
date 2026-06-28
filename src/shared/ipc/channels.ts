@@ -35,7 +35,11 @@ export const IpcChannels = {
   },
   persistence: {
     save: 'tessera:persistence:save',
-    load: 'tessera:persistence:load'
+    /** renderer → main (sync): last-moment save on app quit (`beforeunload`). */
+    saveSync: 'tessera:persistence:save-sync',
+    load: 'tessera:persistence:load',
+    /** renderer → main: every persisted workspace snapshot (boot restore). */
+    list: 'tessera:persistence:list'
   },
   routing: {
     openUrlOnHost: 'tessera:routing:open-url-on-host',

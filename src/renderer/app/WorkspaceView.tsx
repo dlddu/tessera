@@ -26,7 +26,13 @@ import type { FocusDirection } from '@renderer/layout'
 import { KeymapOverlay, SurfacePicker } from '@renderer/components'
 import { SURFACE_META } from '@renderer/surfaces'
 import type { CreateWorkspaceResult } from '@shared/ipc'
+import { buildWorkspaceSnapshot } from '@shared/types'
 import type { LayoutSnapshot, SurfaceKind } from '@shared/types'
+
+/** Debounce window for coalescing rapid layout edits into one persist. */
+const SAVE_DEBOUNCE_MS = 500
+/** How long the "saved ✓" toast lingers after a successful persist. */
+const SAVED_TOAST_MS = 1600
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
@@ -82,6 +88,8 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
   const [pending, setPending] = useState<PendingPick | null>(null)
+  // Briefly shown after a successful layout persist ("저장됨 ✓").
+  const [saved, setSaved] = useState(false)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
   const paneBodies = useRef(createPaneBodyRegistry()).current
@@ -140,6 +148,54 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [engine, actions])
 
+  // Autosave the layout skeleton (AC1.5): persist a debounced snapshot on every
+  // layout change, flush synchronously on app quit so the last edit can't be
+  // lost in the debounce window, and flush once on unmount (e.g. a future
+  // workspace switch). Content is out of scope here — `buildWorkspaceSnapshot`
+  // carries an empty surfaces list.
+  useEffect(() => {
+    let debounce: ReturnType<typeof setTimeout> | null = null
+    let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+    const snapshotNow = () => buildWorkspaceSnapshot(workspace, engine.serialize(), Date.now())
+
+    const save = (withToast: boolean) => {
+      void window.tessera.persistence.save(snapshotNow()).then(() => {
+        if (!withToast) return
+        setSaved(true)
+        if (toastTimer) clearTimeout(toastTimer)
+        toastTimer = setTimeout(() => setSaved(false), SAVED_TOAST_MS)
+      })
+    }
+
+    const unsubscribe = engine.subscribe(() => {
+      if (debounce) clearTimeout(debounce)
+      debounce = setTimeout(() => save(true), SAVE_DEBOUNCE_MS)
+    })
+
+    // App quit / window close: persist synchronously (a promise can't be awaited
+    // in `beforeunload`) so an edit made moments before quitting still restores.
+    const onBeforeUnload = () => {
+      if (debounce) {
+        clearTimeout(debounce)
+        debounce = null
+      }
+      window.tessera.persistence.saveSync(snapshotNow())
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+
+    return () => {
+      unsubscribe()
+      window.removeEventListener('beforeunload', onBeforeUnload)
+      if (toastTimer) clearTimeout(toastTimer)
+      if (debounce) {
+        // A change is still pending — flush it (without a toast on the way out).
+        clearTimeout(debounce)
+        save(false)
+      }
+    }
+  }, [engine, workspace])
+
   const requestAddTab = useCallback((paneId: string) => {
     setPending({ action: 'add', paneId })
   }, [])
@@ -181,6 +237,15 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
         paneBodies={paneBodies}
       />
       <KeymapOverlay />
+      {saved ? (
+        <div className="toast ok" data-testid="layout-saved-toast">
+          <span className="ti">✓</span>
+          <div>
+            <div className="tt">레이아웃 저장됨</div>
+            <div className="td">창·패널·탭 골격이 저장되었습니다</div>
+          </div>
+        </div>
+      ) : null}
       {drag ? (
         <div className="toast" data-testid="tab-drag-toast">
           <span className="ti">⤷</span>

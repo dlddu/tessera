@@ -1,25 +1,43 @@
 /**
- * App shell. Holds the single-workspace state for M-J1-S1 / M-J1-S2:
+ * App shell. Holds the workspace collection and decides what the window shows:
  *
- *   - no workspace  → quiet empty state + ⌘N opens the creation dialog.
- *   - workspace set → single-pane surface (`P-single`) running a live host
- *     shell terminal in its first (and only) tab.
+ *   - no workspaces → quiet empty state + ⌘N opens the creation dialog.
+ *   - workspaces    → the active one's single live {@link WorkspaceView}; the
+ *     rest are kept as restored skeletons (data only) until the switcher (S8).
  *
- * Creation itself runs in the main process (`workspace.create`); this component
- * keeps the resulting `{ workspace, layout }` so the pane can bind its terminal
- * to the workspace + its default area.
+ * On boot we pull every persisted workspace (J1-S6) and activate the most
+ * recently saved one, seeding its engine from the restored layout skeleton.
+ * Creation still runs in the main process (`workspace.create`); its result is
+ * added to the collection and activated. Component *content* restore is out of
+ * scope here (J4/PRD-4) — only the window/pane/tab skeleton is rebuilt.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Window, WorkspaceDialog } from '@renderer/components'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { WorkspaceView } from './WorkspaceView'
 
 export function App() {
-  const [created, setCreated] = useState<CreateWorkspaceResult | null>(null)
+  // Every known workspace skeleton (`{ workspace, layout }`), active + restored.
+  const [workspaces, setWorkspaces] = useState<CreateWorkspaceResult[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   // Set once an update has finished downloading; surfaces the StatusBar restart
   // affordance. Holds the pending version string (for the tooltip).
   const [updateReady, setUpdateReady] = useState<string | null>(null)
+
+  // Boot restore: pull every persisted workspace and activate the most recently
+  // saved one. An empty list keeps the quiet empty state.
+  useEffect(() => {
+    let cancelled = false
+    window.tessera.persistence.list().then((snapshots) => {
+      if (cancelled || snapshots.length === 0) return
+      setWorkspaces(snapshots.map((s) => ({ workspace: s.workspace, layout: s.layout })))
+      setActiveId(snapshots[0]!.workspace.id) // list is newest-first
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -37,7 +55,8 @@ export function App() {
   }, [])
 
   function handleCreated(result: CreateWorkspaceResult) {
-    setCreated(result)
+    setWorkspaces((prev) => [result, ...prev.filter((w) => w.workspace.id !== result.workspace.id)])
+    setActiveId(result.workspace.id)
     setDialogOpen(false)
   }
 
@@ -45,8 +64,13 @@ export function App() {
     window.tessera.update.quitAndInstall()
   }
 
-  if (created) {
-    const { workspace } = created
+  const active = useMemo(
+    () => workspaces.find((w) => w.workspace.id === activeId) ?? null,
+    [workspaces, activeId]
+  )
+
+  if (active) {
+    const { workspace } = active
     return (
       <Window
         workspace={workspace.name}
@@ -56,7 +80,7 @@ export function App() {
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
       >
-        <WorkspaceView key={workspace.id} created={created} />
+        <WorkspaceView key={workspace.id} created={active} />
       </Window>
     )
   }

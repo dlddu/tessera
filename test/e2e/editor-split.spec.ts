@@ -1,7 +1,8 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { join } from 'node:path'
+import { test, expect } from '@playwright/test'
+import { launchApp } from './helpers'
 
 // M-J1-S3 + S4: from the single terminal pane, ⌘D opens the surface picker;
 // choosing Editor splits vertically into an editor pane (P-split-v, AC1.2). The
@@ -15,20 +16,23 @@ test('vertical split → scratch editor → Save As, then ⌘O opens a file', as
   const openPath = join(dir, 'existing.ts')
   await writeFile(openPath, 'export const OPENED = 42\n', 'utf8')
 
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     // Stub the host save/open dialogs to fixed paths.
-    await app.evaluate(({ dialog }, paths) => {
-      dialog.showSaveDialog = (async () => ({
-        canceled: false,
-        filePath: paths.savePath
-      })) as typeof dialog.showSaveDialog
-      dialog.showOpenDialog = (async () => ({
-        canceled: false,
-        filePaths: [paths.openPath]
-      })) as typeof dialog.showOpenDialog
-    }, { savePath, openPath })
+    await app.evaluate(
+      ({ dialog }, paths) => {
+        dialog.showSaveDialog = (async () => ({
+          canceled: false,
+          filePath: paths.savePath
+        })) as typeof dialog.showSaveDialog
+        dialog.showOpenDialog = (async () => ({
+          canceled: false,
+          filePaths: [paths.openPath]
+        })) as typeof dialog.showOpenDialog
+      },
+      { savePath, openPath }
+    )
 
     const window = await app.firstWindow()
 
