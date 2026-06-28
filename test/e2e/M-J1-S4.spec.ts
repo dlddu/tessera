@@ -1,5 +1,5 @@
-import { resolve } from 'node:path'
-import { test, expect, _electron as electron, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import { launchApp } from './helpers'
 
 // M-J1-S4: four component surfaces coexisting in a 2×2 mosaic (AC1.1·AC1.2).
 // Every surface-creation path runs through the shared picker: ⌘D / ⌘⇧D split the
@@ -19,7 +19,7 @@ async function createWorkspace(window: Page) {
 }
 
 test('reaches a 2×2 mosaic with all four surfaces via the picker', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()
@@ -69,7 +69,7 @@ test('reaches a 2×2 mosaic with all four surfaces via the picker', async () => 
 })
 
 test('the tab "+" opens the picker and adds the chosen surface as a tab', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()

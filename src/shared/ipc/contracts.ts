@@ -229,7 +229,11 @@ export interface SurfaceApi {
 
 export interface PersistenceApi {
   save(snapshot: WorkspaceStateSnapshot): Promise<void>
+  /** Synchronous last-moment save for app quit (renderer `beforeunload`). */
+  saveSync(snapshot: WorkspaceStateSnapshot): void
   load(req: LoadStateRequest): Promise<WorkspaceStateSnapshot | null>
+  /** Every persisted workspace snapshot, newest (max `savedAt`) first. */
+  list(): Promise<WorkspaceStateSnapshot[]>
 }
 
 export interface RoutingApi {

@@ -1,11 +1,11 @@
-import { resolve } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { launchApp } from './helpers'
 
 // Smoke e2e: the app boots into the empty (no-workspace) state and the status
 // bar shows the "워크스페이스 없음" prompt. Requires `npm run build` first —
 // launches the bundled main entry.
 test('app launches and shows the empty-state status bar', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()

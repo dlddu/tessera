@@ -56,7 +56,11 @@ const api: TesseraApi = {
   },
   persistence: {
     save: (snapshot) => ipcRenderer.invoke(IpcChannels.persistence.save, snapshot),
-    load: (req) => ipcRenderer.invoke(IpcChannels.persistence.load, req)
+    saveSync: (snapshot) => {
+      ipcRenderer.sendSync(IpcChannels.persistence.saveSync, snapshot)
+    },
+    load: (req) => ipcRenderer.invoke(IpcChannels.persistence.load, req),
+    list: () => ipcRenderer.invoke(IpcChannels.persistence.list)
   },
   routing: {
     openUrlOnHost: (req) => ipcRenderer.invoke(IpcChannels.routing.openUrlOnHost, req),

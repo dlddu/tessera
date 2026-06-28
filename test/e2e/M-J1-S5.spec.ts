@@ -1,5 +1,5 @@
-import { resolve } from 'node:path'
-import { test, expect, _electron as electron, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import { launchApp } from './helpers'
 
 // M-J1-S5: tab drag between panes (AC1.3) + keyboard pane focus / tab switch /
 // tab move (AC1.4), on top of the keep-alive SurfaceHost. The headline property
@@ -35,7 +35,7 @@ async function dragTabOnto(
 }
 
 test('dragging a tab to another pane moves it and keeps its live PTY', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()
@@ -83,7 +83,7 @@ test('dragging a tab to another pane moves it and keeps its live PTY', async () 
 })
 
 test('keyboard drives pane focus, tab switch, and cross-pane tab move (AC1.4)', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()
@@ -128,7 +128,7 @@ test('keyboard drives pane focus, tab switch, and cross-pane tab move (AC1.4)', 
 })
 
 test('clicking a pane surface (not its tab bar) focuses that pane', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()

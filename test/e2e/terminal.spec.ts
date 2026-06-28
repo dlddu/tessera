@@ -1,5 +1,5 @@
-import { resolve } from 'node:path'
-import { test, expect, _electron as electron } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { launchApp } from './helpers'
 
 // Live host-shell terminal (M-J1-S2): create a workspace, then confirm the
 // first (single) pane mounts a real terminal bound to a host PTY — it shows the
@@ -8,7 +8,7 @@ import { test, expect, _electron as electron } from '@playwright/test'
 // Real PTYs are inherently timing-sensitive, so this favors generous waits and
 // asserts terminal *visibility + output* before exercising input.
 test('first tab runs a live host shell terminal', async () => {
-  const app = await electron.launch({ args: [resolve('out/main/index.js')] })
+  const app = await launchApp()
 
   try {
     const window = await app.firstWindow()

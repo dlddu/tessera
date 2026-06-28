@@ -335,6 +335,22 @@ describe('LayoutEngine serialize/restore', () => {
     expect(restored.serialize()).toEqual(snap)
   })
 
+  it('re-seeds from a serialized snapshot via the constructor (boot restore path)', () => {
+    // The App seeds a fresh engine from the restored layout skeleton (J1-S6);
+    // a serialize → new LayoutEngine(snap) → serialize round-trip must be exact.
+    const engine = new LayoutEngine(singlePane())
+    engine.splitVertical('P0', 'editor') // P0 | editor
+    engine.addTab('P0', 'browser') // P0: [terminal, browser]
+    const snap = engine.serialize()
+
+    const reseeded = new LayoutEngine(snap)
+    expect(reseeded.serialize()).toEqual(snap)
+    // The skeleton (not just a deep-equal blob) survives: two panes, three tabs.
+    const panes = collectPanes(reseeded.serialize().root)
+    expect(panes).toHaveLength(2)
+    expect(panes.flatMap((p) => p.tabs)).toHaveLength(3)
+  })
+
   it('notifies subscribers on mutation and stops after unsubscribe', () => {
     const engine = new LayoutEngine(singlePane())
     let notified = 0
