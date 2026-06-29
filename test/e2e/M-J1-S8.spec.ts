@@ -110,3 +110,99 @@ test('switches workspaces by mouse and keyboard, preserving each layout and stat
     await app.close()
   }
 })
+
+test('closes workspaces from the rail — background, active→neighbor, last→empty (AC1.7)', async () => {
+  const app = await launchApp(freshUserDataDir())
+
+  try {
+    const window = await app.firstWindow()
+
+    // Three workspaces. Newest-first, so the rail is [c, b, a] and c is active.
+    await expect(window.getByTestId('empty-state')).toBeVisible()
+    await createWorkspace(window, () => window.keyboard.press('ControlOrMeta+n'), 'close-a')
+    await createWorkspace(window, () => window.getByTestId('workspace-rail-new').click(), 'close-b')
+    await createWorkspace(window, () => window.getByTestId('workspace-rail-new').click(), 'close-c')
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('close-c')
+    await expect(window.getByTestId('workspace-rail-item-1')).toContainText('close-b')
+    await expect(window.getByTestId('workspace-rail-item-2')).toContainText('close-a')
+    await expect(window.getByTestId('workspace-rail-item-0')).toHaveClass(/active/)
+
+    // Close a *background* workspace (close-a, row 2): the row goes away and the
+    // active one (close-c) is untouched.
+    await window.getByTestId('workspace-rail-close-2').click()
+    await expect(window.getByTestId('workspace-rail-item-2')).toHaveCount(0)
+    await expect(window.getByTestId('workspace-rail')).not.toContainText('close-a')
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('close-c')
+    await expect(window.getByTestId('workspace-rail-item-0')).toHaveClass(/active/)
+    await expect(window.locator('[data-testid="workspace-surface"]')).toHaveCount(2)
+
+    // Close the *active* workspace (close-c, row 0): focus falls to a neighbor
+    // (close-b), which becomes the visible, highlighted row.
+    await window.getByTestId('workspace-rail-close-0').click()
+    await expect(window.getByTestId('workspace-rail-item-1')).toHaveCount(0)
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('close-b')
+    await expect(window.getByTestId('workspace-rail-item-0')).toHaveClass(/active/)
+    await expect(window.locator('[data-testid="workspace-surface"]:not([hidden])')).toHaveCount(1)
+
+    // Close the *last* workspace: back to the quiet empty state (no rail).
+    await window.getByTestId('workspace-rail-close-0').click()
+    await expect(window.getByTestId('empty-state')).toBeVisible()
+    await expect(window.getByTestId('workspace-rail')).toHaveCount(0)
+    await expect(window.locator('[data-testid="workspace-surface"]')).toHaveCount(0)
+  } finally {
+    await app.close()
+  }
+})
+
+test('a closed workspace is gone for good — its snapshot does not return after a restart (AC1.7)', async () => {
+  const userDataDir = freshUserDataDir()
+
+  // ---- First launch: create two (each persists on create), then close one. ----
+  const first = await launchApp(userDataDir)
+  try {
+    const window = await first.firstWindow()
+    await expect(window.getByTestId('empty-state')).toBeVisible()
+    await createWorkspace(window, () => window.keyboard.press('ControlOrMeta+n'), 'keep-me')
+    await createWorkspace(window, () => window.getByTestId('workspace-rail-new').click(), 'drop-me')
+
+    // drop-me is newest (row 0) and active; close it → keep-me is all that's left.
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('drop-me')
+    await window.getByTestId('workspace-rail-close-0').click()
+    await expect(window.getByTestId('workspace-rail-item-1')).toHaveCount(0)
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('keep-me')
+
+    // Close is fire-and-forget; wait until the main process has actually removed
+    // drop-me's snapshot from disk (exactly one .json left) before we quit — no
+    // arbitrary sleep, we poll the real userData dir.
+    await expect
+      .poll(
+        () =>
+          first.evaluate(async ({ app }) => {
+            const { readdir } = await import('node:fs/promises')
+            const { join } = await import('node:path')
+            try {
+              const files: string[] = await readdir(join(app.getPath('userData'), 'workspaces'))
+              return files.filter((f) => f.endsWith('.json')).length
+            } catch {
+              return 0
+            }
+          }),
+        { timeout: 5_000 }
+      )
+      .toBe(1)
+  } finally {
+    await first.close()
+  }
+
+  // ---- Second launch: same userData → only keep-me restores; drop-me is gone. ----
+  const second = await launchApp(userDataDir)
+  try {
+    const window = await second.firstWindow()
+    await expect(window.getByTestId('empty-state')).toHaveCount(0)
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('keep-me')
+    await expect(window.getByTestId('workspace-rail-item-1')).toHaveCount(0)
+    await expect(window.getByTestId('workspace-rail')).not.toContainText('drop-me')
+  } finally {
+    await second.close()
+  }
+})

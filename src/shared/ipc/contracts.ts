@@ -78,6 +78,11 @@ export interface CreateWorkspaceResult {
   layout: LayoutSnapshot
 }
 
+export interface CloseWorkspaceRequest {
+  /** The workspace to close: its on-disk snapshot is deleted and its backend dropped. */
+  workspaceId: string
+}
+
 export interface PickDirectoryResult {
   /** Absolute path the user chose, or null if the picker was cancelled. */
   path: string | null
@@ -205,6 +210,8 @@ export interface BackendApi {
 
 export interface WorkspaceApi {
   create(req: CreateWorkspaceRequest): Promise<CreateWorkspaceResult>
+  /** Close a workspace: permanently delete its snapshot and drop its backend (AC1.7). */
+  close(req: CloseWorkspaceRequest): Promise<void>
   pickDirectory(): Promise<PickDirectoryResult>
   /** Native file picker for opening a host file in the editor (AC2.2). */
   pickFile(): Promise<PickFileResult>

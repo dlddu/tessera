@@ -87,6 +87,20 @@ export function App() {
     setDialogOpen(false)
   }
 
+  // Close a workspace (AC1.7): drop it from the list — which unmounts its view,
+  // tearing down its surfaces/PTYs — and permanently delete its on-disk snapshot
+  // (+ backend) so it won't restore. If the closed one was visible, fall to a
+  // neighbor (next, else previous); closing the last one drops to the empty state.
+  function handleClose(id: string) {
+    const idx = workspaces.findIndex((w) => w.workspace.id === id)
+    const rest = workspaces.filter((w) => w.workspace.id !== id)
+    setWorkspaces(rest)
+    if (activeId === id) {
+      setActiveId(rest.length === 0 ? null : rest[Math.min(idx, rest.length - 1)]!.workspace.id)
+    }
+    void window.tessera.workspace.close({ workspaceId: id })
+  }
+
   function handleRestart() {
     window.tessera.update.quitAndInstall()
   }
@@ -125,6 +139,7 @@ export function App() {
             activeId={activeWs.workspace.id}
             onSelect={setActiveId}
             onNew={() => setDialogOpen(true)}
+            onClose={handleClose}
           />
         }
         overlay={dialog}

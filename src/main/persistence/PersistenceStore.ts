@@ -14,7 +14,7 @@
  * process passes `app.getPath('userData')`.
  */
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
-import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { WORKSPACE_SNAPSHOT_VERSION, migrateWorkspaceSnapshot } from '@shared/types'
 import type { WorkspaceStateSnapshot } from '@shared/types'
@@ -120,6 +120,20 @@ export class PersistenceStore {
       return null // ENOENT or otherwise unreadable — nothing to restore.
     }
     return parseSnapshot(raw)
+  }
+
+  /**
+   * Permanently delete a workspace's persisted snapshot (workspace close,
+   * AC1.7) so it does not come back on the next boot restore. Idempotent: an
+   * already-absent file (never saved, or closed twice) resolves rather than
+   * throwing.
+   */
+  async delete(workspaceId: string): Promise<void> {
+    try {
+      await rm(this.fileFor(workspaceId))
+    } catch {
+      // ENOENT or otherwise already gone — closing leaves nothing behind either way.
+    }
   }
 
   /**
