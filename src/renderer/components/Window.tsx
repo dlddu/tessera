@@ -25,6 +25,8 @@ interface WindowProps {
   updateReadyVersion?: string | null
   /** Invoked when the user clicks the status-bar "restart to update" affordance. */
   onUpdateRestart?: (() => void) | undefined
+  /** Whether a pane is zoomed to fill the window — shows the title-bar badge (AC1.6). */
+  zoomed?: boolean
 }
 
 export function Window({
@@ -35,7 +37,8 @@ export function Window({
   children,
   overlay,
   updateReadyVersion = null,
-  onUpdateRestart
+  onUpdateRestart,
+  zoomed = false
 }: WindowProps) {
   const empty = workspace === null
   return (
@@ -52,6 +55,11 @@ export function Window({
           )}
         </div>
         <div className="right">
+          {zoomed ? (
+            <span className="badge zoom" data-testid="zoom-badge">
+              <span className="led" />⤢ 전체화면
+            </span>
+          ) : null}
           <span className="badge host">
             <span className="led" />
             {backendBadge}

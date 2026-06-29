@@ -41,6 +41,15 @@ export function KeymapOverlay() {
         </span>{' '}
         <span className="faint">또는 드래그</span>
       </span>
+      <span className="row-gap">
+        <span className="muted">전체화면</span>{' '}
+        <span className="kcrow">
+          <span className="kc">⇧⌘</span>
+          <span className="plus">+</span>
+          <span className="kc">⏎</span>
+        </span>{' '}
+        <span className="faint">복귀 Esc</span>
+      </span>
     </div>
   )
 }

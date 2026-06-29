@@ -16,17 +16,19 @@
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { WORKSPACE_SNAPSHOT_VERSION } from '@shared/types'
+import { WORKSPACE_SNAPSHOT_VERSION, migrateWorkspaceSnapshot } from '@shared/types'
 import type { WorkspaceStateSnapshot } from '@shared/types'
 
 /** Suffix every persisted workspace file carries. */
 const SNAPSHOT_EXT = '.json'
 
 /**
- * Accept only well-formed snapshots written under the current schema version.
- * Anything else (corrupt JSON shape, an older/newer version we can't restore)
- * is treated as absent — the version guard intentionally discards stale files
- * rather than migrating them (migration is J4's concern).
+ * Accept only well-formed snapshots at the current schema version. Older files
+ * are upgraded by {@link migrateWorkspaceSnapshot} before they reach here (see
+ * {@link parseSnapshot}); anything still off-version, or structurally garbled,
+ * is treated as absent. The check stays at the snapshot envelope (version,
+ * workspace identity, a layout object) — it deliberately does not reach inside
+ * `layout`, which the engine reconstructs and tolerates field-by-field.
  */
 function isRestorable(value: unknown): value is WorkspaceStateSnapshot {
   if (typeof value !== 'object' || value === null) return false
@@ -51,7 +53,11 @@ function isRestorable(value: unknown): value is WorkspaceStateSnapshot {
   )
 }
 
-/** Parse raw JSON into a restorable snapshot, or null if it isn't one. */
+/**
+ * Parse raw JSON into a restorable snapshot, or null if it isn't one. Older
+ * (but recognized) versions are migrated up to the current schema first, then
+ * validated — so a J1-S6 layout loads under J1-S7 with zoom defaulted off.
+ */
 function parseSnapshot(raw: string): WorkspaceStateSnapshot | null {
   let value: unknown
   try {
@@ -59,7 +65,8 @@ function parseSnapshot(raw: string): WorkspaceStateSnapshot | null {
   } catch {
     return null
   }
-  return isRestorable(value) ? value : null
+  const migrated = migrateWorkspaceSnapshot(value)
+  return migrated !== null && isRestorable(migrated) ? migrated : null
 }
 
 export class PersistenceStore {

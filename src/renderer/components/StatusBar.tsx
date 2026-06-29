@@ -112,6 +112,14 @@ export function StatusBar({
             <span className="kc">]</span>
           </span>
         </span>
+        <span>
+          <b>전체화면</b>{' '}
+          <span className="kcrow">
+            <span className="kc">⇧⌘</span>
+            <span className="plus">+</span>
+            <span className="kc">⏎</span>
+          </span>
+        </span>
       </div>
       <UpdateAffordance version={updateReadyVersion} onRestart={onUpdateRestart} />
       <div className="clock">—:—</div>

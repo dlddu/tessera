@@ -31,6 +31,7 @@ interface LayoutViewProps {
 
 interface RenderContext {
   focusedPaneId: string | null
+  zoomedPaneId: string | null
   workspaceName: string
   actions: LayoutActions
   paneBodies: PaneBodyRegistry
@@ -44,10 +45,16 @@ function flexStyle(size: number | undefined): CSSProperties {
 }
 
 function renderPane(pane: Extract<LayoutNode, { type: 'pane' }>, ctx: RenderContext): ReactNode {
+  // Zoom (AC1.6): the zoomed pane fills the surface; every other pane is hidden
+  // (but stays mounted, so its surface keeps its live PTY/buffer — keep-alive).
+  const zoomed = ctx.zoomedPaneId === pane.id
+  const zoomHidden = ctx.zoomedPaneId !== null && !zoomed
   return (
     <Pane
       node={pane}
       focused={ctx.focusedPaneId === pane.id}
+      zoomed={zoomed}
+      zoomHidden={zoomHidden}
       workspaceName={ctx.workspaceName}
       actions={ctx.actions}
       paneBodies={ctx.paneBodies}
@@ -120,6 +127,7 @@ export function LayoutView({
 }: LayoutViewProps) {
   const ctx: RenderContext = {
     focusedPaneId: snapshot.focusedPaneId,
+    zoomedPaneId: snapshot.zoomedPaneId,
     workspaceName,
     actions,
     paneBodies,

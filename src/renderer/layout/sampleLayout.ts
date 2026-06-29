@@ -20,6 +20,7 @@ export function buildInitialLayout(): LayoutSnapshot {
     version: 1,
     workspaceId: 'ws-sample',
     focusedPaneId: 'pane-claude',
+    zoomedPaneId: null,
     areas: [{ id: 'area-default', kind: 'default', backend: 'host' }],
     root: {
       type: 'split',

@@ -24,6 +24,10 @@ export function App() {
   // Set once an update has finished downloading; surfaces the StatusBar restart
   // affordance. Holds the pending version string (for the tooltip).
   const [updateReady, setUpdateReady] = useState<string | null>(null)
+  // Whether the active workspace currently has a pane zoomed (AC1.6). Lifted
+  // here so the title-bar badge (drawn by the surrounding Window) can reflect
+  // it; the active WorkspaceView reports its zoom state up via onZoomChange.
+  const [zoomed, setZoomed] = useState(false)
 
   // Boot restore: pull every persisted workspace and activate the most recently
   // saved one. An empty list keeps the quiet empty state.
@@ -79,8 +83,9 @@ export function App() {
         backendLabel="host"
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
+        zoomed={zoomed}
       >
-        <WorkspaceView key={workspace.id} created={active} />
+        <WorkspaceView key={workspace.id} created={active} onZoomChange={setZoomed} />
       </Window>
     )
   }

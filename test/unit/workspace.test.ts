@@ -133,17 +133,69 @@ describe('PersistenceStore.load', () => {
     expect(await store.load('ws-bad')).toBeNull()
   })
 
-  it('discards a snapshot written under an unsupported schema version', async () => {
+  it('discards a snapshot whose version has no migration path', async () => {
     const { snapshot } = buildWorkspace({ name: 'old', cwd: '/tmp/old', backendKind: 'host' })
     const store = new PersistenceStore(baseDir)
     await mkdir(join(baseDir, 'workspaces'), { recursive: true })
+    // version 1 predates the migrator chain (which starts at v2) → unrecoverable.
     await writeFile(
       join(baseDir, 'workspaces', `${snapshot.workspaceId}.json`),
-      JSON.stringify({ ...snapshot, version: WORKSPACE_SNAPSHOT_VERSION - 1 }),
+      JSON.stringify({ ...snapshot, version: 1 }),
       'utf8'
     )
 
     expect(await store.load(snapshot.workspaceId)).toBeNull()
+  })
+
+  it('discards a snapshot from a newer, unknown schema version', async () => {
+    const { snapshot } = buildWorkspace({ name: 'future', cwd: '/tmp/future', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+    await mkdir(join(baseDir, 'workspaces'), { recursive: true })
+    await writeFile(
+      join(baseDir, 'workspaces', `${snapshot.workspaceId}.json`),
+      JSON.stringify({ ...snapshot, version: WORKSPACE_SNAPSHOT_VERSION + 1 }),
+      'utf8'
+    )
+
+    expect(await store.load(snapshot.workspaceId)).toBeNull()
+  })
+
+  it('migrates a pre-zoom (v2) snapshot, seeding zoomedPaneId = null', async () => {
+    const { snapshot } = buildWorkspace({ name: 'v2', cwd: '/tmp/v2', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+    await mkdir(join(baseDir, 'workspaces'), { recursive: true })
+
+    // A genuine J1-S6 (v2) file: no zoom field anywhere, version 2.
+    const { zoomedPaneId: _omit, ...layoutWithoutZoom } = snapshot.layout
+    const legacy = { ...snapshot, version: 2, layout: layoutWithoutZoom }
+    await writeFile(
+      join(baseDir, 'workspaces', `${snapshot.workspaceId}.json`),
+      JSON.stringify(legacy),
+      'utf8'
+    )
+
+    const loaded = await store.load(snapshot.workspaceId)
+    expect(loaded).not.toBeNull()
+    // Upgraded to the current schema, with zoom defaulted off and the layout
+    // skeleton otherwise preserved.
+    expect(loaded!.version).toBe(WORKSPACE_SNAPSHOT_VERSION)
+    expect(loaded!.layout.zoomedPaneId).toBeNull()
+    expect(loaded!.layout.root).toEqual(snapshot.layout.root)
+    expect(loaded!.workspace).toEqual(snapshot.workspace)
+  })
+
+  it('preserves an active zoom across a current-version round-trip (restart)', async () => {
+    const { snapshot } = buildWorkspace({ name: 'zoom', cwd: '/tmp/zoom', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+    // Persist a snapshot with a pane zoomed (the focused single pane).
+    const zoomed = {
+      ...snapshot,
+      layout: { ...snapshot.layout, zoomedPaneId: snapshot.layout.focusedPaneId }
+    }
+    await store.save(zoomed)
+
+    const loaded = await store.load(snapshot.workspaceId)
+    expect(loaded!.layout.zoomedPaneId).toBe(snapshot.layout.focusedPaneId)
   })
 })
 

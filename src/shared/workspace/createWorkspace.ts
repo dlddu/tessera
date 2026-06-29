@@ -79,6 +79,7 @@ export function buildWorkspace(input: BuildWorkspaceInput): BuildWorkspaceResult
     version: LAYOUT_VERSION,
     workspaceId: id,
     focusedPaneId: 'P-single',
+    zoomedPaneId: null,
     areas: [{ id: areaId, kind: 'default', backend: input.backendKind }],
     root: {
       type: 'pane',

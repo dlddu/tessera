@@ -81,6 +81,12 @@ body{
 .pane.focused{border-color:var(--line)}
 .pane.focused::after{content:""; position:absolute; inset:0; border:1px solid color-mix(in srgb,var(--stripe) 55%, transparent); border-radius:var(--r-tile); pointer-events:none; z-index:2}
 .pane.dim{filter:saturate(.5) brightness(.72)}
+/* pane zoom (전체화면, J1-S7 / AC1.6): the zoomed pane fills the whole surface
+   (absolute over the grout, escaping its split's flex flow); every other pane
+   is hidden but kept mounted so its surface — and any live PTY/buffer —
+   survives the zoom (keep-alive). Esc / ⇧⌘⏎ restores the mosaic. */
+.pane.zoomed{position:absolute; inset:0; z-index:6}
+.pane.zoom-hidden{display:none}
 
 /* ----------------------------------------------------------- C-tabbar / C-tab */
 .tabbar{height:30px; flex:0 0 30px; background:var(--tile-raise); border-bottom:1px solid var(--line-soft);
@@ -225,6 +231,8 @@ body{
 .badge.ro .led{background:var(--warn)}
 .badge.down{color:var(--danger); border-color:color-mix(in srgb,var(--danger) 40%,transparent)}
 .badge.down .led{background:var(--danger)}
+.badge.zoom{color:var(--brand); border-color:color-mix(in srgb,var(--brand) 45%,transparent)}
+.badge.zoom .led{background:var(--brand)}
 
 /* ============================================================ C-keycap */
 .kc{display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; padding:0 5px;

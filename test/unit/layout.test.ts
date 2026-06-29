@@ -18,6 +18,7 @@ function singlePane(): LayoutSnapshot {
     version: 1,
     workspaceId: 'ws-test',
     focusedPaneId: 'P0',
+    zoomedPaneId: null,
     areas: [{ id: 'area-default', kind: 'default', backend: 'host' }],
     root: {
       type: 'pane',
@@ -321,6 +322,130 @@ describe('LayoutEngine tab keyboard helpers (M-J1-S5)', () => {
     const pane = collectPanes(engine.serialize().root)[0]!
     expect(pane.tabs.some((t) => t.id === second)).toBe(false)
     expect(pane.tabs).toHaveLength(1)
+  })
+})
+
+describe('LayoutEngine zoom (AC1.6)', () => {
+  it('toggleZoom zooms the focused pane, then unzooms', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')! // focus follows to right
+
+    engine.toggleZoom()
+    expect(engine.serialize().zoomedPaneId).toBe(rightId)
+    expect(engine.zoomedPaneId).toBe(rightId)
+
+    engine.toggleZoom()
+    expect(engine.serialize().zoomedPaneId).toBeNull()
+  })
+
+  it('zoom does not disturb the split / tab skeleton', () => {
+    const engine = new LayoutEngine(singlePane())
+    engine.splitVertical('P0', 'editor')
+    const before = engine.serialize()
+
+    engine.toggleZoom()
+    const zoomed = engine.serialize()
+    // Only zoomedPaneId changed — root tree, sizes, areas, focus are untouched.
+    expect(zoomed.root).toEqual(before.root)
+    expect(zoomed.areas).toEqual(before.areas)
+    expect(zoomed.focusedPaneId).toBe(before.focusedPaneId)
+    expect((zoomed.root as SplitNode).sizes).toEqual([0.5, 0.5])
+  })
+
+  it('zoom follows focus: focusDirection re-zooms the new pane', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')! // P0 | right, right focused
+
+    engine.toggleZoom()
+    expect(engine.zoomedPaneId).toBe(rightId)
+
+    engine.focusDirection('left') // focus → P0; zoom follows
+    expect(engine.serialize().focusedPaneId).toBe('P0')
+    expect(engine.zoomedPaneId).toBe('P0')
+  })
+
+  it('zoom follows focus on click (focusPane)', () => {
+    const engine = new LayoutEngine(singlePane())
+    engine.splitVertical('P0', 'editor') // P0 | right, right focused
+    engine.toggleZoom() // zooms right (focused)
+
+    engine.focusPane('P0')
+    expect(engine.zoomedPaneId).toBe('P0')
+  })
+
+  it('focusPane without zoom leaves zoom null', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')!
+    engine.focusPane('P0')
+    expect(engine.zoomedPaneId).toBeNull()
+    engine.focusPane(rightId)
+    expect(engine.zoomedPaneId).toBeNull()
+  })
+
+  it('clearZoom leaves zoom (Esc) and is a no-op when unzoomed', () => {
+    const engine = new LayoutEngine(singlePane())
+    engine.splitVertical('P0', 'editor')
+    engine.toggleZoom()
+    expect(engine.zoomedPaneId).not.toBeNull()
+
+    engine.clearZoom()
+    expect(engine.zoomedPaneId).toBeNull()
+
+    let notified = 0
+    const off = engine.subscribe(() => notified++)
+    engine.clearZoom() // already unzoomed → no commit, no notify
+    expect(notified).toBe(0)
+    off()
+  })
+
+  it('toggleZoom is a no-op when nothing is focused', () => {
+    const snap = singlePane()
+    snap.focusedPaneId = null
+    const engine = new LayoutEngine(snap)
+    engine.toggleZoom()
+    expect(engine.zoomedPaneId).toBeNull()
+  })
+
+  it('closing the zoomed pane drops zoom (self-heal)', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')!
+    const rightTab = collectPanes(engine.serialize().root).find(
+      (p) => p.id === rightId
+    )!.activeTabId!
+    engine.toggleZoom() // zoom the right pane
+    expect(engine.zoomedPaneId).toBe(rightId)
+
+    engine.closeTab(rightTab) // removes the right pane and collapses the split
+    const snap = engine.serialize()
+    expect(snap.root.type).toBe('pane')
+    expect(snap.zoomedPaneId).toBeNull()
+  })
+
+  it('moving the zoomed pane to empty (collapse) drops zoom', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')! // P0 | right(editor)
+    engine.focusPane(rightId)
+    engine.toggleZoom()
+    expect(engine.zoomedPaneId).toBe(rightId)
+
+    // Move the right pane's only tab into P0 → right pane drains and collapses.
+    const rightTab = collectPanes(engine.serialize().root).find(
+      (p) => p.id === rightId
+    )!.activeTabId!
+    engine.moveTab(rightTab, 'P0')
+    expect(engine.serialize().zoomedPaneId).toBeNull()
+  })
+
+  it('zoom survives serialize → restore (persistence round-trip)', () => {
+    const engine = new LayoutEngine(singlePane())
+    const rightId = engine.splitVertical('P0', 'editor')!
+    engine.toggleZoom()
+    const snap = engine.serialize()
+    expect(snap.zoomedPaneId).toBe(rightId)
+
+    const reseeded = new LayoutEngine(snap)
+    expect(reseeded.serialize()).toEqual(snap)
+    expect(reseeded.zoomedPaneId).toBe(rightId)
   })
 })
 

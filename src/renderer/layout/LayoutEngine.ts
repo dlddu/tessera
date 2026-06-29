@@ -276,11 +276,32 @@ export class LayoutEngine {
     return this.snapshot.focusedPaneId
   }
 
+  get zoomedPaneId(): string | null {
+    return this.snapshot.zoomedPaneId
+  }
+
   private commit(next: LayoutSnapshot): void {
-    this.snapshot = next
+    // Zoom self-heal: a zoomed pane that was closed/collapsed out of the tree
+    // can't stay zoomed (AC1.6). This guard covers every structural mutation —
+    // closeTab, moveTab, etc. — in one place.
+    const zoomedPaneId =
+      next.zoomedPaneId !== null && !findPane(next.root, next.zoomedPaneId)
+        ? null
+        : next.zoomedPaneId
+    this.snapshot = zoomedPaneId === next.zoomedPaneId ? next : { ...next, zoomedPaneId }
     for (const listener of this.listeners) {
       listener()
     }
+  }
+
+  /**
+   * A focus change that carries zoom along with it: while zoom is active it
+   * always tracks the focused pane (zoom-follows-focus, AC1.6), so moving focus
+   * to a neighbor re-zooms that neighbor rather than dropping zoom.
+   */
+  private withFocus(paneId: string): LayoutSnapshot {
+    const zoomedPaneId = this.snapshot.zoomedPaneId !== null ? paneId : null
+    return { ...this.snapshot, focusedPaneId: paneId, zoomedPaneId }
   }
 
   /**
@@ -444,19 +465,36 @@ export class LayoutEngine {
     this.commit({ ...this.snapshot, root })
   }
 
-  /** Focus a pane by id (click-to-focus). */
+  /** Focus a pane by id (click-to-focus); zoom follows if active (AC1.6). */
   focusPane(paneId: string): void {
     if (this.snapshot.focusedPaneId === paneId) return
     if (!findPane(this.snapshot.root, paneId)) return
-    this.commit({ ...this.snapshot, focusedPaneId: paneId })
+    this.commit(this.withFocus(paneId))
   }
 
   /** Move focus to the nearest pane in `dir` (keyboard focus, AC1.4). */
   focusDirection(dir: FocusDirection): void {
     const next = this.paneInDirection(dir)
     if (next) {
-      this.commit({ ...this.snapshot, focusedPaneId: next })
+      this.commit(this.withFocus(next))
     }
+  }
+
+  /**
+   * Toggle window-filling zoom on the focused pane (AC1.6, ⇧⌘⏎). Zooms the
+   * focused pane when none is zoomed, and un-zooms otherwise. No-op when nothing
+   * is focused (there's no pane to zoom).
+   */
+  toggleZoom(): void {
+    const next = this.snapshot.zoomedPaneId !== null ? null : this.snapshot.focusedPaneId
+    if (next === this.snapshot.zoomedPaneId) return
+    this.commit({ ...this.snapshot, zoomedPaneId: next })
+  }
+
+  /** Leave zoom, restoring the full pane mosaic (AC1.6, Esc). No-op if unzoomed. */
+  clearZoom(): void {
+    if (this.snapshot.zoomedPaneId === null) return
+    this.commit({ ...this.snapshot, zoomedPaneId: null })
   }
 
   /**
