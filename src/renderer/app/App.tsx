@@ -154,7 +154,12 @@ export function App() {
               data-active={isActive ? 'true' : undefined}
               hidden={!isActive}
             >
-              <WorkspaceView created={w} active={isActive} onZoomChange={setZoomed} />
+              <WorkspaceView
+                created={w}
+                active={isActive}
+                onClose={handleClose}
+                onZoomChange={setZoomed}
+              />
             </div>
           )
         })}

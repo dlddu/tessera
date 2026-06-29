@@ -9,7 +9,8 @@
  * paths run through the shared {@link SurfacePicker} (M-J1-S4, AC1.1): ⌘D / ⌘⇧D
  * split the focused pane, ⌘T adds a tab, the pane "+" adds a tab. The S5 keys
  * drive the layout without a mouse (AC1.4): ⌘⌥+arrows move focus, ⌘⇧[ / ⌘⇧]
- * switch tabs, ⌃⌘+arrows move the active tab across panes, and ⌘W closes it.
+ * switch tabs, ⌃⌘+arrows move the active tab across panes, and ⌘W closes it —
+ * closing the last tab closes the whole workspace, and ⇧⌘W closes it outright.
  * Tabs can also be dragged between panes (AC1.3), and clicking a pane — its tab
  * bar or its surface — focuses it. All keys are captured before the focused
  * surface so xterm/CodeMirror can't swallow them; ⌘S / ⌘O stay with the editor.
@@ -22,7 +23,7 @@
  * under its own id, so keeping them all live is correct (every workspace's last
  * edit is flushed on quit).
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   LayoutView,
   SurfaceHost,
@@ -30,12 +31,12 @@ import {
   useLayout,
   useTabDrag
 } from '@renderer/layout'
-import type { FocusDirection } from '@renderer/layout'
+import type { FocusDirection, LayoutActions } from '@renderer/layout'
 import { KeymapOverlay, SurfacePicker } from '@renderer/components'
 import { SURFACE_META } from '@renderer/surfaces'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { buildWorkspaceSnapshot } from '@shared/types'
-import type { LayoutSnapshot, SurfaceKind } from '@shared/types'
+import type { LayoutNode, LayoutSnapshot, SurfaceKind } from '@shared/types'
 
 /** Debounce window for coalescing rapid layout edits into one persist. */
 const SAVE_DEBOUNCE_MS = 500
@@ -49,6 +50,12 @@ interface WorkspaceViewProps {
    * Gates the global keymap and zoom report so hidden workspaces stay inert.
    */
   active: boolean
+  /**
+   * Close this workspace (permanently). Invoked by ⇧⌘W, and when closing the
+   * last remaining tab — which would otherwise leave an empty workspace — turns
+   * into closing the workspace itself (AC1.7).
+   */
+  onClose: (id: string) => void
   /** Report zoom state up so the window title-bar badge can reflect it (AC1.6). */
   onZoomChange?: (zoomed: boolean) => void
 }
@@ -63,6 +70,13 @@ const PICKER_TITLE: Record<PendingPick['action'], string> = {
   add: '새 탭',
   'split-v': '세로 분할',
   'split-h': '가로 분할'
+}
+
+/** Total number of tabs across the whole layout tree. */
+function countTabs(node: LayoutNode): number {
+  return node.type === 'pane'
+    ? node.tabs.length
+    : node.children.reduce((sum, child) => sum + countTabs(child), 0)
 }
 
 /** Map an arrow key to a focus direction (S5 keyboard), or `null`. */
@@ -99,7 +113,7 @@ function paneLabel(snapshot: LayoutSnapshot, paneId: string | null): string {
   return 'pane'
 }
 
-export function WorkspaceView({ created, active, onZoomChange }: WorkspaceViewProps) {
+export function WorkspaceView({ created, active, onClose, onZoomChange }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
   const [pending, setPending] = useState<PendingPick | null>(null)
@@ -109,6 +123,28 @@ export function WorkspaceView({ created, active, onZoomChange }: WorkspaceViewPr
   // surfaces into — created once for this workspace.
   const paneBodies = useRef(createPaneBodyRegistry()).current
   const { drag, onTabPointerDown } = useTabDrag(actions)
+
+  // Closing the *last* surface closes the workspace instead of leaving it empty:
+  // when only one tab remains, a tab-close (⌘W or the tab ×) deletes the
+  // workspace (AC1.7). `layoutActions` swaps the two close ops for this guarded
+  // pair so both the keymap and the pane × honour it; everything else passes
+  // through unchanged. Reads live tab count from the engine so it stays stable.
+  const closeWorkspace = useCallback(() => onClose(workspace.id), [onClose, workspace.id])
+  const closeActiveOrWorkspace = useCallback(() => {
+    if (countTabs(engine.getSnapshot().root) <= 1) closeWorkspace()
+    else actions.closeActiveTab()
+  }, [engine, actions, closeWorkspace])
+  const closeTabOrWorkspace = useCallback(
+    (tabId: string) => {
+      if (countTabs(engine.getSnapshot().root) <= 1) closeWorkspace()
+      else actions.closeTab(tabId)
+    },
+    [engine, actions, closeWorkspace]
+  )
+  const layoutActions = useMemo<LayoutActions>(
+    () => ({ ...actions, closeTab: closeTabOrWorkspace, closeActiveTab: closeActiveOrWorkspace }),
+    [actions, closeTabOrWorkspace, closeActiveOrWorkspace]
+  )
 
   useEffect(() => {
     // Only the visible workspace owns the global (capture-phase) keymap. Hidden
@@ -152,11 +188,19 @@ export function WorkspaceView({ created, active, onZoomChange }: WorkspaceViewPr
         if (focused) setPending({ action: 'add', paneId: focused })
         return
       }
-      // ⌘W — close the focused pane's active tab (last tab standing is a no-op).
+      // ⌘W — close the focused pane's active tab. Closing the *last* remaining
+      // tab closes the workspace instead of leaving it empty (AC1.7).
       if (e.metaKey && !e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) {
         e.preventDefault()
         e.stopPropagation()
-        actions.closeActiveTab()
+        closeActiveOrWorkspace()
+        return
+      }
+      // ⇧⌘W — close (permanently delete) the whole workspace.
+      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault()
+        e.stopPropagation()
+        closeWorkspace()
         return
       }
       // ⌘⇧[ / ⌘⇧] — switch the active tab within the focused pane. Match the
@@ -184,7 +228,7 @@ export function WorkspaceView({ created, active, onZoomChange }: WorkspaceViewPr
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [engine, actions, pending, active])
+  }, [engine, actions, pending, active, closeActiveOrWorkspace, closeWorkspace])
 
   // Mirror zoom state to the shell (title-bar badge, AC1.6) — but only while
   // active, so a hidden keep-alive workspace can't drive the badge (S8). The
@@ -272,7 +316,7 @@ export function WorkspaceView({ created, active, onZoomChange }: WorkspaceViewPr
       <LayoutView
         snapshot={snapshot}
         workspaceName={workspace.name}
-        actions={actions}
+        actions={layoutActions}
         paneBodies={paneBodies}
         drag={drag}
         onTabPointerDown={onTabPointerDown}

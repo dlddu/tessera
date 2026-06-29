@@ -206,3 +206,44 @@ test('a closed workspace is gone for good — its snapshot does not return after
     await second.close()
   }
 })
+
+test('keyboard close — ⌘W on the last tab, and ⇧⌘W, delete the workspace (AC1.7)', async () => {
+  const app = await launchApp(freshUserDataDir())
+
+  try {
+    const window = await app.firstWindow()
+
+    // Two workspaces so closing one can fall to a neighbor before the empty state.
+    await expect(window.getByTestId('empty-state')).toBeVisible()
+    await createWorkspace(window, () => window.keyboard.press('ControlOrMeta+n'), 'kbd-a')
+    await createWorkspace(window, () => window.getByTestId('workspace-rail-new').click(), 'kbd-b')
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('kbd-b')
+
+    // Give the active workspace (kbd-b) a second pane so ⌘W has a tab to close
+    // *before* it hits the last one.
+    await window.keyboard.press('Meta+d')
+    await expect(window.getByTestId('surface-picker')).toBeVisible()
+    await window.getByTestId('surface-pick-editor').click()
+    await expect(activeSurface(window).getByTestId('pane')).toHaveCount(2)
+
+    // ⌘W on a non-last tab only closes the tab — the workspace survives.
+    await window.keyboard.press('Meta+w')
+    await expect(activeSurface(window).getByTestId('pane')).toHaveCount(1)
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('kbd-b')
+    await expect(window.locator('[data-testid="workspace-surface"]')).toHaveCount(2)
+
+    // ⌘W again — now it's the *last* tab, so it closes the whole workspace and
+    // focus falls to the neighbor (kbd-a).
+    await window.keyboard.press('Meta+w')
+    await expect(window.getByTestId('workspace-rail-item-1')).toHaveCount(0)
+    await expect(window.getByTestId('workspace-rail-item-0')).toContainText('kbd-a')
+    await expect(window.getByTestId('workspace-rail-item-0')).toHaveClass(/active/)
+
+    // ⇧⌘W deletes the now-only workspace outright → back to the empty state.
+    await window.keyboard.press('Meta+Shift+w')
+    await expect(window.getByTestId('empty-state')).toBeVisible()
+    await expect(window.getByTestId('workspace-rail')).toHaveCount(0)
+  } finally {
+    await app.close()
+  }
+})
