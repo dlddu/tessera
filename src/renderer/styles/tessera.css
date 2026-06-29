@@ -84,7 +84,7 @@ body{
 /* pane zoom (전체화면, J1-S7 / AC1.6): the zoomed pane fills the whole surface
    (absolute over the grout, escaping its split's flex flow); every other pane
    is hidden but kept mounted so its surface — and any live PTY/buffer —
-   survives the zoom (keep-alive). Esc / ⌃⌘⏎ restores the mosaic. */
+   survives the zoom (keep-alive). Esc / ⇧⌘⏎ restores the mosaic. */
 .pane.zoomed{position:absolute; inset:0; z-index:6}
 .pane.zoom-hidden{display:none}
 

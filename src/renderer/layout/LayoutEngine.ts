@@ -481,7 +481,7 @@ export class LayoutEngine {
   }
 
   /**
-   * Toggle window-filling zoom on the focused pane (AC1.6, ⌃⌘⏎). Zooms the
+   * Toggle window-filling zoom on the focused pane (AC1.6, ⇧⌘⏎). Zooms the
    * focused pane when none is zoomed, and un-zooms otherwise. No-op when nothing
    * is focused (there's no pane to zoom).
    */

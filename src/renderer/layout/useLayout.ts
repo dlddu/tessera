@@ -30,7 +30,7 @@ export interface LayoutActions {
   moveActiveTabToDirection(dir: FocusDirection): void
   /** Close the focused pane's active tab (⌘W). AC1.4. */
   closeActiveTab(): void
-  /** Toggle window-filling zoom on the focused pane (⌃⌘⏎). AC1.6. */
+  /** Toggle window-filling zoom on the focused pane (⇧⌘⏎). AC1.6. */
   toggleZoom(): void
   /** Leave zoom, restoring the pane mosaic (Esc). AC1.6. */
   clearZoom(): void

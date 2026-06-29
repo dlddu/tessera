@@ -29,7 +29,7 @@
 | 4 | 추가 분할로 **브라우저** tab·**Claude Code GUI** tab을 더해 2×2 레이아웃 완성(4종 공존). | AC1.1, AC1.2 | ✅ [M-J1-S4](./mockups/M-J1-S4.html) |
 | 5 | tab을 다른 pane으로 드래그 이동·순서 재정렬, 마우스 없이 단축키로 포커스/tab 전환. | AC1.3, AC1.4 | ✅ [M-J1-S5](./mockups/M-J1-S5.html) |
 | 6 | 구성한 레이아웃 골격을 저장(직렬화) → 다음 실행 시 동일 골격으로 재구성. | AC1.5 | ✅ [M-J1-S6](./mockups/M-J1-S6.html) |
-| 7 | 한 작업에 집중할 때 포커스된 pane을 전체화면으로 확대(zoom, ⌃⌘⏎)했다가 단축키/Esc로 2×2 레이아웃 그대로 복귀. 확대는 포커스를 따라가고, zoom 상태는 골격에 저장돼 재시작 후에도 유지. | AC1.6 | ✅ [M-J1-S7](./mockups/M-J1-S7.html) |
+| 7 | 한 작업에 집중할 때 포커스된 pane을 전체화면으로 확대(zoom, ⇧⌘⏎)했다가 단축키/Esc로 2×2 레이아웃 그대로 복귀. 확대는 포커스를 따라가고, zoom 상태는 골격에 저장돼 재시작 후에도 유지. | AC1.6 | ✅ [M-J1-S7](./mockups/M-J1-S7.html) |
 | 8 | 여러 workspace를 만들어 두고, 단일 창의 **workspace 목록**에서 다른 workspace를 선택해 활성 화면을 전환(이전 workspace의 pane/tab 상태는 보존). | AC1.7 | ✅ [M-J1-S8](./mockups/M-J1-S8.html) |
 
 ## 완료 상태

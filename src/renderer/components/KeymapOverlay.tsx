@@ -44,7 +44,7 @@ export function KeymapOverlay() {
       <span className="row-gap">
         <span className="muted">전체화면</span>{' '}
         <span className="kcrow">
-          <span className="kc">⌃⌘</span>
+          <span className="kc">⇧⌘</span>
           <span className="plus">+</span>
           <span className="kc">⏎</span>
         </span>{' '}

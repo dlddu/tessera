@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import { freshUserDataDir, launchApp } from './helpers'
 
-// M-J1-S7: focused-pane zoom (전체화면) toggle (AC1.6). ⌃⌘⏎ zooms the focused
-// pane to fill the window; Esc (or ⌃⌘⏎ again) restores the mosaic. Zoom is part
+// M-J1-S7: focused-pane zoom (전체화면) toggle (AC1.6). ⇧⌘⏎ zooms the focused
+// pane to fill the window; Esc (or ⇧⌘⏎ again) restores the mosaic. Zoom is part
 // of the persisted layout skeleton, so it survives a restart and follows focus.
 //
 // The headline properties asserted here:
@@ -56,9 +56,9 @@ test('zoom fills one pane, keeps the others alive, and Esc restores the mosaic',
     await window.getByTestId('surface-pick-browser').click()
     await expect(window.getByTestId('browser-surface')).toBeVisible()
 
-    // ⌃⌘⏎ → zoom the focused pane. Badge appears; the other (terminal) pane is
+    // ⇧⌘⏎ → zoom the focused pane. Badge appears; the other (terminal) pane is
     // hidden, though both panes remain in the DOM (the skeleton is unchanged).
-    await window.keyboard.press('Control+Meta+Enter')
+    await window.keyboard.press('Meta+Shift+Enter')
     await expect(window.getByTestId('zoom-badge')).toBeVisible()
     await expect(window.getByTestId('pane')).toHaveCount(2)
     await expect(window.locator('.pane.zoomed')).toHaveCount(1)
@@ -98,8 +98,8 @@ test('zoom is persisted across a restart (it lives in the layout skeleton)', asy
     await expect(window.getByTestId('editor-surface')).toBeVisible()
     await expect(window.getByTestId('pane')).toHaveCount(2)
 
-    // ⌃⌘⏎ → zoom; wait for the autosave so the zoomed skeleton lands on disk.
-    await window.keyboard.press('Control+Meta+Enter')
+    // ⇧⌘⏎ → zoom; wait for the autosave so the zoomed skeleton lands on disk.
+    await window.keyboard.press('Meta+Shift+Enter')
     await expect(window.getByTestId('zoom-badge')).toBeVisible()
     await expect(window.getByTestId('layout-saved-toast')).toBeVisible()
   } finally {

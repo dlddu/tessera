@@ -115,7 +115,7 @@ export function StatusBar({
         <span>
           <b>전체화면</b>{' '}
           <span className="kcrow">
-            <span className="kc">⌃⌘</span>
+            <span className="kc">⇧⌘</span>
             <span className="plus">+</span>
             <span className="kc">⏎</span>
           </span>

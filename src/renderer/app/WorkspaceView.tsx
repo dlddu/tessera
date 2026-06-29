@@ -101,9 +101,9 @@ export function WorkspaceView({ created, onZoomChange }: WorkspaceViewProps) {
     function onKey(e: KeyboardEvent) {
       const focused = engine.focusedPaneId
 
-      // ⌃⌘⏎ — toggle window-filling zoom on the focused pane (AC1.6). Alt/Shift
+      // ⇧⌘⏎ — toggle window-filling zoom on the focused pane (AC1.6). Ctrl/Alt
       // excluded so it's an exact chord.
-      if (e.ctrlKey && e.metaKey && !e.altKey && !e.shiftKey && e.key === 'Enter') {
+      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && e.key === 'Enter') {
         e.preventDefault()
         e.stopPropagation()
         actions.toggleZoom()
