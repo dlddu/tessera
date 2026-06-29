@@ -1,7 +1,7 @@
 # Tessera 문서 체계 상태 추적
 
 > 산출 시점: 2026-06-17 · 최초 생성(초기 일괄 구축)
-> 최근 갱신: 2026-06-26 · 워크스페이스 전환 기능 완결 — T-1에 AC1.7 검증 시나리오(시나리오 7) 추가. AC1.7 테스트 커버 완료(미검증 AC 0건). 이로써 워크스페이스 목록·전환 기능의 가치→요구사항→PRD/AC→테스트 + 여정→mockup↔디자인 시스템 전 사슬이 연결됨. 남은 위험은 제품 소유자 미확정 1건.
+> 최근 갱신: 2026-06-29 · 워크스페이스 전환(J1-S8/AC1.7) **구현 완료** — App을 keep-alive 렌더(전 workspace 마운트·비활성 `hidden`)로 전환하고 `C-workspace-rail`(클릭 + ⌘1–9 전환)·`WorkspaceView` `active` 게이팅·`Window` 레일 슬롯을 추가. 자동화 테스트 신설(e2e `M-J1-S8` + 단위 `WorkspaceRail`). 이전에는 docs·mockup·시나리오만 있고 `src/` 전환기와 자동화 테스트가 없던 문서/코드 드리프트(커밋 #12)를 보정함. 남은 위험은 제품 소유자 미확정 1건.
 
 ## 현재 상태 요약
 
@@ -104,7 +104,7 @@
 2. ✅ **디자인 시스템 셋업** — 완료(`docs/design-system/`).
 3. ✅ **mockup 작성 + 인덱스화** — 완료(27개 `M-Jx-Sn.html` + `mockups/tessera-mockup-index.md`). `M-J1-S7`(전체화면 토글)·`M-J2-S7`(host 전용 영역)·`M-J1-S8`(워크스페이스 전환) 포함.
 4. ✅ **여정 시각화 칸 연결** — 완료(`tessera-user-journeys.md` 및 여정별 파일의 ⬜ → ✅ 갱신, 재검증). J2 7/7.
-5. ✅ **워크스페이스 전환 — 완료** — 요구사항 #13·`Window` 정의·AC1.7(PRD/AC), J1 단계 8(여정), `C-workspace-rail`·`P-workspace-rail`(디자인 시스템), `M-J1-S8` mockup, T-1 시나리오 7(테스트)까지 전 사슬 연결 완료.
+5. ✅ **워크스페이스 전환 — 구현·테스트 완료** — 요구사항 #13·`Window` 정의·AC1.7(PRD/AC), J1 단계 8(여정), `C-workspace-rail`·`P-workspace-rail`(디자인 시스템), `M-J1-S8` mockup, T-1 시나리오 7에 더해 **`src/` 전환기 구현**(keep-alive 렌더 + 레일 + ⌘숫자 전환)과 **자동화 테스트**(e2e `M-J1-S8` + 단위 `WorkspaceRail`)까지 완료 — 커밋 #12의 docs/코드 드리프트(문서 ✅이나 구현·자동화 테스트 부재) 해소.
 6. (선택) 제품명 확정 — 현재 코드네임 `Tessera`. 변경 시 파일명·헤딩 일괄 갱신 필요.
 
 ## 문서 인덱스
@@ -154,3 +154,4 @@
 | 2026-06-26 | 워크스페이스 전환 화면화 — 디자인 시스템에 `C-workspace-rail`·`P-workspace-rail`(+`tessera.css` 레일 스타일) 추가, `M-J1-S8` mockup 작성, 갤러리·mockup 인덱스·J1 여정 시각화 칸(⬜→✅) 연결 | 시각화 26/27, J1-S8 미시각화 1건 | 시각화 27/27, J1-S8 미시각화 해소(AC1.7 테스트는 여전히 미작성) |
 | 2026-06-26 | 워크스페이스 전환 기능 완결 — T-1에 AC1.7 검증 시나리오(시나리오 7) 추가, AC1.7 테스트 커버 | AC 커버 25/26(미검증 AC 1건: AC1.7), 미검증 AC 1건 | AC 커버 26/26, 미검증 AC 0건 |
 | 2026-06-29 | pane 전체화면(zoom) 토글 구현 + 영속 의미로 개정(J1-S7) — `LayoutSnapshot.zoomedPaneId` 추가(엔진 `toggleZoom`/`clearZoom` + zoom-follows-focus + 소멸 가드), 영속 골격에 포함(스냅샷 v2→v3 bump + 버전별 마이그레이터 스캐폴드로 구버전 보존), ⇧⌘⏎/Esc 입력·CSS 풀스크린·zoom 배지·키 힌트, PRD AC1.6/T-1 시나리오 6/J1-S7 여정·mockup 캡션을 "일시"→"영속(재시작 후 유지)"으로 개정, e2e `M-J1-S7` + 단위(엔진 zoom·migrate) 추가 | AC1.6 "일시적" 표기, 미검증 e2e | AC1.6 영속 일관, e2e·단위 그린 |
+| 2026-06-29 | 워크스페이스 전환 **구현**(J1-S8/AC1.7) — App을 keep-alive 렌더로 전환(전 workspace 마운트·비활성 `hidden`, `.surface[hidden]` 규칙), `C-workspace-rail` 컴포넌트(클릭 + ⌘1–9 전환·design-system 레일 스타일을 앱 `tessera.css`로 포팅)·`Window` 좌측 레일 슬롯(`.winmain`) 추가, `WorkspaceView`에 `active` prop(비활성 뷰의 글로벌 키맵·zoom 보고 게이팅), 활성 workspace에서도 ⌘N 다이얼로그·창 크롬 구동. 자동화 테스트 신설 — e2e `M-J1-S8`(마우스+⌘숫자 전환·레이아웃/라이브 상태 보존·활성 표면 1개) + 단위 `WorkspaceRail`. 커밋 #12는 docs·mockup·시나리오만 추가하고 `src/` 전환기는 미구현이었음 | AC1.7 문서 ✅이나 `src/` 전환기·자동화 테스트 부재(문서/코드 드리프트) | AC1.7 구현 + 자동화 테스트(e2e·단위) 그린, 드리프트 해소 |

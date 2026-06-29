@@ -13,6 +13,14 @@
  * Tabs can also be dragged between panes (AC1.3), and clicking a pane — its tab
  * bar or its surface — focuses it. All keys are captured before the focused
  * surface so xterm/CodeMirror can't swallow them; ⌘S / ⌘O stay with the editor.
+ *
+ * Under the S8 keep-alive switcher (AC1.7) every workspace stays mounted at once
+ * — only the active one is visible. So the two *global* effects here, the
+ * capture-phase keymap and the zoom→shell report, are gated on `active`: an
+ * inactive (hidden) workspace must not intercept shortcuts or clobber the
+ * title-bar zoom badge. Per-workspace autosave stays ungated — each view saves
+ * under its own id, so keeping them all live is correct (every workspace's last
+ * edit is flushed on quit).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -36,6 +44,11 @@ const SAVED_TOAST_MS = 1600
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
+  /**
+   * Whether this workspace is the visible/active one (S8 keep-alive, AC1.7).
+   * Gates the global keymap and zoom report so hidden workspaces stay inert.
+   */
+  active: boolean
   /** Report zoom state up so the window title-bar badge can reflect it (AC1.6). */
   onZoomChange?: (zoomed: boolean) => void
 }
@@ -86,7 +99,7 @@ function paneLabel(snapshot: LayoutSnapshot, paneId: string | null): string {
   return 'pane'
 }
 
-export function WorkspaceView({ created, onZoomChange }: WorkspaceViewProps) {
+export function WorkspaceView({ created, active, onZoomChange }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
   const [pending, setPending] = useState<PendingPick | null>(null)
@@ -98,6 +111,9 @@ export function WorkspaceView({ created, onZoomChange }: WorkspaceViewProps) {
   const { drag, onTabPointerDown } = useTabDrag(actions)
 
   useEffect(() => {
+    // Only the visible workspace owns the global (capture-phase) keymap. Hidden
+    // keep-alive workspaces stay mounted but must not intercept shortcuts (S8).
+    if (!active) return
     function onKey(e: KeyboardEvent) {
       const focused = engine.focusedPaneId
 
@@ -168,13 +184,15 @@ export function WorkspaceView({ created, onZoomChange }: WorkspaceViewProps) {
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [engine, actions, pending])
+  }, [engine, actions, pending, active])
 
-  // Mirror zoom state to the shell (title-bar badge, AC1.6). Report `false` on
-  // unmount so a workspace switch can't leave a stale badge behind.
+  // Mirror zoom state to the shell (title-bar badge, AC1.6) — but only while
+  // active, so a hidden keep-alive workspace can't drive the badge (S8). The
+  // active view re-reports on every switch, so the badge always tracks it.
+  // Report `false` on unmount so a teardown can't leave a stale badge behind.
   useEffect(() => {
-    onZoomChange?.(snapshot.zoomedPaneId !== null)
-  }, [snapshot.zoomedPaneId, onZoomChange])
+    if (active) onZoomChange?.(snapshot.zoomedPaneId !== null)
+  }, [active, snapshot.zoomedPaneId, onZoomChange])
 
   useEffect(() => () => onZoomChange?.(false), [onZoomChange])
 
