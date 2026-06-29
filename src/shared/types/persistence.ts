@@ -10,12 +10,18 @@ import type { LayoutSnapshot } from './layout'
 import type { SurfaceKind } from './surface'
 
 /**
- * Current {@link WorkspaceStateSnapshot} schema version. Bumped to 2 when the
- * embedded {@link Workspace} (name + backend cwd) was added so restore can
- * rebuild the workspace and re-register its backend (J1-S6). `load` discards
- * snapshots written under any other version rather than guessing their shape.
+ * Current {@link WorkspaceStateSnapshot} schema version.
+ *
+ * - v2 embedded the {@link Workspace} (name + backend cwd) so restore can
+ *   rebuild the workspace and re-register its backend (J1-S6).
+ * - v3 added `layout.zoomedPaneId`: pane zoom (AC1.6) joined the persisted
+ *   skeleton so a workspace reopens in the same zoom state (J1-S7).
+ *
+ * Unlike earlier "exact-version-or-discard" loads, older snapshots are now
+ * upgraded by the {@link migrateWorkspaceSnapshot} pipeline before validation;
+ * only versions with no migration path (or newer-than-known) are discarded.
  */
-export const WORKSPACE_SNAPSHOT_VERSION = 2
+export const WORKSPACE_SNAPSHOT_VERSION = 3
 
 /** Last-known content for one surface, keyed by its tab id. */
 export interface SurfaceStateEntry {

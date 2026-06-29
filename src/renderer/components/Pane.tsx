@@ -20,6 +20,10 @@ import type { TabDragController } from '@renderer/layout'
 interface PaneProps {
   node: PaneNode
   focused: boolean
+  /** This pane is zoomed to fill the whole window (AC1.6). */
+  zoomed?: boolean
+  /** Another pane is zoomed, so this one is hidden but kept mounted (AC1.6). */
+  zoomHidden?: boolean
   workspaceName: string
   actions: LayoutActions
   /** Registry the keep-alive SurfaceHost re-parents tab surfaces through. */
@@ -41,6 +45,8 @@ function breadcrumb(workspaceName: string, path: string): string {
 export function Pane({
   node,
   focused,
+  zoomed = false,
+  zoomHidden = false,
   workspaceName,
   actions,
   paneBodies,
@@ -65,12 +71,22 @@ export function Pane({
     e.stopPropagation()
   }
 
+  const className = [
+    'pane',
+    focused ? 'focused' : '',
+    zoomed ? 'zoomed' : '',
+    zoomHidden ? 'zoom-hidden' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
     <div
-      className={focused ? 'pane focused' : 'pane'}
+      className={className}
       data-kind={activeMeta.dataKind}
       data-pane-id={node.id}
       data-testid="pane"
+      data-zoomed={zoomed ? 'true' : undefined}
       onMouseDown={() => actions.focusPane(node.id)}
     >
       <div className="tabbar">

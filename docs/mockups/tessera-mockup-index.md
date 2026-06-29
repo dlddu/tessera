@@ -44,7 +44,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 | [M-J1-S4](./M-J1-S4.html) | 4 | **2×2 레이아웃 — 4종 컴포넌트 공존** | V1 | AC1.1·AC1.2 | `P-grid-2x2` · C-terminal, C-editor, C-browser, C-claude |
 | [M-J1-S5](./M-J1-S5.html) | 5 | 탭 드래그 이동 · 단축키 포커스/전환 | V1 | AC1.3·AC1.4 | `P-overlay` · C-tab(drag), C-keycap, C-toast |
 | [M-J1-S6](./M-J1-S6.html) | 6 | 레이아웃 골격 직렬화 저장 → 다음 실행 재구성 | V1 | AC1.5 | `P-overlay` · C-toast, C-mark |
-| [M-J1-S7](./M-J1-S7.html) | 7 | **포커스된 pane 일시 전체화면 토글 (zoom) → 레이아웃 보존 복귀** | V1 | AC1.6 | `P-single`·`P-overlay` · C-pane(zoom), C-keycap, C-toast, C-badge |
+| [M-J1-S7](./M-J1-S7.html) | 7 | **포커스된 pane 전체화면(zoom) 토글 → 레이아웃 보존 복귀 (영속·zoom-follows-focus)** | V1 | AC1.6 | `P-single`·`P-overlay` · C-pane(zoom), C-keycap, C-toast, C-badge |
 | [M-J1-S8](./M-J1-S8.html) | 8 | **워크스페이스 목록에서 전환 — 단일 창, 활성 workspace 표시** | V1 | AC1.7 | `P-workspace-rail` · C-workspace-rail, C-window, C-pane ×2, C-terminal, C-editor |
 
 ## J2 — 환경 선택의 자유 (container backend)

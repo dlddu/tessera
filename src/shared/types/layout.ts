@@ -64,4 +64,11 @@ export interface LayoutSnapshot {
   root: LayoutNode
   areas: Area[]
   focusedPaneId: string | null
+  /**
+   * The pane currently zoomed to fill the whole window, or `null` when none is
+   * (AC1.6). Zoom is part of the persisted skeleton — it survives serialize /
+   * restore so a workspace reopens in the same zoom state — and it follows
+   * focus: while zoom is active this always equals {@link focusedPaneId}.
+   */
+  zoomedPaneId: string | null
 }

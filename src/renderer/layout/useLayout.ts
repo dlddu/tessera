@@ -30,6 +30,10 @@ export interface LayoutActions {
   moveActiveTabToDirection(dir: FocusDirection): void
   /** Close the focused pane's active tab (⌘W). AC1.4. */
   closeActiveTab(): void
+  /** Toggle window-filling zoom on the focused pane (⌃⌘⏎). AC1.6. */
+  toggleZoom(): void
+  /** Leave zoom, restoring the pane mosaic (Esc). AC1.6. */
+  clearZoom(): void
 }
 
 export interface UseLayout {
@@ -55,7 +59,9 @@ export function useLayout(initial: LayoutSnapshot): UseLayout {
       setTabPath: (tabId, path) => engine.setTabPath(tabId, path),
       cycleTab: (dir) => engine.cycleTab(dir),
       moveActiveTabToDirection: (dir) => engine.moveActiveTabToDirection(dir),
-      closeActiveTab: () => engine.closeActiveTab()
+      closeActiveTab: () => engine.closeActiveTab(),
+      toggleZoom: () => engine.toggleZoom(),
+      clearZoom: () => engine.clearZoom()
     }),
     [engine]
   )

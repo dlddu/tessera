@@ -36,6 +36,8 @@ const SAVED_TOAST_MS = 1600
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
+  /** Report zoom state up so the window title-bar badge can reflect it (AC1.6). */
+  onZoomChange?: (zoomed: boolean) => void
 }
 
 /** A pending surface choice: which pane it targets and what the pick will do. */
@@ -84,7 +86,7 @@ function paneLabel(snapshot: LayoutSnapshot, paneId: string | null): string {
   return 'pane'
 }
 
-export function WorkspaceView({ created }: WorkspaceViewProps) {
+export function WorkspaceView({ created, onZoomChange }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
   const [pending, setPending] = useState<PendingPick | null>(null)
@@ -98,6 +100,26 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const focused = engine.focusedPaneId
+
+      // ⌃⌘⏎ — toggle window-filling zoom on the focused pane (AC1.6). Alt/Shift
+      // excluded so it's an exact chord.
+      if (e.ctrlKey && e.metaKey && !e.altKey && !e.shiftKey && e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+        actions.toggleZoom()
+        return
+      }
+      // Esc — leave zoom. Deferred to the surface picker while it's open (it has
+      // its own Esc-to-cancel), and a no-op when nothing is zoomed so it never
+      // swallows Esc from the focused surface.
+      if (e.key === 'Escape') {
+        if (!pending && engine.zoomedPaneId !== null) {
+          e.preventDefault()
+          e.stopPropagation()
+          actions.clearZoom()
+        }
+        return
+      }
 
       // ⌘D / ⌘⇧D — split the focused pane (vertical / horizontal) via the picker.
       // Ctrl is excluded so Ctrl+D still reaches the terminal as EOF.
@@ -146,7 +168,15 @@ export function WorkspaceView({ created }: WorkspaceViewProps) {
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [engine, actions])
+  }, [engine, actions, pending])
+
+  // Mirror zoom state to the shell (title-bar badge, AC1.6). Report `false` on
+  // unmount so a workspace switch can't leave a stale badge behind.
+  useEffect(() => {
+    onZoomChange?.(snapshot.zoomedPaneId !== null)
+  }, [snapshot.zoomedPaneId, onZoomChange])
+
+  useEffect(() => () => onZoomChange?.(false), [onZoomChange])
 
   // Autosave the layout skeleton (AC1.5): persist a debounced snapshot on every
   // layout change, flush synchronously on app quit so the last edit can't be
