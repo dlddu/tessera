@@ -115,13 +115,13 @@ describe('buildWorkspace', () => {
     expect(panes(layout.root)).toHaveLength(1)
   })
 
-  it('defaults the container home-mount to rw and omits unset resources', () => {
+  it('defaults the container home-mount to none and omits unset resources', () => {
     const { workspace } = buildWorkspace({
       name: 'cont',
       backendKind: 'container',
       image: 'node:22'
     })
-    expect(workspace.backend).toEqual({ kind: 'container', image: 'node:22', homeMount: 'rw' })
+    expect(workspace.backend).toEqual({ kind: 'container', image: 'node:22', homeMount: 'none' })
   })
 
   it('throws on invalid input', () => {

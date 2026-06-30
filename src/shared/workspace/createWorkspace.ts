@@ -16,8 +16,8 @@ import type { WorkspaceStateSnapshot } from '../types/persistence'
 /** Layout version emitted by the factory (mirrors `meta.layoutVersion`). */
 const LAYOUT_VERSION = 1
 
-/** Default home-mount mode when a container request omits it. */
-const DEFAULT_HOME_MOUNT: ContainerHomeMount = 'rw'
+/** Default home-mount mode when a container request omits it (no host mount). */
+const DEFAULT_HOME_MOUNT: ContainerHomeMount = 'none'
 
 export interface BuildWorkspaceInput {
   name: string

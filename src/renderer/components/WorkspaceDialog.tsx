@@ -28,11 +28,12 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
   const [name, setName] = useState('')
   const [cwd, setCwd] = useState('')
   const [backendKind, setBackendKind] = useState<BackendKind>('host')
-  // Container-only fields (ignored for host).
-  const [image, setImage] = useState('')
-  const [homeMount, setHomeMount] = useState<ContainerHomeMount>('rw')
-  const [cpus, setCpus] = useState('')
-  const [memory, setMemory] = useState('')
+  // Container-only fields (ignored for host), pre-filled with sensible defaults:
+  // a small image, 2 vCPU / 4G, and no host home mount.
+  const [image, setImage] = useState('alpine:latest')
+  const [homeMount, setHomeMount] = useState<ContainerHomeMount>('none')
+  const [cpus, setCpus] = useState('2')
+  const [memory, setMemory] = useState('4G')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -62,14 +63,16 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
+      // Don't let Escape abandon the dialog while a create is in flight — the
+      // backend is already being stood up; closing now would orphan it.
+      if (e.key === 'Escape' && !submitting) {
         e.preventDefault()
         onCancel()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onCancel])
+  }, [onCancel, submitting])
 
   const isContainer = backendKind === 'container'
   const canCreate =
@@ -126,7 +129,9 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
     <div
       className="scrim"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onCancel()
+        // Clicking the backdrop dismisses, except mid-create (would orphan the
+        // backend being stood up).
+        if (e.target === e.currentTarget && !submitting) onCancel()
       }}
     >
       <div
@@ -284,7 +289,13 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
         </div>
         <div className="dfoot">
           <div className="spacer" />
-          <button type="button" className="btn ghost" onClick={onCancel} data-testid="ws-cancel">
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={onCancel}
+            disabled={submitting}
+            data-testid="ws-cancel"
+          >
             취소
           </button>
           <button
@@ -292,9 +303,17 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
             className="btn primary"
             onClick={create}
             disabled={!canCreate}
+            aria-busy={submitting}
             data-testid="ws-create"
           >
-            워크스페이스 생성
+            {submitting ? (
+              <>
+                <span className="spinner" aria-hidden="true" />
+                {isContainer ? '머신 생성 중…' : '생성 중…'}
+              </>
+            ) : (
+              '워크스페이스 생성'
+            )}
           </button>
         </div>
       </div>
