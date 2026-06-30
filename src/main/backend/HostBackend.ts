@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { NotImplementedError } from '@shared/errors'
-import type { BackendKind } from '@shared/types'
+import type { BackendKind, BackendStatus } from '@shared/types'
 import type {
   Backend,
   ProcessResult,
@@ -43,12 +43,17 @@ function hostEnv(): Record<string, string> {
 
 export class HostBackend implements Backend {
   readonly kind: BackendKind = 'host'
+  /** The host is always live; there is nothing to boot. */
+  readonly status: BackendStatus = 'running'
 
   constructor(private readonly options: HostBackendOptions) {}
 
   get cwd(): string {
     return this.options.cwd
   }
+
+  /** No-op: the host backend is `running` from construction. */
+  async start(): Promise<void> {}
 
   async spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
     const spawn = this.options.spawn ?? (await getNodePtySpawn())

@@ -10,12 +10,12 @@
 /** Which environment a workspace/area runs in. AC2.1. */
 export type BackendKind = 'host' | 'container'
 
-/** A read-only or read-write host→container bind mount. */
-export interface ContainerMount {
-  source: string
-  target: string
-  readOnly: boolean
-}
+/**
+ * How a container machine mounts the host home directory (AC2.1). The Apple
+ * `container` machine model has no arbitrary bind mounts — the home directory is
+ * the one host→machine bridge, exposed read-write, read-only, or not at all.
+ */
+export type ContainerHomeMount = 'rw' | 'ro' | 'none'
 
 /** Host backend: processes run directly on the macOS host. AC2.2. */
 export interface HostBackendConfig {
@@ -24,15 +24,22 @@ export interface HostBackendConfig {
   cwd: string
 }
 
-/** Container backend: processes run inside a container runtime. AC2.3. */
+/**
+ * Container backend: processes run inside an Apple `container` machine (AC2.1,
+ * AC2.3). The machine is named after the workspace id. The model is the machine
+ * surface — image + home-mount mode + resource caps — not arbitrary bind mounts
+ * or an explicit workdir (those aren't part of the machine model).
+ */
 export interface ContainerBackendConfig {
   kind: 'container'
-  /** Container image reference (e.g. `node:22`). */
+  /** Container/machine image reference (e.g. `node:22`). */
   image: string
-  /** Working directory inside the container. */
-  cwd: string
-  /** Host→container mounts. */
-  mounts: ContainerMount[]
+  /** How the host home directory is mounted into the machine. */
+  homeMount: ContainerHomeMount
+  /** Optional vCPU cap for the machine. */
+  cpus?: number
+  /** Optional memory cap for the machine (e.g. `4G`). */
+  memory?: string
 }
 
 export type BackendConfig = HostBackendConfig | ContainerBackendConfig

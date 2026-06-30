@@ -8,7 +8,7 @@
  * layout skeleton.
  */
 import { randomUUID } from 'node:crypto'
-import type { BackendKind, Workspace } from '../types/backend'
+import type { BackendConfig, BackendKind, ContainerHomeMount, Workspace } from '../types/backend'
 import type { LayoutSnapshot } from '../types/layout'
 import { buildWorkspaceSnapshot } from '../types/persistence'
 import type { WorkspaceStateSnapshot } from '../types/persistence'
@@ -16,10 +16,22 @@ import type { WorkspaceStateSnapshot } from '../types/persistence'
 /** Layout version emitted by the factory (mirrors `meta.layoutVersion`). */
 const LAYOUT_VERSION = 1
 
+/** Default home-mount mode when a container request omits it. */
+const DEFAULT_HOME_MOUNT: ContainerHomeMount = 'rw'
+
 export interface BuildWorkspaceInput {
   name: string
-  cwd: string
   backendKind: BackendKind
+  /** Host backend working directory. Required for host (AC2.2). */
+  cwd?: string
+  /** Container/machine image reference. Required for container (AC2.1). */
+  image?: string
+  /** Home-directory mount mode for the container machine. Defaults to `rw`. */
+  homeMount?: ContainerHomeMount
+  /** Optional vCPU cap for the container machine. */
+  cpus?: number
+  /** Optional memory cap for the container machine (e.g. `4G`). */
+  memory?: string
 }
 
 export interface BuildWorkspaceResult {
@@ -34,16 +46,24 @@ export interface BuildWorkspaceResult {
  *
  * - name is always required.
  * - host workspaces require a cwd (the directory processes run in). AC2.2.
- * - only host creation is supported here; container is M-J2-S1. AC2.1.
+ * - container workspaces require an image (the machine boots from it). AC2.1.
+ *   `cpus`, when given, must be a positive integer; `homeMount`/`memory` are
+ *   free-form and defaulted downstream.
  */
 export function validateWorkspaceInput(input: BuildWorkspaceInput): string | null {
   if (input.name.trim().length === 0) {
     return '이름을 입력하세요.'
   }
-  if (input.backendKind !== 'host') {
-    return '컨테이너 워크스페이스는 아직 생성할 수 없습니다.'
+  if (input.backendKind === 'container') {
+    if (!input.image || input.image.trim().length === 0) {
+      return '컨테이너 이미지를 입력하세요.'
+    }
+    if (input.cpus !== undefined && (!Number.isInteger(input.cpus) || input.cpus <= 0)) {
+      return 'CPU 수는 1 이상의 정수여야 합니다.'
+    }
+    return null
   }
-  if (input.cwd.trim().length === 0) {
+  if (!input.cwd || input.cwd.trim().length === 0) {
     return '작업 디렉토리를 선택하세요.'
   }
   return null
@@ -64,16 +84,24 @@ export function buildWorkspace(input: BuildWorkspaceInput): BuildWorkspaceResult
   }
 
   const name = input.name.trim()
-  const cwd = input.cwd.trim()
   const id = `ws-${randomUUID()}`
   const areaId = 'area-default'
   const tabId = 'P-single-t0'
 
-  const workspace: Workspace = {
-    id,
-    name,
-    backend: { kind: 'host', cwd }
-  }
+  const backend: BackendConfig =
+    input.backendKind === 'container'
+      ? {
+          kind: 'container',
+          image: input.image!.trim(),
+          homeMount: input.homeMount ?? DEFAULT_HOME_MOUNT,
+          ...(input.cpus !== undefined ? { cpus: input.cpus } : {}),
+          ...(input.memory !== undefined && input.memory.trim().length > 0
+            ? { memory: input.memory.trim() }
+            : {})
+        }
+      : { kind: 'host', cwd: input.cwd!.trim() }
+
+  const workspace: Workspace = { id, name, backend }
 
   const layout: LayoutSnapshot = {
     version: LAYOUT_VERSION,

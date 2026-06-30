@@ -7,6 +7,7 @@
 import type {
   BackendKind,
   BackendLifecycleState,
+  ContainerHomeMount,
   LayoutSnapshot,
   SurfaceKind,
   Workspace,
@@ -69,9 +70,17 @@ export interface BackendLifecycleRequest {
 
 export interface CreateWorkspaceRequest {
   name: string
-  /** Working directory for the workspace's backend. Required for host. */
-  cwd: string
   backendKind: BackendKind
+  /** Working directory for the workspace's backend. Required for host (AC2.2). */
+  cwd?: string
+  /** Container/machine image reference. Required for container (AC2.1). */
+  image?: string
+  /** How the host home directory is mounted into the container machine. */
+  homeMount?: ContainerHomeMount
+  /** Optional vCPU cap for the container machine. */
+  cpus?: number
+  /** Optional memory cap for the container machine (e.g. `4G`). */
+  memory?: string
 }
 export interface CreateWorkspaceResult {
   workspace: Workspace

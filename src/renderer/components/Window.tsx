@@ -68,7 +68,7 @@ export function Window({
               <span className="led" />⤢ 전체화면
             </span>
           ) : null}
-          <span className="badge host">
+          <span className={`badge ${backendBadge === 'container' ? 'cont' : 'host'}`}>
             <span className="led" />
             {backendBadge}
           </span>

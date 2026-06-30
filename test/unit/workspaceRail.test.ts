@@ -17,7 +17,7 @@ function ws(id: string, name: string, kind: BackendKind = 'host'): CreateWorkspa
   const backend: CreateWorkspaceResult['workspace']['backend'] =
     kind === 'host'
       ? { kind: 'host', cwd: '/x' }
-      : { kind: 'container', image: 'node:20', cwd: '/x', mounts: [] }
+      : { kind: 'container', image: 'node:20', homeMount: 'rw' }
   return {
     workspace: { id, name, backend },
     layout: {} as CreateWorkspaceResult['layout']

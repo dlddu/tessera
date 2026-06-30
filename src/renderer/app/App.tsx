@@ -124,12 +124,16 @@ export function App() {
     // pane/tab tree survives until we switch back.
     const activeWs = active ?? workspaces[0]!
     const { workspace } = activeWs
+    const { backend } = workspace
+    // Host shows its cwd in the title bar; a container has no host cwd, so show
+    // its image reference instead. Badge/label reflect the actual backend kind.
+    const dir = backend.kind === 'host' ? backend.cwd : backend.image
     return (
       <Window
         workspace={workspace.name}
-        dir={workspace.backend.cwd}
-        backendBadge="host"
-        backendLabel="host"
+        dir={dir}
+        backendBadge={backend.kind}
+        backendLabel={backend.kind}
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
         zoomed={zoomed}

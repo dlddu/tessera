@@ -20,14 +20,41 @@ describe('validateWorkspaceInput', () => {
     expect(validateWorkspaceInput({ name: 'x', cwd: '  ', backendKind: 'host' })).not.toBeNull()
   })
 
-  it('rejects container creation (out of scope)', () => {
+  it('requires an image for container workspaces', () => {
     expect(
-      validateWorkspaceInput({ name: 'x', cwd: '/tmp', backendKind: 'container' })
+      validateWorkspaceInput({ name: 'x', backendKind: 'container', image: '  ' })
+    ).not.toBeNull()
+  })
+
+  it('rejects a non-positive or non-integer cpus for container workspaces', () => {
+    expect(
+      validateWorkspaceInput({ name: 'x', backendKind: 'container', image: 'node:22', cpus: 0 })
+    ).not.toBeNull()
+    expect(
+      validateWorkspaceInput({ name: 'x', backendKind: 'container', image: 'node:22', cpus: 1.5 })
     ).not.toBeNull()
   })
 
   it('accepts a valid host input', () => {
     expect(validateWorkspaceInput({ name: 'proj', cwd: '/tmp', backendKind: 'host' })).toBeNull()
+  })
+
+  it('accepts a valid container input (image + homeMount)', () => {
+    expect(
+      validateWorkspaceInput({
+        name: 'proj',
+        backendKind: 'container',
+        image: 'node:22',
+        homeMount: 'rw'
+      })
+    ).toBeNull()
+  })
+
+  it('accepts a container input without a cwd', () => {
+    // Container has no host working directory — cwd is irrelevant.
+    expect(
+      validateWorkspaceInput({ name: 'proj', backendKind: 'container', image: 'node:22' })
+    ).toBeNull()
   })
 })
 
@@ -62,6 +89,39 @@ describe('buildWorkspace', () => {
     expect(snapshot.workspace).toBe(workspace)
     expect(snapshot.layout).toBe(layout)
     expect(snapshot.savedAt).toBeGreaterThan(0)
+  })
+
+  it('builds a container workspace bound to an image + home-mount + resources', () => {
+    const { workspace, layout } = buildWorkspace({
+      name: '  cont-proj  ',
+      backendKind: 'container',
+      image: '  node:22  ',
+      homeMount: 'ro',
+      cpus: 4,
+      memory: '  8G  '
+    })
+
+    expect(workspace.name).toBe('cont-proj')
+    expect(workspace.backend).toEqual({
+      kind: 'container',
+      image: 'node:22',
+      homeMount: 'ro',
+      cpus: 4,
+      memory: '8G'
+    })
+    // The default area inherits the container backend kind.
+    expect(layout.areas).toEqual([{ id: 'area-default', kind: 'default', backend: 'container' }])
+    // Still the single-pane terminal skeleton, same as host.
+    expect(panes(layout.root)).toHaveLength(1)
+  })
+
+  it('defaults the container home-mount to rw and omits unset resources', () => {
+    const { workspace } = buildWorkspace({
+      name: 'cont',
+      backendKind: 'container',
+      image: 'node:22'
+    })
+    expect(workspace.backend).toEqual({ kind: 'container', image: 'node:22', homeMount: 'rw' })
   })
 
   it('throws on invalid input', () => {

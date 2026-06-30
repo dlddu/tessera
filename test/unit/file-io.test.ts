@@ -66,8 +66,13 @@ describe('backend file IPC handlers', () => {
   })
 
   function register(): void {
-    const backends = new BackendRegistry((cwd) => new HostBackend({ cwd }))
-    backends.create('ws-1', dir)
+    const backends = new BackendRegistry(
+      (config) => new HostBackend({ cwd: config.cwd }),
+      () => {
+        throw new Error('container backend not used in this test')
+      }
+    )
+    backends.create('ws-1', { kind: 'host', cwd: dir })
     registerBackendIpc({ backends })
   }
 
