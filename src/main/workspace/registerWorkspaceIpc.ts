@@ -22,6 +22,7 @@ import { homedir } from 'node:os'
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannels } from '@shared/ipc'
 import type {
+  CloseWorkspaceRequest,
   CreateWorkspaceRequest,
   CreateWorkspaceResult,
   DefaultCwdResult,
@@ -120,6 +121,18 @@ export function registerWorkspaceIpc({
       lastCreatedCwd = workspace.backend.cwd
 
       return { workspace, layout }
+    }
+  )
+
+  // Close is the inverse of create: permanently delete the workspace's snapshot
+  // (so it can't restore on the next boot) and drop its now-unused backend. The
+  // surfaces — and their PTYs — are torn down renderer-side when the workspace's
+  // view unmounts, so there's nothing process-level to kill here. AC1.7.
+  ipcMain.handle(
+    IpcChannels.workspace.close,
+    async (_event, req: CloseWorkspaceRequest): Promise<void> => {
+      backends.delete(req.workspaceId)
+      await store.delete(req.workspaceId)
     }
   )
 }

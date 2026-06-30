@@ -1,10 +1,15 @@
 /**
  * C-window: macOS-style window frame. Title bar (workspace name, backend badge)
- * + grout surface (children) + status bar, plus an optional `overlay` slot for
- * modal scrims (rendered inside the positioned `.win` so the scrim covers
- * exactly the window). On macOS the native traffic lights are drawn into the
- * inset title bar; the bar reserves space for them (`.is-mac .titlebar`) rather
- * than rendering its own decorative dots.
+ * + a `.winmain` body (an optional left `rail` slot beside the grout surface)
+ * + status bar, plus an optional `overlay` slot for modal scrims (rendered
+ * inside the positioned `.win` so the scrim covers exactly the window). On macOS
+ * the native traffic lights are drawn into the inset title bar; the bar reserves
+ * space for them (`.is-mac .titlebar`) rather than rendering its own decorative
+ * dots.
+ *
+ * The `rail` slot hosts the workspace switcher (C-workspace-rail, AC1.7); the
+ * surface(s) the switcher flips between are passed as `children`. With no rail
+ * (empty state) `.winmain` just holds the children.
  */
 import type { ReactNode } from 'react'
 import { StatusBar } from './StatusBar'
@@ -19,6 +24,8 @@ interface WindowProps {
   /** Title-bar badge text. */
   backendBadge: string
   children: ReactNode
+  /** Left-column workspace switcher (C-workspace-rail, AC1.7); omitted when empty. */
+  rail?: ReactNode
   /** Modal content rendered over the window (e.g. a dialog scrim). */
   overlay?: ReactNode
   /** Pending update version when one is downloaded and ready to install. */
@@ -35,6 +42,7 @@ export function Window({
   backendLabel,
   backendBadge,
   children,
+  rail,
   overlay,
   updateReadyVersion = null,
   onUpdateRestart,
@@ -66,7 +74,10 @@ export function Window({
           </span>
         </div>
       </div>
-      <div className="surface">{children}</div>
+      <div className="winmain">
+        {rail}
+        {children}
+      </div>
       <StatusBar
         workspace={workspace}
         backend={backendLabel}

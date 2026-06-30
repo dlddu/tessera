@@ -13,6 +13,8 @@ export const IpcChannels = {
   },
   workspace: {
     create: 'tessera:workspace:create',
+    /** renderer → main: close a workspace — delete its snapshot + drop its backend. */
+    close: 'tessera:workspace:close',
     pickDirectory: 'tessera:workspace:pick-directory',
     /** renderer → main: native file picker (open a host file in the editor). */
     pickFile: 'tessera:workspace:pick-file',

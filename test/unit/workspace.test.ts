@@ -101,6 +101,46 @@ describe('PersistenceStore.save', () => {
   })
 })
 
+describe('PersistenceStore.delete', () => {
+  let baseDir: string
+
+  beforeEach(async () => {
+    baseDir = await mkdtemp(join(tmpdir(), 'tessera-persist-'))
+  })
+
+  afterEach(async () => {
+    await rm(baseDir, { recursive: true, force: true })
+  })
+
+  it('permanently removes one snapshot (gone from load + list) but leaves siblings', async () => {
+    const store = new PersistenceStore(baseDir)
+    const { snapshot: keep } = buildWorkspace({
+      name: 'keep',
+      cwd: '/tmp/keep',
+      backendKind: 'host'
+    })
+    const { snapshot: drop } = buildWorkspace({
+      name: 'drop',
+      cwd: '/tmp/drop',
+      backendKind: 'host'
+    })
+    await store.save(keep)
+    await store.save(drop)
+
+    await store.delete(drop.workspaceId)
+
+    expect(await store.load(drop.workspaceId)).toBeNull()
+    const ids = (await store.list()).map((s) => s.workspaceId)
+    expect(ids).toContain(keep.workspaceId)
+    expect(ids).not.toContain(drop.workspaceId)
+  })
+
+  it('is idempotent when the workspace was never saved', async () => {
+    const store = new PersistenceStore(baseDir)
+    await expect(store.delete('ws-never')).resolves.toBeUndefined()
+  })
+})
+
 describe('PersistenceStore.load', () => {
   let baseDir: string
 

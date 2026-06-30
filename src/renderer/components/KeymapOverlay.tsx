@@ -50,6 +50,14 @@ export function KeymapOverlay() {
         </span>{' '}
         <span className="faint">복귀 Esc</span>
       </span>
+      <span className="row-gap">
+        <span className="muted">워크스페이스 닫기</span>{' '}
+        <span className="kcrow">
+          <span className="kc">⇧⌘</span>
+          <span className="plus">+</span>
+          <span className="kc">W</span>
+        </span>
+      </span>
     </div>
   )
 }

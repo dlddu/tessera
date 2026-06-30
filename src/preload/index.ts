@@ -33,6 +33,7 @@ const api: TesseraApi = {
   },
   workspace: {
     create: (req) => ipcRenderer.invoke(IpcChannels.workspace.create, req),
+    close: (req) => ipcRenderer.invoke(IpcChannels.workspace.close, req),
     pickDirectory: () => ipcRenderer.invoke(IpcChannels.workspace.pickDirectory),
     pickFile: () => ipcRenderer.invoke(IpcChannels.workspace.pickFile),
     pickSaveFile: () => ipcRenderer.invoke(IpcChannels.workspace.pickSaveFile),
