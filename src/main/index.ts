@@ -4,10 +4,16 @@
  */
 import { app, BrowserWindow } from 'electron'
 import { createWindow } from '@main/window'
+import { fixMainProcessPath } from '@main/env/fixPath'
 import { registerIpc } from '@main/ipc/registerIpc'
 import type { BackendRegistry } from '@main/backend'
 import type { PersistenceStore } from '@main/persistence'
 import { initUpdater } from '@main/update'
+
+// Reflect the login-shell PATH before anything spawns a child process, so the
+// `container` CLI + node-pty shells resolve even when macOS launched us from
+// Finder or an auto-update relaunch with a stripped PATH (see fixPath.ts).
+fixMainProcessPath()
 
 /**
  * Re-register each persisted workspace's backend so its surfaces can spawn on
