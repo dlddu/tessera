@@ -6,7 +6,7 @@
  * This is the *live* main-process contract (holds handles, callbacks). The
  * serializable config/state types live in `@shared/types`.
  */
-import type { BackendKind } from '@shared/types'
+import type { BackendKind, BackendStatus } from '@shared/types'
 
 export interface PtySpawnOptions {
   cols: number
@@ -69,6 +69,21 @@ export interface ProcessResult {
  */
 export interface Backend {
   readonly kind: BackendKind
+
+  /**
+   * Last-known lifecycle status. `host` is always `running`; `container`
+   * transitions starting → running (or → error) as {@link Backend.start} drives
+   * the underlying machine (AC2.1, AC2.6).
+   */
+  readonly status: BackendStatus
+
+  /**
+   * Bring the backend up to `running`. Host is a no-op (it's always live);
+   * container creates + boots its machine. Idempotent: calling it on an
+   * already-running backend resolves without re-doing work. Rejects (and leaves
+   * `status` at `error`) when the backend can't start.
+   */
+  start(): Promise<void>
 
   spawnPty(options: PtySpawnOptions): Promise<PtyProcess>
   readFile(path: string): Promise<Uint8Array>

@@ -4,18 +4,19 @@
  *   - `pickDirectory` → native folder picker (`dialog.showOpenDialog`).
  *   - `defaultCwd` → a sensible directory to prefill the create dialog: the cwd
  *     of the last workspace created this session, else the host home directory.
- *   - `create` → validate input, confirm the host cwd exists, build the
- *     workspace + initial single-pane layout, persist its snapshot, remember its
- *     cwd for the next `defaultCwd`, and return `{ workspace, layout }` to the
- *     renderer.
+ *   - `create` → validate input, confirm the host cwd exists (host only), build
+ *     the workspace + initial single-pane layout, persist its snapshot, start
+ *     the backend, remember the host cwd for the next `defaultCwd`, and return
+ *     `{ workspace, layout }` to the renderer.
  *
- * Container creation is out of scope (M-J2-S1); only host is wired. The backend
- * runtime has no "create workspace" concept — that is a host-level concern, so
- * it lives here rather than in `src/main/backend`.
+ * Both backend kinds are wired (M-J2-S1, AC2.1): host runs on the macOS host;
+ * container creates + boots an Apple `container` machine. The backend runtime
+ * has no "create workspace" concept — that is a host-level concern, so it lives
+ * here rather than in `src/main/backend`.
  *
  * On a successful create the workspace's live backend is registered in the
- * shared {@link BackendRegistry} so surfaces (M-J1-S2 terminals) can spawn
- * against it.
+ * shared {@link BackendRegistry} and started (host = no-op, container = machine
+ * create+boot) so surfaces (M-J1-S2 terminals) can spawn against it.
  */
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -107,18 +108,34 @@ export function registerWorkspaceIpc({
         throw new Error(error)
       }
 
-      if (!(await isDirectory(req.cwd))) {
+      const { workspace, layout, snapshot } = buildWorkspace(req)
+
+      // The cwd existence check is host-only — a container machine has no host
+      // working directory (it's image + home-mount + resources, AC2.1).
+      if (workspace.backend.kind === 'host' && !(await isDirectory(workspace.backend.cwd))) {
         throw new Error('작업 디렉토리를 찾을 수 없습니다.')
       }
 
-      const { workspace, layout, snapshot } = buildWorkspace(req)
       await store.save(snapshot)
 
-      // Stand up the workspace's live backend so its surfaces can spawn PTYs.
-      backends.create(workspace.id, workspace.backend.cwd)
+      // Construct the workspace's live backend, then bring it up: host is a
+      // no-op (always live), container creates + boots its machine to running
+      // (AC2.1). If start fails (e.g. the runtime is unavailable), roll back the
+      // snapshot + registration so a half-created workspace can't linger.
+      const backend = backends.create(workspace.id, workspace.backend)
+      try {
+        await backend.start()
+      } catch (err) {
+        backends.delete(workspace.id)
+        await store.delete(workspace.id)
+        const detail = err instanceof Error ? err.message : String(err)
+        throw new Error(`백엔드를 시작하지 못했습니다: ${detail}`)
+      }
 
-      // Remember this cwd so the next create dialog can prefill it.
-      lastCreatedCwd = workspace.backend.cwd
+      // Remember the host cwd so the next create dialog can prefill it.
+      if (workspace.backend.kind === 'host') {
+        lastCreatedCwd = workspace.backend.cwd
+      }
 
       return { workspace, layout }
     }

@@ -325,6 +325,10 @@ body{
 .btn.ghost{background:transparent; color:var(--muted)}
 .btn.danger{background:color-mix(in srgb,var(--danger) 90%,#000); border-color:transparent; color:#1a0c0c}
 .btn.sm{padding:5px 10px; font-size:11.5px}
+.btn[disabled]{opacity:.6; cursor:default}
+/* In-button spinner tracks the button's own text color (the shared .spinner is
+   tuned for the Claude accent). */
+.btn .spinner{border-color:color-mix(in srgb,currentColor 32%,transparent); border-top-color:currentColor}
 
 /* ============================================================ C-toast */
 .toast{position:absolute; right:14px; bottom:38px; z-index:40; max-width:330px;

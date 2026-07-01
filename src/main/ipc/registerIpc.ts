@@ -9,7 +9,13 @@
  * main entry can drive boot restore (J1-S6).
  */
 import { app } from 'electron'
-import { BackendRegistry, HostBackend, registerBackendIpc } from '@main/backend'
+import {
+  BackendRegistry,
+  ContainerBackend,
+  HostBackend,
+  createCliContainerRuntime,
+  registerBackendIpc
+} from '@main/backend'
 import { SurfaceRegistry, registerSurfaceIpc } from '@main/surface'
 import { registerWorkspaceIpc } from '@main/workspace'
 import { registerRoutingIpc } from '@main/routing'
@@ -22,7 +28,21 @@ export interface MainServices {
 }
 
 export function registerIpc(): MainServices {
-  const backends = new BackendRegistry((cwd) => new HostBackend({ cwd }))
+  // One container runtime drives every container machine (CLI-backed; the daemon
+  // is started lazily on first use via `ensureSystem`).
+  const containerRuntime = createCliContainerRuntime()
+  const backends = new BackendRegistry(
+    (config) => new HostBackend({ cwd: config.cwd }),
+    (workspaceId, config) =>
+      new ContainerBackend({
+        name: workspaceId,
+        image: config.image,
+        homeMount: config.homeMount,
+        ...(config.cpus !== undefined ? { cpus: config.cpus } : {}),
+        ...(config.memory !== undefined ? { memory: config.memory } : {}),
+        runtime: containerRuntime
+      })
+  )
   const surfaces = new SurfaceRegistry()
   const store = new PersistenceStore(app.getPath('userData'))
 
