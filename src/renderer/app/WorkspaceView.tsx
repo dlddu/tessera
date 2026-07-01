@@ -325,6 +325,7 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
       <SurfaceHost
         snapshot={snapshot}
         workspaceId={workspace.id}
+        backendKind={workspace.backend.kind}
         actions={actions}
         paneBodies={paneBodies}
       />

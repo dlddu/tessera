@@ -1,23 +1,29 @@
 /**
- * Apple `container` machine runtime adapter (M-J2-S1, AC2.1).
+ * Apple `container` machine runtime adapter (M-J2-S1 AC2.1, M-J2-S2 AC2.3).
  *
  * A thin, injectable wrapper over the `container` CLI's `machine` subcommands so
  * the backend layer can stand up a real VM-backed machine without importing
  * `child_process` directly — production wires {@link createCliContainerRuntime};
  * unit tests inject a fake {@link ContainerRuntime}.
  *
- * The three operations S1 needs:
+ * The operations the container backend needs:
  *   - {@link ContainerRuntime.ensureSystem} → `container system start` (once).
  *   - {@link ContainerRuntime.createMachine} → `container machine create …`,
  *     which both creates AND boots the machine to `running`.
  *   - {@link ContainerRuntime.status} → `container machine inspect`, mapped to a
  *     {@link BackendStatus}.
+ *   - {@link ContainerRuntime.spawnExecPty} → `container machine run -n …`, an
+ *     interactive login shell *inside* the machine over a PTY (AC2.3).
  *
  * A missing CLI / dead daemon surfaces as {@link ContainerRuntimeUnavailableError}
  * so the create handler can roll back and the dialog can show a clear message.
  */
 import { execFile } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
+import { homedir } from 'node:os'
 import type { BackendStatus, ContainerHomeMount } from '@shared/types'
+import type { PtyProcess, PtySpawn } from './Backend'
+import { getNodePtySpawn } from './nodePty'
 
 /** The machine spec passed to {@link ContainerRuntime.createMachine}. */
 export interface CreateMachineSpec {
@@ -33,6 +39,18 @@ export interface CreateMachineSpec {
   memory?: string
 }
 
+/** Geometry (and optional starting cwd) for {@link ContainerRuntime.spawnExecPty}. */
+export interface ExecPtyOptions {
+  cols: number
+  rows: number
+  /**
+   * Starting directory *inside* the machine (`--workdir`). Omitted → the
+   * machine's default login home. Used to open a new container terminal where
+   * the last one was (OSC 7-tracked cwd, M-J2-S2).
+   */
+  cwd?: string
+}
+
 /**
  * The runtime capabilities the container backend depends on. Injectable so
  * {@link ContainerBackend} can be unit-tested without the `container` CLI.
@@ -44,6 +62,12 @@ export interface ContainerRuntime {
   createMachine(spec: CreateMachineSpec): Promise<void>
   /** Best-effort current status of a machine by name. */
   status(name: string): Promise<BackendStatus>
+  /**
+   * Open an interactive login shell inside the machine over a PTY (AC2.3):
+   * `container machine run -n <name>`. The shell sees the container's hostname,
+   * env, and filesystem — never the host's.
+   */
+  spawnExecPty(name: string, options: ExecPtyOptions): Promise<PtyProcess>
 }
 
 /**
@@ -71,6 +95,36 @@ export type ContainerCliExec = (args: string[]) => Promise<{ stdout: string; std
 /** Name of the CLI binary; pinned here so a version bump is one edit. */
 const CONTAINER_BIN = 'container'
 
+/**
+ * OSC 7 cwd-reporting hook, injected into the guest as a single `--env`
+ * `PROMPT_COMMAND`. bash runs it before each prompt, emitting
+ * `ESC ] 7 ; file://<host>/<pwd> ESC \` so the renderer can track a container
+ * terminal's live cwd — and open the next container terminal there (M-J2-S2).
+ *
+ * It sets exactly one guest variable, so it does NOT copy the host environment
+ * into the machine — host isolation (AC2.3) holds. Shells that ignore
+ * `PROMPT_COMMAND` (sh/zsh) simply don't report a cwd, so a new terminal falls
+ * back to the default home (graceful degradation, not an error).
+ */
+const OSC7_CWD_HOOK = `PROMPT_COMMAND=printf '\\033]7;file://%s%s\\033\\\\' "$HOSTNAME" "$PWD"`
+
+/**
+ * Snapshot of the host environment for the `container` CLI *process* (so it can
+ * resolve on PATH and reach its daemon). This is the host-side launcher env, not
+ * the guest's: `container machine run` builds the guest env from the image plus
+ * explicit `--env` flags and never copies the launcher's, so nothing here leaks
+ * into the container (AC2.3).
+ */
+function hostEnv(): Record<string, string> {
+  const env: Record<string, string> = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value
+    }
+  }
+  return env
+}
+
 interface CliExecError extends Error {
   code?: string
 }
@@ -97,7 +151,11 @@ class CliContainerRuntime implements ContainerRuntime {
   /** Cached `ensureSystem` promise so the daemon is only started once. */
   private systemStarted: Promise<void> | null = null
 
-  constructor(private readonly exec: ContainerCliExec) {}
+  constructor(
+    private readonly exec: ContainerCliExec,
+    /** PTY spawner for exec sessions; defaults to lazy node-pty. Injected in tests. */
+    private readonly ptySpawn: PtySpawn | null = null
+  ) {}
 
   ensureSystem(): Promise<void> {
     if (!this.systemStarted) {
@@ -139,6 +197,41 @@ class CliContainerRuntime implements ContainerRuntime {
     }
   }
 
+  async spawnExecPty(name: string, options: ExecPtyOptions): Promise<PtyProcess> {
+    const spawn = this.ptySpawn ?? (await getNodePtySpawn())
+
+    // `container machine run -n <name> [--workdir <cwd>] --env <osc7 hook>`.
+    const args = ['machine', 'run', '-n', name]
+    if (options.cwd !== undefined) {
+      args.push('--workdir', options.cwd)
+    }
+    args.push('--env', OSC7_CWD_HOOK)
+
+    const pty = spawn(CONTAINER_BIN, args, {
+      name: 'xterm-256color',
+      cols: options.cols,
+      rows: options.rows,
+      // Host-side cwd + env for the `container` CLI process itself — NOT the
+      // guest's. The guest's cwd is `--workdir` and its env is the machine's own
+      // plus the one `--env` hook above, so the container stays host-isolated
+      // (AC2.3). `homedir()` (not `options.cwd`, a guest path) keeps the launcher
+      // in a directory that actually exists on the host.
+      cwd: homedir(),
+      env: hostEnv()
+    })
+
+    // Same wrapper shape as HostBackend.spawnPty: adapt the native handle to the
+    // backend-agnostic PtyProcess contract.
+    return {
+      id: `pty-${randomUUID()}`,
+      write: (data) => pty.write(data),
+      resize: (cols, rows) => pty.resize(cols, rows),
+      onData: (listener) => pty.onData(listener),
+      onExit: (listener) => pty.onExit((event) => listener(event.exitCode)),
+      kill: () => pty.kill()
+    }
+  }
+
   private run(args: string[]): Promise<{ stdout: string; stderr: string }> {
     return this.exec(args)
   }
@@ -158,10 +251,12 @@ class CliContainerRuntime implements ContainerRuntime {
 
 /**
  * Build the production container runtime backed by the real `container` CLI.
- * `exec` is injectable for tests; production uses {@link execFile}.
+ * `exec` (one-shot commands) and `ptySpawn` (exec sessions) are injectable for
+ * tests; production uses {@link execFile} and lazily-loaded node-pty.
  */
 export function createCliContainerRuntime(
-  exec: ContainerCliExec = defaultExec(CONTAINER_BIN)
+  exec: ContainerCliExec = defaultExec(CONTAINER_BIN),
+  ptySpawn: PtySpawn | null = null
 ): ContainerRuntime {
-  return new CliContainerRuntime(exec)
+  return new CliContainerRuntime(exec, ptySpawn)
 }
