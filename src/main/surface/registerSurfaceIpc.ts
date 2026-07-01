@@ -48,7 +48,14 @@ export function registerSurfaceIpc({
         throw new Error(`no backend for workspace ${req.workspaceId}`)
       }
 
-      const pty = await backend.spawnPty({ cols: DEFAULT_COLS, rows: DEFAULT_ROWS })
+      // `req.cwd` is only set by container terminals inheriting a sibling's live
+      // cwd (M-J2-S2); host terminals leave it undefined and the backend falls
+      // back to the workspace cwd.
+      const pty = await backend.spawnPty({
+        cols: DEFAULT_COLS,
+        rows: DEFAULT_ROWS,
+        ...(req.cwd !== undefined ? { cwd: req.cwd } : {})
+      })
       const surfaceId = `S-${randomUUID()}`
       surfaces.register(surfaceId, pty)
 

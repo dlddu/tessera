@@ -121,6 +121,13 @@ export interface CreateSurfaceRequest {
   workspaceId: string
   areaId: string
   surface: SurfaceKind
+  /**
+   * Starting cwd for a terminal surface's PTY. Container terminals set this to a
+   * sibling's OSC 7-tracked cwd so a new terminal opens where the last one was
+   * (M-J2-S2); omitted → the backend's default (host workspace cwd / machine
+   * login home).
+   */
+  cwd?: string
 }
 export interface CreateSurfaceResult {
   surfaceId: string

@@ -19,7 +19,7 @@
  */
 import { useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import type { LayoutNode, LayoutSnapshot, TabNode } from '@shared/types'
+import type { BackendKind, LayoutNode, LayoutSnapshot, TabNode } from '@shared/types'
 import {
   BrowserSurface,
   ClaudeSurface,
@@ -53,15 +53,19 @@ function collectLiveTabs(node: LayoutNode, acc: LiveTab[]): void {
 function TabSurface({
   tab,
   workspaceId,
+  backendKind,
   actions
 }: {
   tab: TabNode
   workspaceId: string
+  backendKind: BackendKind
   actions: LayoutActions
 }) {
   switch (tab.surface) {
     case 'terminal':
-      return <TerminalSurface workspaceId={workspaceId} areaId={tab.areaId} />
+      return (
+        <TerminalSurface workspaceId={workspaceId} areaId={tab.areaId} backendKind={backendKind} />
+      )
     case 'editor':
       return <EditorSurface tab={tab} workspaceId={workspaceId} onSetTabPath={actions.setTabPath} />
     case 'browser':
@@ -76,11 +80,19 @@ function TabSurface({
 interface SurfaceHostProps {
   snapshot: LayoutSnapshot
   workspaceId: string
+  /** The workspace's backend kind, forwarded to terminal surfaces (AC2.3, M-J2-S2). */
+  backendKind: BackendKind
   actions: LayoutActions
   paneBodies: PaneBodyRegistry
 }
 
-export function SurfaceHost({ snapshot, workspaceId, actions, paneBodies }: SurfaceHostProps) {
+export function SurfaceHost({
+  snapshot,
+  workspaceId,
+  backendKind,
+  actions,
+  paneBodies
+}: SurfaceHostProps) {
   // One detached slot <div> per live tab; the stable portal container per tab.
   const slots = useRef(new Map<string, HTMLDivElement>())
 
@@ -130,7 +142,12 @@ export function SurfaceHost({ snapshot, workspaceId, actions, paneBodies }: Surf
           // stop propagation) and focus the owning pane. focusPane only sets
           // state, so it doesn't fight the surface for DOM focus.
           <div className="surface-mount" onMouseDownCapture={() => actions.focusPane(paneId)}>
-            <TabSurface tab={tab} workspaceId={workspaceId} actions={actions} />
+            <TabSurface
+              tab={tab}
+              workspaceId={workspaceId}
+              backendKind={backendKind}
+              actions={actions}
+            />
           </div>,
           slotFor(tab.id),
           tab.id
