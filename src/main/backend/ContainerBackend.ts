@@ -5,15 +5,16 @@
  * {@link ContainerBackend.start} ensures the container system is up and
  * creates+boots the machine (named after the workspace id) to `running` (S1).
  * {@link ContainerBackend.spawnPty} opens a terminal *inside* that machine over
- * a PTY (S2 / AC2.3). The remaining capabilities are still stubs and land with
- * their journeys:
- *   - readFile/writeFile → machine fs
+ * a PTY (S2 / AC2.3). readFile/writeFile/listDir hit the machine's filesystem
+ * via one-shot `machine run` commands (S3 / AC2.3) — the editor reads, saves,
+ * and browses container files through them. The remaining capabilities are
+ * still stubs and land with their journeys:
  *   - runProcess → machine exec
  *   - getEnv     → machine env
  * Stop/restart (AC2.6) land in S6.
  */
 import { NotImplementedError } from '@shared/errors'
-import type { BackendKind, BackendStatus, ContainerHomeMount } from '@shared/types'
+import type { BackendKind, BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
 import type {
   Backend,
   ProcessResult,
@@ -91,12 +92,21 @@ export class ContainerBackend implements Backend {
     })
   }
 
-  readFile(_path: string): Promise<Uint8Array> {
-    throw new NotImplementedError('ContainerBackend.readFile')
+  /**
+   * File I/O against the *machine's* filesystem (AC2.3): each call delegates to
+   * a one-shot `container machine run -n <name>` command, so the editor reads,
+   * saves, and browses container files — never the host's (M-J2-S3).
+   */
+  readFile(path: string): Promise<Uint8Array> {
+    return this.options.runtime.readFile(this.options.name, path)
   }
 
-  writeFile(_path: string, _data: Uint8Array): Promise<void> {
-    throw new NotImplementedError('ContainerBackend.writeFile')
+  writeFile(path: string, data: Uint8Array): Promise<void> {
+    return this.options.runtime.writeFile(this.options.name, path, data)
+  }
+
+  listDir(path: string): Promise<DirEntry[]> {
+    return this.options.runtime.listDir(this.options.name, path)
   }
 
   runProcess(

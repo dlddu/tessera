@@ -1,16 +1,17 @@
 /**
  * Host backend (AC2.2): runs processes directly on the macOS host.
  *
- * `spawnPty` (node-pty) and readFile/writeFile (host fs, AC2.2) are live. The
- * remaining capabilities are still stubs and land with their journeys:
+ * `spawnPty` (node-pty) and readFile/writeFile/listDir (host fs, AC2.2) are
+ * live. The remaining capabilities are still stubs and land with their
+ * journeys:
  *   - runProcess → child_process
  *   - getEnv     → host process.env / login shell env
  */
 import { randomUUID } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { isAbsolute, resolve } from 'node:path'
 import { NotImplementedError } from '@shared/errors'
-import type { BackendKind, BackendStatus } from '@shared/types'
+import type { BackendKind, BackendStatus, DirEntry } from '@shared/types'
 import type {
   Backend,
   ProcessResult,
@@ -90,6 +91,11 @@ export class HostBackend implements Backend {
 
   async writeFile(path: string, data: Uint8Array): Promise<void> {
     await writeFile(this.resolvePath(path), data)
+  }
+
+  async listDir(path: string): Promise<DirEntry[]> {
+    const entries = await readdir(this.resolvePath(path), { withFileTypes: true })
+    return entries.map((entry) => ({ name: entry.name, isDir: entry.isDirectory() }))
   }
 
   runProcess(

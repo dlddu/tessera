@@ -27,6 +27,7 @@ const api: TesseraApi = {
     spawnPty: (req) => ipcRenderer.invoke(IpcChannels.backend.spawnPty, req),
     readFile: (req) => ipcRenderer.invoke(IpcChannels.backend.readFile, req),
     writeFile: (req) => ipcRenderer.invoke(IpcChannels.backend.writeFile, req),
+    listDir: (req) => ipcRenderer.invoke(IpcChannels.backend.listDir, req),
     runProcess: (req) => ipcRenderer.invoke(IpcChannels.backend.runProcess, req),
     getEnv: (req) => ipcRenderer.invoke(IpcChannels.backend.getEnv, req),
     lifecycle: (req) => ipcRenderer.invoke(IpcChannels.backend.lifecycle, req)

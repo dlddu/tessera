@@ -32,7 +32,7 @@ import {
   HostBackend,
   createCliContainerRuntime
 } from '@main/backend'
-import type { ContainerRuntime, CreateMachineSpec } from '@main/backend'
+import type { ContainerCliExec, ContainerRuntime, CreateMachineSpec } from '@main/backend'
 import { registerWorkspaceIpc } from '@main/workspace'
 
 /** A sentinel PtyProcess the fake runtime hands back from `spawnExecPty`. */
@@ -52,7 +52,10 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
   const calls = {
     ensureSystem: 0,
     createMachine: [] as CreateMachineSpec[],
-    spawnExecPty: [] as Array<{ name: string; options: ExecPtyOptions }>
+    spawnExecPty: [] as Array<{ name: string; options: ExecPtyOptions }>,
+    readFile: [] as Array<{ name: string; path: string }>,
+    writeFile: [] as Array<{ name: string; path: string; data: Uint8Array }>,
+    listDir: [] as Array<{ name: string; path: string }>
   }
   const runtime: ContainerRuntime = {
     async ensureSystem() {
@@ -68,6 +71,20 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     async spawnExecPty(name, options) {
       calls.spawnExecPty.push({ name, options })
       return stubPtyProcess(`pty-${name}`)
+    },
+    async readFile(name, path) {
+      calls.readFile.push({ name, path })
+      return new TextEncoder().encode(`guest:${path}`)
+    },
+    async writeFile(name, path, data) {
+      calls.writeFile.push({ name, path, data })
+    },
+    async listDir(name, path) {
+      calls.listDir.push({ name, path })
+      return [
+        { name: 'src', isDir: true },
+        { name: 'a.ts', isDir: false }
+      ]
     }
   }
   return { runtime, calls }
@@ -270,6 +287,106 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     })
     fake.emitExit(0)
     expect(exitCode).toBe(0)
+  })
+})
+
+describe('createCliContainerRuntime — file I/O (M-J2-S3)', () => {
+  /** Record every exec invocation (argv + stdin) and script the next stdout. */
+  function recordingExec() {
+    const calls: Array<{ args: string[]; input: string | undefined }> = []
+    let stdout = ''
+    const exec: ContainerCliExec = async (args, input) => {
+      calls.push({ args, input })
+      return { stdout, stderr: '' }
+    }
+    return {
+      exec,
+      calls,
+      setStdout(next: string) {
+        stdout = next
+      }
+    }
+  }
+
+  it('readFile runs `machine run -n <name> base64 <path>` and decodes the stdout', async () => {
+    const { exec, calls, setStdout } = recordingExec()
+    setStdout(Buffer.from('héllo, 월드', 'utf8').toString('base64') + '\n')
+    const runtime = createCliContainerRuntime(exec)
+
+    const bytes = await runtime.readFile('ws-9', '/etc/motd')
+
+    expect(calls).toEqual([
+      { args: ['machine', 'run', '-n', 'ws-9', 'base64', '/etc/motd'], input: undefined }
+    ])
+    expect(new TextDecoder().decode(bytes)).toBe('héllo, 월드')
+  })
+
+  it('readFile survives the line wrapping `base64` emits for larger files', async () => {
+    const { exec, setStdout } = recordingExec()
+    const raw = 'x'.repeat(300)
+    const wrapped = Buffer.from(raw, 'utf8')
+      .toString('base64')
+      .replace(/(.{76})/g, '$1\n')
+    setStdout(wrapped)
+    const runtime = createCliContainerRuntime(exec)
+
+    const bytes = await runtime.readFile('ws-9', '/big.txt')
+
+    expect(new TextDecoder().decode(bytes)).toBe(raw)
+  })
+
+  it('writeFile pipes the bytes as base64 stdin into `base64 -d > <path>`', async () => {
+    const { exec, calls } = recordingExec()
+    const runtime = createCliContainerRuntime(exec)
+
+    await runtime.writeFile('ws-9', '/srv/app/a.ts', new TextEncoder().encode('saved, 저장!'))
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0]!.args).toEqual([
+      'machine',
+      'run',
+      '-n',
+      'ws-9',
+      'sh',
+      '-c',
+      "base64 -d > '/srv/app/a.ts'"
+    ])
+    expect(Buffer.from(calls[0]!.input!, 'base64').toString('utf8')).toBe('saved, 저장!')
+  })
+
+  it('writeFile single-quotes shell-hostile paths', async () => {
+    const { exec, calls } = recordingExec()
+    const runtime = createCliContainerRuntime(exec)
+
+    await runtime.writeFile('ws-9', "/tmp/it's a file.txt", new Uint8Array([1]))
+
+    expect(calls[0]!.args.at(-1)).toBe("base64 -d > '/tmp/it'\\''s a file.txt'")
+  })
+
+  it('listDir runs `ls -1Ap` and parses trailing slashes into DirEntry flags', async () => {
+    const { exec, calls, setStdout } = recordingExec()
+    setStdout('src/\n.gitignore\nREADME.md\nnode_modules/\n')
+    const runtime = createCliContainerRuntime(exec)
+
+    const entries = await runtime.listDir('ws-9', '/work')
+
+    expect(calls).toEqual([
+      { args: ['machine', 'run', '-n', 'ws-9', 'ls', '-1Ap', '--', '/work'], input: undefined }
+    ])
+    expect(entries).toEqual([
+      { name: 'src', isDir: true },
+      { name: '.gitignore', isDir: false },
+      { name: 'README.md', isDir: false },
+      { name: 'node_modules', isDir: true }
+    ])
+  })
+
+  it('listDir of an empty directory yields no entries', async () => {
+    const { exec, setStdout } = recordingExec()
+    setStdout('')
+    const runtime = createCliContainerRuntime(exec)
+
+    expect(await runtime.listDir('ws-9', '/empty')).toEqual([])
   })
 })
 

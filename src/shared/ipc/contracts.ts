@@ -8,6 +8,7 @@ import type {
   BackendKind,
   BackendLifecycleState,
   ContainerHomeMount,
+  DirEntry,
   LayoutSnapshot,
   SurfaceKind,
   Workspace,
@@ -42,6 +43,16 @@ export interface WriteFileRequest {
   areaId: string
   path: string
   dataBase64: string
+}
+
+/** List a directory on the workspace's backend (editor file browser, M-J2-S3). */
+export interface ListDirRequest {
+  workspaceId: string
+  areaId: string
+  path: string
+}
+export interface ListDirResult {
+  entries: DirEntry[]
 }
 
 export interface RunProcessRequest {
@@ -219,6 +230,8 @@ export interface BackendApi {
   spawnPty(req: SpawnPtyRequest): Promise<SpawnPtyResult>
   readFile(req: ReadFileRequest): Promise<ReadFileResult>
   writeFile(req: WriteFileRequest): Promise<void>
+  /** List a directory on the workspace's backend (editor file browser, M-J2-S3). */
+  listDir(req: ListDirRequest): Promise<ListDirResult>
   runProcess(req: RunProcessRequest): Promise<RunProcessResult>
   getEnv(req: GetEnvRequest): Promise<Record<string, string>>
   lifecycle(req: BackendLifecycleRequest): Promise<BackendLifecycleState>

@@ -6,7 +6,7 @@
  * This is the *live* main-process contract (holds handles, callbacks). The
  * serializable config/state types live in `@shared/types`.
  */
-import type { BackendKind, BackendStatus } from '@shared/types'
+import type { BackendKind, BackendStatus, DirEntry } from '@shared/types'
 
 export interface PtySpawnOptions {
   cols: number
@@ -64,7 +64,7 @@ export interface ProcessResult {
 }
 
 /**
- * The four capabilities every backend provides: spawn a PTY, read/write files,
+ * The capabilities every backend provides: spawn a PTY, read/write/list files,
  * run a one-shot process, and report environment variables.
  */
 export interface Backend {
@@ -88,6 +88,8 @@ export interface Backend {
   spawnPty(options: PtySpawnOptions): Promise<PtyProcess>
   readFile(path: string): Promise<Uint8Array>
   writeFile(path: string, data: Uint8Array): Promise<void>
+  /** List a directory's entries — the editor's file browser (M-J2-S3, AC2.3). */
+  listDir(path: string): Promise<DirEntry[]>
   runProcess(command: string, args: string[], options?: RunProcessOptions): Promise<ProcessResult>
   getEnv(): Promise<Record<string, string>>
 }
