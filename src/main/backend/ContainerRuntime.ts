@@ -22,9 +22,11 @@
  * A missing CLI / dead daemon surfaces as {@link ContainerRuntimeUnavailableError}
  * so the create handler can roll back and the dialog can show a clear message.
  */
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { homedir } from 'node:os'
+import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
 import type { PtyProcess, PtySpawn } from './Backend'
 import { getNodePtySpawn } from './nodePty'
@@ -97,10 +99,9 @@ export class ContainerRuntimeUnavailableError extends Error {
 
 /**
  * Runs the `container` CLI with the given args, resolving its stdout/stderr.
- * `input`, when given, is piped to the process's stdin and then closed — the
- * write path feeds `base64 -d` in the guest this way. Injectable so the CLI
- * runtime is unit-testable; the default shells out to the real binary via
- * {@link execFile}.
+ * `input`, when given, becomes the process's stdin (then EOF) — the write path
+ * feeds `base64 -d` in the guest this way. Injectable so the CLI runtime is
+ * unit-testable; production uses {@link defaultExec}.
  */
 export type ContainerCliExec = (
   args: string[],
@@ -145,31 +146,55 @@ interface CliExecError extends Error {
 }
 
 /**
- * stdout budget for one CLI invocation. File reads come back as base64 text, so
- * this bounds the largest openable container file (~48MB of raw bytes) — far
- * beyond anything the text editor should hold.
+ * Runs one CLI command with its stdio bound to real temp files — the same shape
+ * as `container … < in > out 2> err` in a shell — and never to Node pipes.
+ *
+ * Node's child-process pipes are AF_UNIX *socketpairs* on macOS, and
+ * `container machine run` probes its stdio with terminal ioctls: on a file that
+ * probe degrades to the ordinary not-a-terminal case, but on a socket it dies
+ * with "Operation not supported on socket" and the command never runs. File
+ * stdio keeps every one-shot (`system start`/`machine create`/`inspect`/`run`)
+ * on the redirection path the CLI supports. Exported for direct unit tests
+ * against real binaries; the error shape mirrors `execFile`'s ("Command failed"
+ * message, `code`, captured `stdout`/`stderr`), which `isMissingBinary` and the
+ * user-facing messages rely on.
  */
-const EXEC_MAX_BUFFER = 64 * 1024 * 1024
-
-function defaultExec(binary: string): ContainerCliExec {
-  return (args, input) =>
-    new Promise((resolvePromise, reject) => {
-      const child = execFile(
-        binary,
-        args,
-        { encoding: 'utf8', maxBuffer: EXEC_MAX_BUFFER },
-        (error, stdout, stderr) => {
-          if (error) {
-            reject(Object.assign(error, { stdout, stderr }))
-          } else {
-            resolvePromise({ stdout, stderr })
-          }
-        }
-      )
-      if (input !== undefined) {
-        child.stdin?.end(input)
+export function defaultExec(binary: string): ContainerCliExec {
+  return async (args, input) => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-container-cli-'))
+    try {
+      const stdinPath = join(dir, 'stdin')
+      const stdoutPath = join(dir, 'stdout')
+      const stderrPath = join(dir, 'stderr')
+      // An empty stdin file gives no-input commands immediate EOF.
+      await writeFile(stdinPath, input ?? '')
+      const files = await Promise.all([
+        open(stdinPath, 'r'),
+        open(stdoutPath, 'w'),
+        open(stderrPath, 'w')
+      ])
+      const exitCode = await new Promise<number | null>((resolvePromise, reject) => {
+        const child = spawn(binary, args, { stdio: files.map((file) => file.fd) })
+        // Spawn failures (e.g. ENOENT) keep their `code` for isMissingBinary.
+        child.once('error', reject)
+        child.once('exit', (code) => resolvePromise(code))
+      }).finally(() => Promise.all(files.map((file) => file.close())))
+      const [stdout, stderr] = await Promise.all([
+        readFile(stdoutPath, 'utf8'),
+        readFile(stderrPath, 'utf8')
+      ])
+      if (exitCode !== 0) {
+        throw Object.assign(new Error(`Command failed: ${binary} ${args.join(' ')}\n${stderr}`), {
+          code: exitCode,
+          stdout,
+          stderr
+        })
       }
-    })
+      return { stdout, stderr }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
 }
 
 /** True when an exec error means the `container` binary isn't installed/on PATH. */
@@ -319,7 +344,7 @@ class CliContainerRuntime implements ContainerRuntime {
 /**
  * Build the production container runtime backed by the real `container` CLI.
  * `exec` (one-shot commands) and `ptySpawn` (exec sessions) are injectable for
- * tests; production uses {@link execFile} and lazily-loaded node-pty.
+ * tests; production uses {@link defaultExec} and lazily-loaded node-pty.
  */
 export function createCliContainerRuntime(
   exec: ContainerCliExec = defaultExec(CONTAINER_BIN),
