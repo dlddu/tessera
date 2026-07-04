@@ -24,6 +24,7 @@ vi.mock('node:fs/promises', () => ({
 
 import { IpcChannels } from '@shared/ipc'
 import type { CreateWorkspaceRequest } from '@shared/ipc'
+import { DEFAULT_AREA_ID } from '@shared/types'
 import type { Backend, ExecPtyOptions, NativePty, PtyProcess, PtySpawn } from '@main/backend'
 import {
   BackendRegistry,
@@ -235,6 +236,29 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
       'ws-7',
       '--env',
       expect.stringContaining('PROMPT_COMMAND=')
+    ])
+  })
+
+  it('appends each guest env var as a --env K=V after the cwd hook (AC2.4)', async () => {
+    const { runtime, spawned } = spyingRuntime()
+
+    await runtime.spawnExecPty('ws-7', {
+      cols: 80,
+      rows: 24,
+      env: { TESSERA_BACKEND: 'container' }
+    })
+
+    // The OSC 7 hook comes first, then the explicit guest vars — both machine-
+    // side only, so no host env crosses in.
+    expect(spawned[0]!.args).toEqual([
+      'machine',
+      'run',
+      '-n',
+      'ws-7',
+      '--env',
+      expect.stringContaining('PROMPT_COMMAND='),
+      '--env',
+      'TESSERA_BACKEND=container'
     ])
   })
 
@@ -476,11 +500,15 @@ describe('ContainerBackend.spawnPty', () => {
       env: { SECRET: 'host-only' }
     })
 
+    // Only the fixed guest marker is forwarded (AC2.4); the caller's host-env
+    // snapshot is dropped, so `SECRET` never reaches the machine.
     expect(calls.spawnExecPty).toEqual([
-      { name: 'ws-42', options: { cols: 100, rows: 40, cwd: '/work' } }
+      {
+        name: 'ws-42',
+        options: { cols: 100, rows: 40, cwd: '/work', env: { TESSERA_BACKEND: 'container' } }
+      }
     ])
-    // The forwarded options carry no `env` key at all.
-    expect(calls.spawnExecPty[0]!.options).not.toHaveProperty('env')
+    expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
     expect(proc.id).toBe('pty-ws-42')
   })
 
@@ -495,7 +523,10 @@ describe('ContainerBackend.spawnPty', () => {
 
     await backend.spawnPty({ cols: 80, rows: 24 })
 
-    expect(calls.spawnExecPty).toEqual([{ name: 'ws-1', options: { cols: 80, rows: 24 } }])
+    // cwd is omitted, but the guest backend marker is always set (AC2.4).
+    expect(calls.spawnExecPty).toEqual([
+      { name: 'ws-1', options: { cols: 80, rows: 24, env: { TESSERA_BACKEND: 'container' } } }
+    ])
     expect(calls.spawnExecPty[0]!.options).not.toHaveProperty('cwd')
   })
 })
@@ -551,9 +582,12 @@ describe('ContainerBackend.start', () => {
 })
 
 describe('BackendRegistry', () => {
+  const stub = (kind: string): Backend =>
+    ({ kind, status: 'stopped', start: async () => {} }) as unknown as Backend
+
   it('routes host vs container config to the right factory and never starts', () => {
     const started: string[] = []
-    const stub = (kind: string): Backend =>
+    const stubStart = (kind: string): Backend =>
       ({
         kind,
         status: 'stopped',
@@ -563,8 +597,8 @@ describe('BackendRegistry', () => {
       }) as unknown as Backend
 
     const registry = new BackendRegistry(
-      () => stub('host'),
-      () => stub('container')
+      () => stubStart('host'),
+      () => stubStart('container')
     )
 
     const host = registry.create('ws-h', { kind: 'host', cwd: '/x' })
@@ -572,10 +606,38 @@ describe('BackendRegistry', () => {
 
     expect(host.kind).toBe('host')
     expect(cont.kind).toBe('container')
-    expect(registry.get('ws-h')).toBe(host)
-    expect(registry.get('ws-c')).toBe(cont)
+    // Each workspace's backend registers under its default area and resolves back.
+    expect(registry.resolve('ws-h', DEFAULT_AREA_ID)).toBe(host)
+    expect(registry.resolve('ws-c', DEFAULT_AREA_ID)).toBe(cont)
     // create() only constructs + registers; it must not boot anything.
     expect(started).toEqual([])
+  })
+
+  it('rejects an unknown workspace or an unmapped area — no silent fallback (AC2.4)', () => {
+    const registry = new BackendRegistry(
+      () => stub('host'),
+      () => stub('container')
+    )
+    registry.create('ws-1', { kind: 'host', cwd: '/x' })
+
+    // Unknown workspace.
+    expect(() => registry.resolve('ghost', DEFAULT_AREA_ID)).toThrow(/no backend for workspace/)
+    // Known workspace, but an area that was never registered must NOT borrow the
+    // default area's backend — that is what forbids backend mixing in an area.
+    expect(() => registry.resolve('ws-1', 'area-host')).toThrow(/no backend for area/)
+  })
+
+  it('delete drops the whole workspace so later resolves fail', () => {
+    const registry = new BackendRegistry(
+      () => stub('host'),
+      () => stub('container')
+    )
+    registry.create('ws-1', { kind: 'host', cwd: '/x' })
+    expect(registry.resolve('ws-1', DEFAULT_AREA_ID).kind).toBe('host')
+
+    registry.delete('ws-1')
+
+    expect(() => registry.resolve('ws-1', DEFAULT_AREA_ID)).toThrow(/no backend for workspace/)
   })
 })
 

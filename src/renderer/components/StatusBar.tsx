@@ -1,8 +1,10 @@
 /**
  * C-statusbar: tmux-style bottom bar. With a workspace: left = tessera mark +
  * name, middle = backend, right = keymap hints + clock. Empty (no-workspace)
- * variant: "워크스페이스 없음" + the ⌘N hint. Values are static placeholders.
+ * variant: "워크스페이스 없음" + the ⌘N hint. The clock is a static placeholder.
  */
+import type { BackendKind } from '@shared/types'
+
 function Mark() {
   return (
     <span className="mark">
@@ -17,6 +19,12 @@ function Mark() {
 interface StatusBarProps {
   workspace: string | null
   backend: string
+  /**
+   * Backend kind of the active workspace — styles the backend segment as
+   * `seg cont` vs `seg host`, matching the title-bar badge (M-J2-S4). Ignored in
+   * the empty (no-workspace) variant, which shows no backend segment.
+   */
+  backendKind: BackendKind
   /** Pending update version when one is downloaded and ready to install. */
   updateReadyVersion?: string | null
   /** Invoked when the user clicks the restart affordance. */
@@ -52,6 +60,7 @@ function UpdateAffordance({
 export function StatusBar({
   workspace,
   backend,
+  backendKind,
   updateReadyVersion = null,
   onUpdateRestart
 }: StatusBarProps) {
@@ -85,7 +94,7 @@ export function StatusBar({
         <Mark />
         <span>{workspace}</span>
       </div>
-      <div className="seg host">{backend}</div>
+      <div className={`seg ${backendKind === 'container' ? 'cont' : 'host'}`}>{backend}</div>
       <div className="spacer" />
       <div className="seg keys">
         <span>

@@ -43,10 +43,10 @@ export function registerSurfaceIpc({
         throw new NotImplementedError(`surface.create (${req.surface})`)
       }
 
-      const backend = backends.get(req.workspaceId)
-      if (!backend) {
-        throw new Error(`no backend for workspace ${req.workspaceId}`)
-      }
+      // Resolve the backend of the requesting tab's area — not just its
+      // workspace — so every surface in an area spawns against the same backend
+      // and an unmapped area is rejected outright (AC2.4).
+      const backend = backends.resolve(req.workspaceId, req.areaId)
 
       // `req.cwd` is only set by container terminals inheriting a sibling's live
       // cwd (M-J2-S2); host terminals leave it undefined and the backend falls

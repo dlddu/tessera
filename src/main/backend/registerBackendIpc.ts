@@ -1,9 +1,10 @@
 /**
  * Registers backend IPC handlers (PRD-2). `readFile`/`writeFile`/`listDir` are
- * live against the workspace's backend (host fs AC2.2, container machine fs
- * AC2.3); the rest (spawnPty, runProcess, getEnv, lifecycle) remain
- * not-implemented stubs that reject with a clear message until their journeys
- * land.
+ * live against the backend of the requesting tab's *area* (host fs AC2.2,
+ * container machine fs AC2.3) — resolved by `(workspaceId, areaId)` so every
+ * tab in an area hits the same backend (AC2.4); the rest (spawnPty, runProcess,
+ * getEnv, lifecycle) remain not-implemented stubs that reject with a clear
+ * message until their journeys land.
  *
  * File bytes cross IPC as base64 (`dataBase64`) to stay structured-clone-safe.
  */
@@ -27,10 +28,7 @@ export function registerBackendIpc({ backends }: BackendIpcDeps): void {
   ipcMain.handle(
     IpcChannels.backend.readFile,
     async (_event, req: ReadFileRequest): Promise<ReadFileResult> => {
-      const backend = backends.get(req.workspaceId)
-      if (!backend) {
-        throw new Error(`no backend for workspace ${req.workspaceId}`)
-      }
+      const backend = backends.resolve(req.workspaceId, req.areaId)
       const data = await backend.readFile(req.path)
       return { dataBase64: Buffer.from(data).toString('base64') }
     }
@@ -39,10 +37,7 @@ export function registerBackendIpc({ backends }: BackendIpcDeps): void {
   ipcMain.handle(
     IpcChannels.backend.writeFile,
     async (_event, req: WriteFileRequest): Promise<void> => {
-      const backend = backends.get(req.workspaceId)
-      if (!backend) {
-        throw new Error(`no backend for workspace ${req.workspaceId}`)
-      }
+      const backend = backends.resolve(req.workspaceId, req.areaId)
       await backend.writeFile(req.path, Buffer.from(req.dataBase64, 'base64'))
     }
   )
@@ -50,10 +45,7 @@ export function registerBackendIpc({ backends }: BackendIpcDeps): void {
   ipcMain.handle(
     IpcChannels.backend.listDir,
     async (_event, req: ListDirRequest): Promise<ListDirResult> => {
-      const backend = backends.get(req.workspaceId)
-      if (!backend) {
-        throw new Error(`no backend for workspace ${req.workspaceId}`)
-      }
+      const backend = backends.resolve(req.workspaceId, req.areaId)
       return { entries: await backend.listDir(req.path) }
     }
   )

@@ -1,7 +1,7 @@
 # Tessera 문서 체계 상태 추적
 
 > 산출 시점: 2026-06-17 · 최초 생성(초기 일괄 구축)
-> 최근 갱신: 2026-06-29 · 워크스페이스 전환(J1-S8/AC1.7) **구현 완료** — App을 keep-alive 렌더(전 workspace 마운트·비활성 `hidden`)로 전환하고 `C-workspace-rail`(클릭 + ⌘1–9 전환)·`WorkspaceView` `active` 게이팅·`Window` 레일 슬롯을 추가. 자동화 테스트 신설(e2e `M-J1-S8` + 단위 `WorkspaceRail`). 이전에는 docs·mockup·시나리오만 있고 `src/` 전환기와 자동화 테스트가 없던 문서/코드 드리프트(커밋 #12)를 보정함. 더해 워크스페이스 **닫기**를 추가 — `workspace.close` IPC로 디스크 스냅샷 영구 삭제 + 백엔드 정리(생성의 역연산), 활성 닫으면 이웃으로·마지막 닫으면 빈 상태. 닫기 트리거는 레일 ×·**⇧⌘W**·**마지막 탭 ⌘W**(빈 워크스페이스를 남기는 대신 워크스페이스를 닫음). 남은 위험은 제품 소유자 미확정 1건.
+> 최근 갱신: 2026-07-04 · 기본 영역 컨테이너 환경 상속(J2-S4/AC2.4) **구현 완료** — main의 backend 해석을 워크스페이스 단위에서 **영역 단위**로 전환: `BackendRegistry`를 `workspaceId → (areaId → backend)`로 확장하고 `resolve(workspaceId, areaId)`를 신설해 미등록 영역을 명시적 에러로 거부(= "영역 내 backend 혼합 없음"의 코드화), `surface.create`·파일 I/O 핸들러가 이미 계약에 실려 오던 요청 `areaId`를 소비하도록 `backends.get` 경로를 전면 교체. 상속 가시화를 위해 터미널 스폰 시 `TESSERA_BACKEND`(host/container)를 주입 — 호스트는 env 병합, 컨테이너는 `--env K=V`로 게스트에만 넣어 호스트 격리(AC2.3) 유지. StatusBar를 M-J2-S4 목업에 정합(`seg cont`/`seg host` 분기 + `container · <image>` 라벨). `'area-default'` 리터럴을 shared `DEFAULT_AREA_ID` 단일 상수로 승격. 테스트 신설: 단위(레지스트리 영역 해석·미지 영역 거부·close 후 실패·`TESSERA_BACKEND` 주입) + surface IPC 영역 해석, 게이트드 e2e `M-J2-S4`(터미널×2 + 편집기·브라우저가 동일 컨테이너 상속, `TESSERA_CONTAINER_E2E=1`·Apple Silicon 맥). 남은 위험은 제품 소유자 미확정 1건.
 
 ## 현재 상태 요약
 

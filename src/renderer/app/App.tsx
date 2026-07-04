@@ -126,14 +126,19 @@ export function App() {
     const { workspace } = activeWs
     const { backend } = workspace
     // Host shows its cwd in the title bar; a container has no host cwd, so show
-    // its image reference instead. Badge/label reflect the actual backend kind.
+    // its image reference instead. The badge stays the bare kind; the status-bar
+    // label reads `container · <image>` for containers (M-J2-S4 mockup), "host"
+    // otherwise. Both segments are styled from `backendKind`.
     const dir = backend.kind === 'host' ? backend.cwd : backend.image
+    const backendLabel =
+      backend.kind === 'container' ? `container · ${backend.image}` : backend.kind
     return (
       <Window
         workspace={workspace.name}
         dir={dir}
         backendBadge={backend.kind}
-        backendLabel={backend.kind}
+        backendLabel={backendLabel}
+        backendKind={backend.kind}
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
         zoomed={zoomed}
@@ -176,6 +181,7 @@ export function App() {
       workspace={null}
       backendBadge="host"
       backendLabel="host"
+      backendKind="host"
       updateReadyVersion={updateReady}
       onUpdateRestart={handleRestart}
       overlay={dialog}

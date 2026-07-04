@@ -57,6 +57,12 @@ export interface ExecPtyOptions {
    * the last one was (OSC 7-tracked cwd, M-J2-S2).
    */
   cwd?: string
+  /**
+   * Guest environment variables to inject via `--env K=V` (M-J2-S4, AC2.4).
+   * These are *machine-side* vars set explicitly — e.g. `TESSERA_BACKEND` — not
+   * the host launcher's environment, which never crosses into the guest.
+   */
+  env?: Record<string, string>
 }
 
 /**
@@ -277,12 +283,18 @@ class CliContainerRuntime implements ContainerRuntime {
   async spawnExecPty(name: string, options: ExecPtyOptions): Promise<PtyProcess> {
     const spawn = this.ptySpawn ?? (await getNodePtySpawn())
 
-    // `container machine run -n <name> [--workdir <cwd>] --env <osc7 hook>`.
+    // `container machine run -n <name> [--workdir <cwd>] --env <osc7 hook>
+    //  [--env K=V …]`. The explicit guest vars (e.g. TESSERA_BACKEND=container,
+    //  AC2.4) ride alongside the OSC 7 hook — still only machine-side vars, so
+    //  host isolation holds.
     const args = ['machine', 'run', '-n', name]
     if (options.cwd !== undefined) {
       args.push('--workdir', options.cwd)
     }
     args.push('--env', OSC7_CWD_HOOK)
+    for (const [key, value] of Object.entries(options.env ?? {})) {
+      args.push('--env', `${key}=${value}`)
+    }
 
     const pty = spawn(CONTAINER_BIN, args, {
       name: 'xterm-256color',
