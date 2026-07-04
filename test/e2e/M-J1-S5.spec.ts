@@ -127,6 +127,33 @@ test('keyboard drives pane focus, tab switch, and cross-pane tab move (AC1.4)', 
   }
 })
 
+test('the key-hint overlay is hidden by default and toggles with ⌘⌥/ (AC1.4)', async () => {
+  const app = await launchApp()
+
+  try {
+    const window = await app.firstWindow()
+    await createWorkspace(window, 'e2e-s5-overlay')
+
+    const overlay = window.getByTestId('keymap-overlay')
+    // Default: summoned on demand, so it isn't sitting over the fresh layout.
+    await expect(overlay).toHaveCount(0)
+
+    // A bare "/" typed into the focused terminal must NOT summon it — only the
+    // ⌘⌥ chord toggles, so the terminal keeps its literal "/".
+    await window.getByTestId('terminal-surface').click()
+    await window.keyboard.press('Slash')
+    await expect(overlay).toHaveCount(0)
+
+    // ⌘⌥/ works from anywhere, including a focused terminal: show, then hide.
+    await window.keyboard.press('Meta+Alt+Slash')
+    await expect(overlay).toBeVisible()
+    await window.keyboard.press('Meta+Alt+Slash')
+    await expect(overlay).toHaveCount(0)
+  } finally {
+    await app.close()
+  }
+})
+
 test('clicking a pane surface (not its tab bar) focuses that pane', async () => {
   const app = await launchApp()
 

@@ -11,9 +11,10 @@
  * drive the layout without a mouse (AC1.4): ⌘⌥+arrows move focus, ⌘⇧[ / ⌘⇧]
  * switch tabs, ⌃⌘+arrows move the active tab across panes, and ⌘W closes it —
  * closing the last tab closes the whole workspace, and ⇧⌘W closes it outright.
- * Tabs can also be dragged between panes (AC1.3), and clicking a pane — its tab
- * bar or its surface — focuses it. All keys are captured before the focused
- * surface so xterm/CodeMirror can't swallow them; ⌘S / ⌘O stay with the editor.
+ * ⌘⌥/ toggles the on-demand key-hint overlay. Tabs can also be dragged between
+ * panes (AC1.3), and clicking a pane — its tab bar or its surface — focuses it.
+ * All keys are captured before the focused surface so xterm/CodeMirror can't
+ * swallow them; ⌘S / ⌘O stay with the editor.
  *
  * Under the S8 keep-alive switcher (AC1.7) every workspace stays mounted at once
  * — only the active one is visible. So the two *global* effects here, the
@@ -119,6 +120,9 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
   const [pending, setPending] = useState<PendingPick | null>(null)
   // Briefly shown after a successful layout persist ("저장됨 ✓").
   const [saved, setSaved] = useState(false)
+  // The key-hint overlay is summoned on demand with `⌘⌥/` rather than always
+  // sitting over the layout, so it stays out of the way until wanted (default off).
+  const [showKeymap, setShowKeymap] = useState(false)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
   const paneBodies = useRef(createPaneBodyRegistry()).current
@@ -152,6 +156,16 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
     if (!active) return
     function onKey(e: KeyboardEvent) {
       const focused = engine.focusedPaneId
+
+      // ⌘⌥/ — toggle the key-hint overlay. Matched by physical key code so
+      // macOS's ⌥-remapped "/" glyph (÷) doesn't matter; a Cmd chord works from
+      // anywhere (incl. a focused terminal/editor) without eating a typed "/".
+      if (e.metaKey && e.altKey && !e.ctrlKey && !e.shiftKey && e.code === 'Slash') {
+        e.preventDefault()
+        e.stopPropagation()
+        setShowKeymap((shown) => !shown)
+        return
+      }
 
       // ⇧⌘⏎ — toggle window-filling zoom on the focused pane (AC1.6). Ctrl/Alt
       // excluded so it's an exact chord.
@@ -329,7 +343,7 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
         actions={actions}
         paneBodies={paneBodies}
       />
-      <KeymapOverlay />
+      {showKeymap ? <KeymapOverlay /> : null}
       {saved ? (
         <div className="toast ok" data-testid="layout-saved-toast">
           <span className="ti">✓</span>
