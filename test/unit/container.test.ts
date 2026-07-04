@@ -317,17 +317,25 @@ describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', (
     return { runtime, spawned }
   }
 
-  /** The `sh -c` script inside a recorded `machine run` argv. */
-  const scriptOf = (args: string[]) => args[6]!
+  /**
+   * The command inside a recorded `machine run` argv. `machine run` joins every
+   * trailing argument with spaces and re-parses the string with a guest shell
+   * (argv boundaries are NOT preserved — observed on-device), so the command
+   * must be exactly ONE trailing element that is a complete shell statement.
+   */
+  const scriptOf = (args: string[]) => {
+    expect(args).toHaveLength(5)
+    expect(args.slice(0, 4)).toEqual(['machine', 'run', '-n', 'ws-9'])
+    return args[4]!
+  }
 
-  it('readFile wraps `base64 < <path>` in markers and decodes the body', async () => {
+  it('readFile wraps `base64 < <path>` in markers, as a single trailing argument', async () => {
     const content = Buffer.from('héllo, 월드', 'utf8').toString('base64')
     const { runtime, spawned } = ptyRuntime(() => reply(`${content}\r\n`))
 
     const bytes = await runtime.readFile('ws-9', '/etc/motd')
 
     expect(spawned).toHaveLength(1)
-    expect(spawned[0]!.slice(0, 6)).toEqual(['machine', 'run', '-n', 'ws-9', 'sh', '-c'])
     expect(scriptOf(spawned[0]!)).toBe(`echo ${BEGIN}; base64 < '/etc/motd'; echo ${END}$?`)
     expect(new TextDecoder().decode(bytes)).toBe('héllo, 월드')
   })
@@ -344,6 +352,18 @@ describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', (
     expect(new TextDecoder().decode(bytes)).toBe(raw)
   })
 
+  it('readFile ignores the ANSI decorations the CLI paints around the session', async () => {
+    const content = Buffer.from('decorated', 'utf8').toString('base64')
+    // Cursor-hide before, cursor-show + an OSC title after — as observed on-device.
+    const { runtime } = ptyRuntime(
+      () => `\x1b[?25l${reply(`${content}\r\n`)}\x1b[?25h\x1b]0;done\x07`
+    )
+
+    const bytes = await runtime.readFile('ws-9', '/etc/motd')
+
+    expect(new TextDecoder().decode(bytes)).toBe('decorated')
+  })
+
   it('readFile rejects with the guest error when the command exits non-zero', async () => {
     const { runtime } = ptyRuntime(() => reply("sh: can't open /nope\r\n", 2))
 
@@ -358,22 +378,27 @@ describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', (
     )
   })
 
-  it('writeFile sends the bytes as one base64 argv slice into a partial file, then moves it', async () => {
+  /** The base64 slice a write command carries as its quoted printf literal. */
+  const sliceOf = (script: string) => {
+    const match = /printf %s '([^']*)' \| base64 -d/.exec(script)
+    expect(match).not.toBeNull()
+    return match![1]!
+  }
+
+  it('writeFile embeds the bytes as one quoted base64 slice into a partial file, then moves it', async () => {
     const { runtime, spawned } = ptyRuntime(() => reply(''))
 
     await runtime.writeFile('ws-9', '/srv/app/a.ts', new TextEncoder().encode('saved, 저장!'))
 
     expect(spawned).toHaveLength(1)
+    const b64 = Buffer.from('saved, 저장!', 'utf8').toString('base64')
     expect(scriptOf(spawned[0]!)).toBe(
-      `echo ${BEGIN}; printf %s "$1" | base64 -d > '/srv/app/a.ts.tessera-partial'` +
+      `echo ${BEGIN}; printf %s '${b64}' | base64 -d > '/srv/app/a.ts.tessera-partial'` +
         ` && mv -f '/srv/app/a.ts.tessera-partial' '/srv/app/a.ts'; echo ${END}$?`
     )
-    // The payload rides as the $1 positional argument, after the $0 filler.
-    expect(spawned[0]!.at(-2)).toBe('tessera')
-    expect(Buffer.from(spawned[0]!.at(-1)!, 'base64').toString('utf8')).toBe('saved, 저장!')
   })
 
-  it('writeFile splits large payloads into standalone argv slices and finalizes once', async () => {
+  it('writeFile splits large payloads into standalone slices and finalizes once', async () => {
     // 96KiB of base64 per slice = 72KiB of raw bytes; +3 bytes forces slice 2.
     const raw = Buffer.alloc(72 * 1024 + 3, 7)
     const { runtime, spawned } = ptyRuntime(() => reply(''))
@@ -386,7 +411,9 @@ describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', (
     expect(scriptOf(spawned[1]!)).toContain("base64 -d >> '/srv/big.bin.tessera-partial'")
     expect(scriptOf(spawned[1]!)).toContain("mv -f '/srv/big.bin.tessera-partial' '/srv/big.bin'")
     // Each slice decodes standalone; together they are the original bytes.
-    const joined = Buffer.concat(spawned.map((args) => Buffer.from(args.at(-1)!, 'base64')))
+    const joined = Buffer.concat(
+      spawned.map((args) => Buffer.from(sliceOf(scriptOf(args)), 'base64'))
+    )
     expect(joined.equals(raw)).toBe(true)
   })
 

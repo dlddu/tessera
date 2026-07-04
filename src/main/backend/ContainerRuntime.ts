@@ -215,10 +215,12 @@ const PTY_BEGIN = '__TESSERA_BEGIN__'
 const PTY_END = '__TESSERA_END__'
 
 /**
- * Base64 payload slice carried per `machine run` argv on the write path. Linux
- * caps one exec argument at 128KiB (MAX_ARG_STRLEN); 96KiB leaves headroom for
- * the rest of the command line and stays 4-aligned, so every slice decodes as
- * standalone base64.
+ * Base64 payload slice embedded per write command (see `runPty` — the whole
+ * command travels as one shell statement, so the slice rides inside it as a
+ * quoted literal). Linux caps one exec argument at 128KiB (MAX_ARG_STRLEN) and
+ * the joined statement lands in the guest as a single `sh -c` argument; 96KiB
+ * leaves headroom for the rest of the command line and stays 4-aligned, so
+ * every slice decodes as standalone base64.
  */
 const WRITE_CHUNK_B64_CHARS = 96 * 1024
 
@@ -317,8 +319,10 @@ class CliContainerRuntime implements ContainerRuntime {
 
   async writeFile(name: string, path: string, data: Uint8Array): Promise<void> {
     // Nothing can be *written* to the exec PTY reliably (canonical-mode line
-    // limits + echo), so the bytes travel as base64 argv slices instead, sized
-    // under the guest's per-argument exec limit. Slices accumulate in a
+    // limits + echo), so the bytes travel as base64 slices embedded in the
+    // command string itself — single-quoted literals are safe because the
+    // base64 alphabet cannot contain a quote — sized so the whole command
+    // stays under the guest's per-argument exec limit. Slices accumulate in a
     // sibling partial file; only a fully-written file is moved onto the
     // target, so a failed save never truncates it (a stray `.tessera-partial`
     // may remain, overwritten by the next save).
@@ -335,9 +339,10 @@ class CliContainerRuntime implements ContainerRuntime {
     for (let i = 0; i < chunks.length; i++) {
       const redirect = i === 0 ? '>' : '>>'
       const finalize = i === chunks.length - 1 ? ` && mv -f ${partial} ${target}` : ''
-      await this.runPty(name, `printf %s "$1" | base64 -d ${redirect} ${partial}${finalize}`, [
-        chunks[i]!
-      ])
+      await this.runPty(
+        name,
+        `printf %s '${chunks[i]!}' | base64 -d ${redirect} ${partial}${finalize}`
+      )
     }
   }
 
@@ -368,34 +373,39 @@ class CliContainerRuntime implements ContainerRuntime {
    * terminal ioctls and aborts when they fail ("Operation not supported on
    * socket" on Node's pipes, "Inappropriate ioctl for device" on plain files) —
    * so one-shots ride the same node-pty transport that the interactive
-   * terminals already prove out. The command is wrapped as
+   * terminals already prove out.
    *
-   *   sh -c 'echo BEGIN; <script>; echo END$?' tessera [args…]
+   * IMPORTANT: `machine run` does NOT preserve command argv boundaries — it
+   * joins every trailing argument with spaces and hands the *string* to a guest
+   * shell for re-parsing (observed on-device: an `sh -c <script> <arg>` form
+   * ran `sh -c echo` and printed the `<arg>` filler). So the whole command must
+   * be ONE trailing argument that is itself a valid shell statement, with any
+   * data embedded pre-quoted; positional arguments cannot be used. That
+   * statement is
    *
-   * so the guest's output is bracketed by the markers and followed by its exit
-   * status. The PTY cooks the stream (`\n` → `\r\n`), so every `\r` is
-   * stripped before parsing and callers put arbitrary data on the wire only as
-   * base64. Nothing is ever written to the PTY, so there is no input echo to
-   * filter. Rejects when the markers never appear (the CLI failed before the
-   * guest ran) or the guest exit status is non-zero — both with the captured
-   * output as the detail.
+   *   echo BEGIN; <script>; echo END$?
+   *
+   * bracketing the guest's output with the markers and its exit status. The
+   * PTY cooks the stream (`\n` → `\r\n`) and the CLI decorates it with ANSI
+   * control sequences (cursor hide/show was observed), so both are stripped
+   * before parsing and callers put arbitrary data on the wire only as base64.
+   * Nothing is ever written to the PTY, so there is no input echo to filter.
+   * Rejects when the markers never appear (the CLI failed before the guest
+   * ran) or the guest exit status is non-zero — both with the captured output
+   * as the detail.
    */
-  private async runPty(name: string, script: string, args: string[] = []): Promise<string> {
+  private async runPty(name: string, script: string): Promise<string> {
     const spawn = this.ptySpawn ?? (await getNodePtySpawn())
     const wrapped = `echo ${PTY_BEGIN}; ${script}; echo ${PTY_END}$?`
-    const pty = spawn(
-      CONTAINER_BIN,
-      ['machine', 'run', '-n', name, 'sh', '-c', wrapped, 'tessera', ...args],
-      {
-        name: 'xterm-256color',
-        cols: 200,
-        rows: 50,
-        // Host-side launcher cwd/env, exactly as in spawnExecPty — the guest
-        // command sees only the machine's own environment (AC2.3).
-        cwd: homedir(),
-        env: hostEnv()
-      }
-    )
+    const pty = spawn(CONTAINER_BIN, ['machine', 'run', '-n', name, wrapped], {
+      name: 'xterm-256color',
+      cols: 200,
+      rows: 50,
+      // Host-side launcher cwd/env, exactly as in spawnExecPty — the guest
+      // command sees only the machine's own environment (AC2.3).
+      cwd: homedir(),
+      env: hostEnv()
+    })
     const raw = await new Promise<string>((resolvePromise) => {
       let buffer = ''
       pty.onData((chunk) => {
@@ -403,7 +413,15 @@ class CliContainerRuntime implements ContainerRuntime {
       })
       pty.onExit(() => resolvePromise(buffer))
     })
-    const text = raw.replaceAll('\r', '')
+    // Strip PTY carriage returns plus ANSI CSI/OSC decorations before parsing;
+    // none of them can occur in the markers or a base64 body. The control
+    // characters are the point here — ESC/BEL delimit the escape sequences.
+    const text = raw
+      .replaceAll('\r', '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[^a-zA-Z]*[a-zA-Z]/g, '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '')
     const match = new RegExp(`${PTY_BEGIN}\\n([\\s\\S]*?)${PTY_END}(\\d+)`).exec(text)
     if (!match) {
       const detail = text.trim().slice(-400)
