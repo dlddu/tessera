@@ -302,6 +302,10 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     // ESC byte + the OSC 7 + `$PWD` (re-expanded each prompt).
     expect(ps1).toContain('\x1b]7;file://')
     expect(ps1).toContain('$PWD')
+    // Terminated by BEL, never `ESC \` — a following `\[` would eat the `\` and
+    // corrupt the visible prompt's first bytes.
+    expect(ps1).toContain('$PWD\x07')
+    expect(ps1).not.toContain('\x1b\\')
   })
 
   it('maps the native PTY handle onto the PtyProcess contract', async () => {
