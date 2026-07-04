@@ -229,17 +229,20 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
 
     expect(spawned).toHaveLength(1)
     expect(spawned[0]!.file).toBe('container')
+    // Two OSC 7 hooks: PROMPT_COMMAND (bash) then PS1 (sh); no --workdir.
     expect(spawned[0]!.args).toEqual([
       'machine',
       'run',
       '-n',
       'ws-7',
       '--env',
-      expect.stringContaining('PROMPT_COMMAND=')
+      expect.stringContaining('PROMPT_COMMAND='),
+      '--env',
+      expect.stringContaining('PS1=')
     ])
   })
 
-  it('appends each guest env var as a --env K=V after the cwd hook (AC2.4)', async () => {
+  it('appends each guest env var as a --env K=V after the cwd hooks (AC2.4)', async () => {
     const { runtime, spawned } = spyingRuntime()
 
     await runtime.spawnExecPty('ws-7', {
@@ -248,7 +251,7 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
       env: { TESSERA_BACKEND: 'container' }
     })
 
-    // The OSC 7 hook comes first, then the explicit guest vars — both machine-
+    // The OSC 7 hooks come first, then the explicit guest vars — both machine-
     // side only, so no host env crosses in.
     expect(spawned[0]!.args).toEqual([
       'machine',
@@ -258,11 +261,13 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
       '--env',
       expect.stringContaining('PROMPT_COMMAND='),
       '--env',
+      expect.stringContaining('PS1='),
+      '--env',
       'TESSERA_BACKEND=container'
     ])
   })
 
-  it('passes an explicit cwd through as --workdir, before the --env hook', async () => {
+  it('passes an explicit cwd through as --workdir, before the --env hooks', async () => {
     const { runtime, spawned } = spyingRuntime()
 
     await runtime.spawnExecPty('ws-7', { cols: 100, rows: 40, cwd: '/srv/app' })
@@ -275,18 +280,28 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
       '--workdir',
       '/srv/app',
       '--env',
-      expect.stringContaining('PROMPT_COMMAND=')
+      expect.stringContaining('PROMPT_COMMAND='),
+      '--env',
+      expect.stringContaining('PS1=')
     ])
   })
 
-  it('emits an OSC 7 file:// cwd report from the injected hook', async () => {
+  it('emits OSC 7 cwd reports for both bash (PROMPT_COMMAND) and sh (PS1)', async () => {
     const { runtime, spawned } = spyingRuntime()
     await runtime.spawnExecPty('ws-7', { cols: 80, rows: 24 })
 
-    // The hook is the last arg after --env; it must produce an OSC 7 sequence.
-    const hook = spawned[0]!.args.at(-1)!
-    expect(hook).toContain(']7;file://')
-    expect(hook).toContain('$PWD')
+    const args = spawned[0]!.args
+    const promptCommand = args.find((a) => a.startsWith('PROMPT_COMMAND='))!
+    const ps1 = args.find((a) => a.startsWith('PS1='))!
+
+    // bash: printf interprets `\033` into ESC at runtime, so the literal carries
+    // `\033`, and it reports the live `$PWD`.
+    expect(promptCommand).toContain(']7;file://')
+    expect(promptCommand).toContain('$PWD')
+    // sh: no PROMPT_COMMAND and no `\033` interpretation, so PS1 carries a real
+    // ESC byte + the OSC 7 + `$PWD` (re-expanded each prompt).
+    expect(ps1).toContain('\x1b]7;file://')
+    expect(ps1).toContain('$PWD')
   })
 
   it('maps the native PTY handle onto the PtyProcess contract', async () => {

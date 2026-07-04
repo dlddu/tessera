@@ -118,17 +118,26 @@ export type ContainerCliExec = (args: string[]) => Promise<{ stdout: string; std
 const CONTAINER_BIN = 'container'
 
 /**
- * OSC 7 cwd-reporting hook, injected into the guest as a single `--env`
- * `PROMPT_COMMAND`. bash runs it before each prompt, emitting
- * `ESC ] 7 ; file://<host>/<pwd> ESC \` so the renderer can track a container
- * terminal's live cwd — and open the next container terminal there (M-J2-S2).
+ * OSC 7 cwd-reporting hooks, injected into the guest as `--env`s so the renderer
+ * can track a container terminal's live cwd and open the next one there
+ * (M-J2-S2). Both emit `ESC ] 7 ; file://<host>/<pwd> ESC \` before each prompt;
+ * two hooks cover the two common container login shells:
  *
- * It sets exactly one guest variable, so it does NOT copy the host environment
- * into the machine — host isolation (AC2.3) holds. Shells that ignore
- * `PROMPT_COMMAND` (sh/zsh) simply don't report a cwd, so a new terminal falls
- * back to the default home (graceful degradation, not an error).
+ *  - {@link OSC7_PROMPT_COMMAND} — bash runs `PROMPT_COMMAND` before each prompt.
+ *  - {@link OSC7_PS1} — POSIX sh (dash / busybox ash) has no `PROMPT_COMMAND`,
+ *    but re-expands `PS1` before each prompt and expands `$PWD` there, so the
+ *    same OSC 7 rides in `PS1`. sh does NOT interpret `\033`, so this carries a
+ *    real ESC byte; a `[<pwd>] $ ` visible prompt follows the (invisible)
+ *    sequence.
+ *
+ * Both set only guest-side vars, so no host environment is copied in — isolation
+ * (AC2.3) holds. `PS1` is best-effort: an image whose login profile *re-sets*
+ * `PS1` after these are applied overrides it (bash still reports via
+ * `PROMPT_COMMAND`). A shell that honours neither falls back to the machine's
+ * default home — graceful degradation, not an error.
  */
-const OSC7_CWD_HOOK = `PROMPT_COMMAND=printf '\\033]7;file://%s%s\\033\\\\' "$HOSTNAME" "$PWD"`
+const OSC7_PROMPT_COMMAND = `PROMPT_COMMAND=printf '\\033]7;file://%s%s\\033\\\\' "$HOSTNAME" "$PWD"`
+const OSC7_PS1 = `PS1=\x1b]7;file://$HOSTNAME$PWD\x1b\\[$PWD] $ `
 
 /**
  * Snapshot of the host environment for the `container` CLI *process* (so it can
@@ -283,15 +292,16 @@ class CliContainerRuntime implements ContainerRuntime {
   async spawnExecPty(name: string, options: ExecPtyOptions): Promise<PtyProcess> {
     const spawn = this.ptySpawn ?? (await getNodePtySpawn())
 
-    // `container machine run -n <name> [--workdir <cwd>] --env <osc7 hook>
-    //  [--env K=V …]`. The explicit guest vars (e.g. TESSERA_BACKEND=container,
-    //  AC2.4) ride alongside the OSC 7 hook — still only machine-side vars, so
-    //  host isolation holds.
+    // `container machine run -n <name> [--workdir <cwd>] --env <PROMPT_COMMAND>
+    //  --env <PS1> [--env K=V …]`. The two OSC 7 hooks (bash + sh) and the
+    //  explicit guest vars (e.g. TESSERA_BACKEND=container, AC2.4) ride as
+    //  repeated `--env`s — all machine-side only, so host isolation holds.
     const args = ['machine', 'run', '-n', name]
     if (options.cwd !== undefined) {
       args.push('--workdir', options.cwd)
     }
-    args.push('--env', OSC7_CWD_HOOK)
+    args.push('--env', OSC7_PROMPT_COMMAND)
+    args.push('--env', OSC7_PS1)
     for (const [key, value] of Object.entries(options.env ?? {})) {
       args.push('--env', `${key}=${value}`)
     }
