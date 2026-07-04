@@ -52,6 +52,7 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
   const calls = {
     ensureSystem: 0,
     createMachine: [] as CreateMachineSpec[],
+    deleteMachine: [] as string[],
     spawnExecPty: [] as Array<{ name: string; options: ExecPtyOptions }>,
     readFile: [] as Array<{ name: string; path: string }>,
     writeFile: [] as Array<{ name: string; path: string; data: Uint8Array }>,
@@ -64,6 +65,9 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     async createMachine(spec) {
       calls.createMachine.push(spec)
       if (opts.failCreate) throw new ContainerRuntimeUnavailableError('boom')
+    },
+    async deleteMachine(name) {
+      calls.deleteMachine.push(name)
     },
     async status() {
       return 'running'
@@ -174,6 +178,28 @@ describe('createCliContainerRuntime', () => {
       'rw',
       'node:22'
     ])
+  })
+
+  it('force-deletes a machine by name on close', async () => {
+    const calls: string[][] = []
+    const runtime = createCliContainerRuntime(async (args) => {
+      calls.push(args)
+      return { stdout: '', stderr: '' }
+    })
+
+    await runtime.deleteMachine('ws-1')
+
+    expect(calls).toEqual([['machine', 'delete', '--force', 'ws-1']])
+  })
+
+  it('maps a failed `machine delete` to ContainerRuntimeUnavailableError', async () => {
+    const runtime = createCliContainerRuntime(async () => {
+      throw Object.assign(new Error('boom'), { code: 1 })
+    })
+
+    await expect(runtime.deleteMachine('ws-1')).rejects.toBeInstanceOf(
+      ContainerRuntimeUnavailableError
+    )
   })
 
   it('caches ensureSystem so the daemon starts once', async () => {
@@ -550,6 +576,40 @@ describe('ContainerBackend.start', () => {
   })
 })
 
+describe('ContainerBackend.dispose', () => {
+  it('deletes the workspace machine by name and drops to stopped', async () => {
+    const { runtime, calls } = fakeRuntime()
+    const backend = new ContainerBackend({
+      name: 'ws-42',
+      image: 'node:22',
+      homeMount: 'rw',
+      runtime
+    })
+
+    await backend.start()
+    await backend.dispose()
+
+    expect(calls.deleteMachine).toEqual(['ws-42'])
+    expect(backend.status).toBe('stopped')
+  })
+
+  it('deletes the machine even when start was never called (restored backend)', async () => {
+    const { runtime, calls } = fakeRuntime()
+    // A boot-restored backend is re-registered without start(), but its machine
+    // persists from the previous session — closing must still remove it.
+    const backend = new ContainerBackend({
+      name: 'ws-7',
+      image: 'node:22',
+      homeMount: 'rw',
+      runtime
+    })
+
+    await backend.dispose()
+
+    expect(calls.deleteMachine).toEqual(['ws-7'])
+  })
+})
+
 describe('BackendRegistry', () => {
   it('routes host vs container config to the right factory and never starts', () => {
     const started: string[] = []
@@ -685,11 +745,103 @@ describe('workspace.create — container path', () => {
   })
 })
 
+describe('workspace.close', () => {
+  let store: { save: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn> }
+  let deletedIds: string[]
+
+  beforeEach(() => {
+    handlers.clear()
+    deletedIds = []
+    store = {
+      save: vi.fn(),
+      delete: vi.fn(async (id: string) => {
+        deletedIds.push(id)
+      })
+    }
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  /** A backend whose dispose is observable and can be made to fail. */
+  function fakeBackend(opts: { failDispose?: boolean } = {}) {
+    const calls = { dispose: 0 }
+    const backend = {
+      kind: 'container',
+      status: 'running',
+      start: async () => {},
+      dispose: async () => {
+        calls.dispose += 1
+        if (opts.failDispose) throw new Error('delete failed')
+      }
+    } as unknown as Backend
+    return { backend, calls }
+  }
+
+  function registryWith(backend: Backend) {
+    const registry = new BackendRegistry(
+      () => backend,
+      () => backend
+    )
+    registry.create('ws-1', { kind: 'container', image: 'node:22', homeMount: 'rw' })
+    return registry
+  }
+
+  function invokeClose(workspaceId: string) {
+    const handler = handlers.get(IpcChannels.workspace.close)!
+    return handler({}, { workspaceId })
+  }
+
+  it('disposes the backend (deletes its machine), then drops it and its snapshot', async () => {
+    const { backend, calls } = fakeBackend()
+    const registry = registryWith(backend)
+    registerWorkspaceIpc({ backends: registry, store: store as never })
+
+    await invokeClose('ws-1')
+
+    expect(calls.dispose).toBe(1)
+    expect(registry.get('ws-1')).toBeUndefined()
+    expect(deletedIds).toEqual(['ws-1'])
+  })
+
+  it('still removes the snapshot + registry entry when dispose fails (machine may linger)', async () => {
+    const { backend, calls } = fakeBackend({ failDispose: true })
+    const registry = registryWith(backend)
+    registerWorkspaceIpc({ backends: registry, store: store as never })
+
+    // A failed machine delete must not reject the close — else the snapshot
+    // would survive and the workspace would resurrect on the next boot.
+    await expect(invokeClose('ws-1')).resolves.toBeUndefined()
+
+    expect(calls.dispose).toBe(1)
+    expect(registry.get('ws-1')).toBeUndefined()
+    expect(deletedIds).toEqual(['ws-1'])
+  })
+
+  it('closes cleanly when the workspace has no registered backend', async () => {
+    const registry = new BackendRegistry(
+      () => ({}) as unknown as Backend,
+      () => ({}) as unknown as Backend
+    )
+    registerWorkspaceIpc({ backends: registry, store: store as never })
+
+    await expect(invokeClose('ws-missing')).resolves.toBeUndefined()
+    expect(deletedIds).toEqual(['ws-missing'])
+  })
+})
+
 describe('HostBackend lifecycle', () => {
   it('is running from construction and start is a no-op', async () => {
     const backend = new HostBackend({ cwd: '/x' })
     expect(backend.status).toBe('running')
     await expect(backend.start()).resolves.toBeUndefined()
+    expect(backend.status).toBe('running')
+  })
+
+  it('dispose is a no-op — the shared host is never torn down on close', async () => {
+    const backend = new HostBackend({ cwd: '/x' })
+    await expect(backend.dispose()).resolves.toBeUndefined()
     expect(backend.status).toBe('running')
   })
 })

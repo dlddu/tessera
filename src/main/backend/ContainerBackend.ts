@@ -11,7 +11,8 @@
  * still stubs and land with their journeys:
  *   - runProcess → machine exec
  *   - getEnv     → machine env
- * Stop/restart (AC2.6) land in S6.
+ * {@link ContainerBackend.dispose} deletes the machine on workspace close
+ * (AC2.6 "제거"). Stop/restart (AC2.6) land in S6.
  */
 import { NotImplementedError } from '@shared/errors'
 import type { BackendKind, BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
@@ -71,6 +72,19 @@ export class ContainerBackend implements Backend {
       this.lifecycle = 'error'
       throw error
     }
+  }
+
+  /**
+   * Delete this workspace's machine on close (AC2.6 "제거"). Deliberately NOT
+   * guarded on `lifecycle`: a boot-restored container backend is re-registered
+   * without `start()` (see `main/index.ts`), yet its machine persists on the
+   * host from the previous session — so closing that workspace must still remove
+   * it. The machine name is the workspace id, so a delete always targets the
+   * right one. Leaves `lifecycle` at `stopped` once the machine is gone.
+   */
+  async dispose(): Promise<void> {
+    await this.options.runtime.deleteMachine(this.options.name)
+    this.lifecycle = 'stopped'
   }
 
   /**

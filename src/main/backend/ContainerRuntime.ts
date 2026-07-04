@@ -10,6 +10,8 @@
  *   - {@link ContainerRuntime.ensureSystem} → `container system start` (once).
  *   - {@link ContainerRuntime.createMachine} → `container machine create …`,
  *     which both creates AND boots the machine to `running`.
+ *   - {@link ContainerRuntime.deleteMachine} → `container machine delete --force …`,
+ *     which stops (if running) and removes the machine on workspace close.
  *   - {@link ContainerRuntime.status} → `container machine inspect`, mapped to a
  *     {@link BackendStatus}.
  *   - {@link ContainerRuntime.spawnExecPty} → `container machine run -n …`, an
@@ -68,6 +70,12 @@ export interface ContainerRuntime {
   ensureSystem(): Promise<void>
   /** Create AND boot a machine to `running`. Rejects if it can't come up. */
   createMachine(spec: CreateMachineSpec): Promise<void>
+  /**
+   * Permanently delete a machine by name — workspace close (AC2.6 "제거"):
+   * `container machine delete --force`. Force-stops a still-running machine and
+   * removes it in one call. Rejects if the CLI/daemon can't complete it.
+   */
+  deleteMachine(name: string): Promise<void>
   /** Best-effort current status of a machine by name. */
   status(name: string): Promise<BackendStatus>
   /**
@@ -262,6 +270,17 @@ class CliContainerRuntime implements ContainerRuntime {
       await this.run(args)
     } catch (error) {
       throw this.toUnavailable(error, '컨테이너 머신을 생성하지 못했습니다.')
+    }
+  }
+
+  async deleteMachine(name: string): Promise<void> {
+    try {
+      // `--force` stops a running machine before removing it and skips any
+      // interactive confirmation — a workspace closes while its machine is still
+      // `running`, and this management command has no terminal to prompt on.
+      await this.run(['machine', 'delete', '--force', name])
+    } catch (error) {
+      throw this.toUnavailable(error, '컨테이너 머신을 삭제하지 못했습니다.')
     }
   }
 

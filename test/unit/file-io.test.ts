@@ -87,6 +87,7 @@ describe('ContainerBackend file IO delegates to the machine runtime', () => {
     const runtime: ContainerRuntime = {
       async ensureSystem() {},
       async createMachine() {},
+      async deleteMachine() {},
       async status() {
         return 'running'
       },

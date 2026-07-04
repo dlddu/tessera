@@ -85,6 +85,15 @@ export interface Backend {
    */
   start(): Promise<void>
 
+  /**
+   * Tear the backend down permanently on workspace close (AC1.7, AC2.6 "제거").
+   * Host is a no-op — the shared host is never torn down. Container DELETES its
+   * machine, so a closed container workspace leaves no machine behind. Callers
+   * treat it as best-effort: a failure here must not block removing the
+   * workspace's snapshot, or a closed workspace could resurrect on the next boot.
+   */
+  dispose(): Promise<void>
+
   spawnPty(options: PtySpawnOptions): Promise<PtyProcess>
   readFile(path: string): Promise<Uint8Array>
   writeFile(path: string, data: Uint8Array): Promise<void>

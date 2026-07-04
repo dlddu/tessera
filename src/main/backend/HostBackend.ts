@@ -56,6 +56,9 @@ export class HostBackend implements Backend {
   /** No-op: the host backend is `running` from construction. */
   async start(): Promise<void> {}
 
+  /** No-op: the shared host is never torn down when a workspace closes. */
+  async dispose(): Promise<void> {}
+
   async spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
     const spawn = this.options.spawn ?? (await getNodePtySpawn())
     const shell = options.shell ?? process.env['SHELL'] ?? DEFAULT_SHELL

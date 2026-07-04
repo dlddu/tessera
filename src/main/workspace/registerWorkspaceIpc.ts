@@ -141,13 +141,26 @@ export function registerWorkspaceIpc({
     }
   )
 
-  // Close is the inverse of create: permanently delete the workspace's snapshot
-  // (so it can't restore on the next boot) and drop its now-unused backend. The
-  // surfaces — and their PTYs — are torn down renderer-side when the workspace's
-  // view unmounts, so there's nothing process-level to kill here. AC1.7.
+  // Close is the inverse of create: tear the workspace's backend down, drop it
+  // from the registry, and permanently delete its snapshot (so it can't restore
+  // on the next boot). AC1.7. `dispose` deletes a container workspace's machine
+  // (a host backend is a no-op), so closing a container workspace also removes
+  // its machine (AC2.6 "제거") rather than leaking it. Best-effort: a delete
+  // failure (daemon down, machine already gone) must NOT block the snapshot +
+  // registry cleanup, or a closed workspace could resurrect on the next boot.
+  // The surfaces — and their PTYs — are torn down renderer-side when the
+  // workspace's view unmounts, so there's nothing else process-level to kill.
   ipcMain.handle(
     IpcChannels.workspace.close,
     async (_event, req: CloseWorkspaceRequest): Promise<void> => {
+      const backend = backends.get(req.workspaceId)
+      if (backend) {
+        try {
+          await backend.dispose()
+        } catch {
+          // The machine may linger, but the close must still complete.
+        }
+      }
       backends.delete(req.workspaceId)
       await store.delete(req.workspaceId)
     }
