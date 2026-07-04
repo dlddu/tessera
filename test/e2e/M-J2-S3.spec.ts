@@ -90,7 +90,7 @@ test('container editor opens, edits, and saves machine files via the directory b
 
     const browser = window.getByTestId('container-file-browser')
     await expect(browser).toBeVisible()
-    await expect(window.getByTestId('cfb-path')).toHaveText(GUEST_DIR)
+    await expect(window.getByTestId('cfb-path')).toHaveValue(GUEST_DIR)
     await window.getByTestId('cfb-entry-note.txt').click({ timeout: 30_000 })
 
     // The guest file's content lands in the buffer.
@@ -113,7 +113,7 @@ test('container editor opens, edits, and saves machine files via the directory b
     await window.keyboard.type('gamma saved as new file')
     await window.keyboard.press('ControlOrMeta+s')
     await expect(window.getByTestId('container-file-browser')).toBeVisible()
-    await expect(window.getByTestId('cfb-path')).toHaveText(GUEST_DIR)
+    await expect(window.getByTestId('cfb-path')).toHaveValue(GUEST_DIR)
     await window.getByTestId('cfb-filename').fill('saveas.txt')
     await window.getByTestId('cfb-save').click()
 
