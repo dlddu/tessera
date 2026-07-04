@@ -19,6 +19,7 @@
     "test/unit/file-io.test.ts",
     "test/unit/update.test.ts",
     "test/unit/container.test.ts",
+    "test/unit/container-cli-exec.test.ts",
     "test/unit/fix-path.test.ts"
   ]
 }

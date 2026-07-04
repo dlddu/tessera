@@ -52,7 +52,10 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
   const calls = {
     ensureSystem: 0,
     createMachine: [] as CreateMachineSpec[],
-    spawnExecPty: [] as Array<{ name: string; options: ExecPtyOptions }>
+    spawnExecPty: [] as Array<{ name: string; options: ExecPtyOptions }>,
+    readFile: [] as Array<{ name: string; path: string }>,
+    writeFile: [] as Array<{ name: string; path: string; data: Uint8Array }>,
+    listDir: [] as Array<{ name: string; path: string }>
   }
   const runtime: ContainerRuntime = {
     async ensureSystem() {
@@ -68,6 +71,20 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     async spawnExecPty(name, options) {
       calls.spawnExecPty.push({ name, options })
       return stubPtyProcess(`pty-${name}`)
+    },
+    async readFile(name, path) {
+      calls.readFile.push({ name, path })
+      return new TextEncoder().encode(`guest:${path}`)
+    },
+    async writeFile(name, path, data) {
+      calls.writeFile.push({ name, path, data })
+    },
+    async listDir(name, path) {
+      calls.listDir.push({ name, path })
+      return [
+        { name: 'src', isDir: true },
+        { name: 'a.ts', isDir: false }
+      ]
     }
   }
   return { runtime, calls }
@@ -270,6 +287,174 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     })
     fake.emitExit(0)
     expect(exitCode).toBe(0)
+  })
+})
+
+describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', () => {
+  const BEGIN = '__TESSERA_BEGIN__'
+  const END = '__TESSERA_END__'
+
+  /** Marker-bracketed guest output as the PTY delivers it (CRLF-cooked). */
+  const reply = (body: string, status = 0) => `${BEGIN}\r\n${body}${END}${status}\r\n`
+
+  /**
+   * One fake PTY per spawn: records every argv and answers each run with
+   * `respond(argv, call#)` a microtask later — after the runtime has attached
+   * its listeners — then exits, like a real one-shot `machine run`.
+   */
+  function ptyRuntime(respond: (args: string[], call: number) => string) {
+    const spawned: string[][] = []
+    const spawn: PtySpawn = (_file, args) => {
+      const fake = makeFakeNativePty()
+      const call = spawned.push(args) - 1
+      queueMicrotask(() => {
+        fake.emitData(respond(args, call))
+        fake.emitExit(0)
+      })
+      return fake as unknown as NativePty
+    }
+    const runtime = createCliContainerRuntime(async () => ({ stdout: '', stderr: '' }), spawn)
+    return { runtime, spawned }
+  }
+
+  /**
+   * The command inside a recorded `machine run` argv. `machine run` joins every
+   * trailing argument with spaces and re-parses the string with a guest shell
+   * (argv boundaries are NOT preserved — observed on-device), so the command
+   * must be exactly ONE trailing element that is a complete shell statement.
+   */
+  const scriptOf = (args: string[]) => {
+    expect(args).toHaveLength(5)
+    expect(args.slice(0, 4)).toEqual(['machine', 'run', '-n', 'ws-9'])
+    return args[4]!
+  }
+
+  it('readFile wraps `base64 < <path>` in markers, as a single trailing argument', async () => {
+    const content = Buffer.from('héllo, 월드', 'utf8').toString('base64')
+    const { runtime, spawned } = ptyRuntime(() => reply(`${content}\r\n`))
+
+    const bytes = await runtime.readFile('ws-9', '/etc/motd')
+
+    expect(spawned).toHaveLength(1)
+    expect(scriptOf(spawned[0]!)).toBe(`echo ${BEGIN}; base64 < '/etc/motd'; echo ${END}$?`)
+    expect(new TextDecoder().decode(bytes)).toBe('héllo, 월드')
+  })
+
+  it('readFile survives CRLF cooking and `base64` line wrapping', async () => {
+    const raw = 'x'.repeat(300)
+    const wrapped = Buffer.from(raw, 'utf8')
+      .toString('base64')
+      .replace(/(.{76})/g, '$1\r\n')
+    const { runtime } = ptyRuntime(() => reply(`${wrapped}\r\n`))
+
+    const bytes = await runtime.readFile('ws-9', '/big.txt')
+
+    expect(new TextDecoder().decode(bytes)).toBe(raw)
+  })
+
+  it('readFile ignores the ANSI decorations the CLI paints around the session', async () => {
+    const content = Buffer.from('decorated', 'utf8').toString('base64')
+    // Cursor-hide before, cursor-show + an OSC title after — as observed on-device.
+    const { runtime } = ptyRuntime(
+      () => `\x1b[?25l${reply(`${content}\r\n`)}\x1b[?25h\x1b]0;done\x07`
+    )
+
+    const bytes = await runtime.readFile('ws-9', '/etc/motd')
+
+    expect(new TextDecoder().decode(bytes)).toBe('decorated')
+  })
+
+  it('readFile rejects with the guest error when the command exits non-zero', async () => {
+    const { runtime } = ptyRuntime(() => reply("sh: can't open /nope\r\n", 2))
+
+    await expect(runtime.readFile('ws-9', '/nope')).rejects.toThrow(/exit 2.*can't open \/nope/s)
+  })
+
+  it('rejects when the CLI dies before the guest runs (no markers)', async () => {
+    const { runtime } = ptyRuntime(() => 'Error: machine not running\r\n')
+
+    await expect(runtime.readFile('ws-9', '/etc/motd')).rejects.toThrow(
+      /did not complete.*machine not running/s
+    )
+  })
+
+  /** The base64 slice a write command carries as its quoted printf literal. */
+  const sliceOf = (script: string) => {
+    const match = /printf %s '([^']*)' \| base64 -d/.exec(script)
+    expect(match).not.toBeNull()
+    return match![1]!
+  }
+
+  it('writeFile embeds the bytes as one quoted base64 slice into a partial file, then moves it', async () => {
+    const { runtime, spawned } = ptyRuntime(() => reply(''))
+
+    await runtime.writeFile('ws-9', '/srv/app/a.ts', new TextEncoder().encode('saved, 저장!'))
+
+    expect(spawned).toHaveLength(1)
+    const b64 = Buffer.from('saved, 저장!', 'utf8').toString('base64')
+    expect(scriptOf(spawned[0]!)).toBe(
+      `echo ${BEGIN}; printf %s '${b64}' | base64 -d > '/srv/app/a.ts.tessera-partial'` +
+        ` && mv -f '/srv/app/a.ts.tessera-partial' '/srv/app/a.ts'; echo ${END}$?`
+    )
+  })
+
+  it('writeFile splits large payloads into standalone slices and finalizes once', async () => {
+    // 96KiB of base64 per slice = 72KiB of raw bytes; +3 bytes forces slice 2.
+    const raw = Buffer.alloc(72 * 1024 + 3, 7)
+    const { runtime, spawned } = ptyRuntime(() => reply(''))
+
+    await runtime.writeFile('ws-9', '/srv/big.bin', raw)
+
+    expect(spawned).toHaveLength(2)
+    expect(scriptOf(spawned[0]!)).toContain("base64 -d > '/srv/big.bin.tessera-partial'")
+    expect(scriptOf(spawned[0]!)).not.toContain('mv -f')
+    expect(scriptOf(spawned[1]!)).toContain("base64 -d >> '/srv/big.bin.tessera-partial'")
+    expect(scriptOf(spawned[1]!)).toContain("mv -f '/srv/big.bin.tessera-partial' '/srv/big.bin'")
+    // Each slice decodes standalone; together they are the original bytes.
+    const joined = Buffer.concat(
+      spawned.map((args) => Buffer.from(sliceOf(scriptOf(args)), 'base64'))
+    )
+    expect(joined.equals(raw)).toBe(true)
+  })
+
+  it('writeFile single-quotes shell-hostile paths', async () => {
+    const { runtime, spawned } = ptyRuntime(() => reply(''))
+
+    await runtime.writeFile('ws-9', "/tmp/it's a file.txt", new Uint8Array([1]))
+
+    expect(scriptOf(spawned[0]!)).toContain("mv -f '/tmp/it'\\''s a file.txt.tessera-partial'")
+    expect(scriptOf(spawned[0]!)).toContain("'/tmp/it'\\''s a file.txt'")
+  })
+
+  it('listDir re-encodes `ls -1Ap` to base64 and parses trailing slashes into DirEntry flags', async () => {
+    const listing = Buffer.from('src/\n.gitignore\nREADME.md\nnode_modules/\n', 'utf8').toString(
+      'base64'
+    )
+    const { runtime, spawned } = ptyRuntime(() => reply(`${listing}\r\n`))
+
+    const entries = await runtime.listDir('ws-9', '/work')
+
+    expect(scriptOf(spawned[0]!)).toBe(
+      `echo ${BEGIN}; out=$(ls -1Ap -- '/work') && printf %s "$out" | base64; echo ${END}$?`
+    )
+    expect(entries).toEqual([
+      { name: 'src', isDir: true },
+      { name: '.gitignore', isDir: false },
+      { name: 'README.md', isDir: false },
+      { name: 'node_modules', isDir: true }
+    ])
+  })
+
+  it('listDir of an empty directory yields no entries', async () => {
+    const { runtime } = ptyRuntime(() => reply(''))
+
+    expect(await runtime.listDir('ws-9', '/empty')).toEqual([])
+  })
+
+  it('listDir rejects with the ls error for an unreadable path', async () => {
+    const { runtime } = ptyRuntime(() => reply('ls: /gone: No such file or directory\r\n', 1))
+
+    await expect(runtime.listDir('ws-9', '/gone')).rejects.toThrow(/exit 1.*No such file/s)
   })
 })
 

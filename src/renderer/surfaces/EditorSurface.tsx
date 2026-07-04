@@ -1,13 +1,18 @@
 /**
  * C-editor (live): a CodeMirror 6 editor that doubles as a scratch buffer and a
- * host-file editor (M-J1-S3, AC1.1/AC2.2).
+ * file editor for the workspace's backend (M-J1-S3/M-J2-S3, AC1.1/AC2.2/AC2.3).
  *
  * A new editor opens as an empty **scratch** buffer — no file is required. You
- * can type immediately; a top pill (or ⌘O) opens a host file into the buffer
- * (`workspace.pickFile` → `backend.readFile`). ⌘S saves: to the bound file if
- * there is one, otherwise it runs Save As (`workspace.pickSaveFile`) and binds
- * the tab to the chosen path. Line-number gutter + minimal syntax colors follow
- * the editor identity hue via a theme mapped to the design tokens.
+ * can type immediately; a pill (or ⌘O) opens a file into the buffer, and ⌘S
+ * saves: to the bound file if there is one, otherwise it runs Save As and binds
+ * the tab to the chosen path. Reads and writes always go through the backend
+ * (`backend.readFile`/`writeFile`), so a container workspace's editor works on
+ * the *machine's* filesystem. Only the pick-a-path step branches per backend:
+ * host workspaces use the native pickers (`workspace.pickFile`/`pickSaveFile`);
+ * container workspaces use the {@link ContainerFileBrowser}, because the native
+ * picker can only show the host fs (M-J2-S3). Line-number gutter + minimal
+ * syntax colors follow the editor identity hue via a theme mapped to the design
+ * tokens.
  *
  * Like {@link TerminalSurface}, the view mounts into a ref'd div on `useEffect`
  * and is disposed on unmount. CodeMirror is pure JS, so no native rebuild.
@@ -31,11 +36,16 @@ import {
 } from '@codemirror/language'
 import { javascript } from '@codemirror/lang-javascript'
 import { tags as t } from '@lezer/highlight'
-import type { TabNode } from '@shared/types'
+import type { BackendKind, TabNode } from '@shared/types'
+import { ContainerFileBrowser, type FileBrowserMode } from './ContainerFileBrowser'
+import { parentContainerPath } from './containerPath'
+import { lastFocusedContainerCwd } from './terminalCwdRegistry'
 
 interface EditorSurfaceProps {
   tab: TabNode
   workspaceId: string
+  /** The owning workspace's backend kind — container editors browse the machine fs. */
+  backendKind: BackendKind
   onSetTabPath: (tabId: string, path: string) => void
 }
 
@@ -90,7 +100,7 @@ const editorTheme = EditorView.theme(
   { dark: true }
 )
 
-export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceProps) {
+export function EditorSurface({ tab, workspaceId, backendKind, onSetTabPath }: EditorSurfaceProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   // Latest path/area/callback for the keymaps, which are bound once at mount.
@@ -103,14 +113,25 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
   const loadedPathRef = useRef<string | undefined>(undefined)
   // Whether the buffer is empty AND unbound — drives the scratch hint pill.
   const [scratchEmpty, setScratchEmpty] = useState(tab.path === undefined)
+  // Container workspaces swap the native pickers for the machine-fs browser;
+  // non-null while it is open (M-J2-S3). Ref'd for the mount-once keymap.
+  const isContainer = backendKind === 'container'
+  const isContainerRef = useRef(isContainer)
+  const [browse, setBrowse] = useState<FileBrowserMode | null>(null)
 
   pathRef.current = tab.path
   areaRef.current = tab.areaId
   tabIdRef.current = tab.id
   onSetTabPathRef.current = onSetTabPath
+  isContainerRef.current = isContainer
 
-  // Open a host file into this editor: bind the path; the load effect reads it.
+  // Open a file into this editor: bind the path; the load effect reads it.
+  // Host → native picker; container → the machine-fs directory browser.
   const openFile = useCallback(() => {
+    if (isContainerRef.current) {
+      setBrowse('open')
+      return
+    }
     window.tessera.workspace
       .pickFile()
       .then(({ path }) => {
@@ -138,6 +159,13 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
           path,
           dataBase64: encodeBase64(content)
         })
+        return true
+      }
+      if (isContainerRef.current) {
+        // Scratch buffer on a container workspace → Save As via the machine-fs
+        // browser; the pick handler writes + binds (the write reads the live
+        // buffer, so nothing is captured here).
+        setBrowse('save')
         return true
       }
       // Scratch buffer → Save As: pick a path, write, and bind the tab to it.
@@ -209,7 +237,8 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
     }
   }, [workspaceId])
 
-  // Path set (via open / restore) → read the host file into the document.
+  // Path set (via open / restore) → read the file into the document through the
+  // backend — host fs or container machine fs alike (AC2.2/AC2.3).
   useEffect(() => {
     const path = tab.path
     if (path === undefined || path === loadedPathRef.current) return
@@ -241,6 +270,29 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
     }
   }, [tab.path, tab.areaId, workspaceId])
 
+  // Container browser pick: open binds the path (the load effect reads it);
+  // save writes the live buffer to the chosen path, then binds it.
+  function handleBrowsePick(mode: FileBrowserMode, path: string) {
+    setBrowse(null)
+    viewRef.current?.focus()
+    if (mode === 'open') {
+      onSetTabPathRef.current(tabIdRef.current, path)
+      return
+    }
+    const view = viewRef.current
+    if (!view) return
+    // The buffer already holds this content; don't let the load effect re-read it.
+    loadedPathRef.current = path
+    void window.tessera.backend
+      .writeFile({
+        workspaceId,
+        areaId: areaRef.current,
+        path,
+        dataBase64: encodeBase64(view.state.doc.toString())
+      })
+      .then(() => onSetTabPathRef.current(tabIdRef.current, path))
+  }
+
   return (
     <div className="editor-surface" data-testid="editor-surface">
       <div className="editor-surface__host" ref={hostRef} />
@@ -255,6 +307,26 @@ export function EditorSurface({ tab, workspaceId, onSetTabPath }: EditorSurfaceP
             빈 문서 · scratch — ⌘O로 파일 열기
           </button>
         </div>
+      ) : null}
+      {browse ? (
+        <ContainerFileBrowser
+          workspaceId={workspaceId}
+          areaId={tab.areaId}
+          mode={browse}
+          // Start where the user is working: the bound file's directory, else
+          // the last focused container terminal's cwd (M-J2-S2 registry), else
+          // the root — the one path every image has.
+          initialPath={
+            tab.path !== undefined
+              ? parentContainerPath(tab.path)
+              : (lastFocusedContainerCwd(workspaceId) ?? '/')
+          }
+          onPick={(path) => handleBrowsePick(browse, path)}
+          onCancel={() => {
+            setBrowse(null)
+            viewRef.current?.focus()
+          }}
+        />
       ) : null}
     </div>
   )

@@ -7,6 +7,8 @@ export const IpcChannels = {
     spawnPty: 'tessera:backend:spawn-pty',
     readFile: 'tessera:backend:read-file',
     writeFile: 'tessera:backend:write-file',
+    /** renderer → main: list a directory on the workspace backend (M-J2-S3). */
+    listDir: 'tessera:backend:list-dir',
     runProcess: 'tessera:backend:run-process',
     getEnv: 'tessera:backend:get-env',
     lifecycle: 'tessera:backend:lifecycle'

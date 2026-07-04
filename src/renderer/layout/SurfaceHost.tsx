@@ -67,7 +67,14 @@ function TabSurface({
         <TerminalSurface workspaceId={workspaceId} areaId={tab.areaId} backendKind={backendKind} />
       )
     case 'editor':
-      return <EditorSurface tab={tab} workspaceId={workspaceId} onSetTabPath={actions.setTabPath} />
+      return (
+        <EditorSurface
+          tab={tab}
+          workspaceId={workspaceId}
+          backendKind={backendKind}
+          onSetTabPath={actions.setTabPath}
+        />
+      )
     case 'browser':
       return <BrowserSurface />
     case 'claude':
@@ -80,7 +87,7 @@ function TabSurface({
 interface SurfaceHostProps {
   snapshot: LayoutSnapshot
   workspaceId: string
-  /** The workspace's backend kind, forwarded to terminal surfaces (AC2.3, M-J2-S2). */
+  /** The workspace's backend kind, forwarded to terminal + editor surfaces (AC2.3, M-J2-S2/S3). */
   backendKind: BackendKind
   actions: LayoutActions
   paneBodies: PaneBodyRegistry

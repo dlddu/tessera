@@ -1,5 +1,5 @@
 /**
- * Apple `container` machine runtime adapter (M-J2-S1 AC2.1, M-J2-S2 AC2.3).
+ * Apple `container` machine runtime adapter (M-J2-S1 AC2.1, M-J2-S2/S3 AC2.3).
  *
  * A thin, injectable wrapper over the `container` CLI's `machine` subcommands so
  * the backend layer can stand up a real VM-backed machine without importing
@@ -14,14 +14,22 @@
  *     {@link BackendStatus}.
  *   - {@link ContainerRuntime.spawnExecPty} → `container machine run -n …`, an
  *     interactive login shell *inside* the machine over a PTY (AC2.3).
+ *   - {@link ContainerRuntime.readFile} / {@link ContainerRuntime.writeFile} /
+ *     {@link ContainerRuntime.listDir} → one-shot `container machine run -n …`
+ *     commands against the machine's filesystem (M-J2-S3). `machine run`
+ *     insists on a real terminal, so these ride the same node-pty transport as
+ *     the interactive terminals; data crosses the PTY only as base64 between
+ *     fixed markers, so binary content round-trips intact (see `runPty`).
  *
  * A missing CLI / dead daemon surfaces as {@link ContainerRuntimeUnavailableError}
  * so the create handler can roll back and the dialog can show a clear message.
  */
-import { execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { homedir } from 'node:os'
-import type { BackendStatus, ContainerHomeMount } from '@shared/types'
+import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
+import { join } from 'node:path'
+import type { BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
 import type { PtyProcess, PtySpawn } from './Backend'
 import { getNodePtySpawn } from './nodePty'
 
@@ -68,6 +76,12 @@ export interface ContainerRuntime {
    * env, and filesystem — never the host's.
    */
   spawnExecPty(name: string, options: ExecPtyOptions): Promise<PtyProcess>
+  /** Read a file from the machine's filesystem (M-J2-S3, AC2.3). */
+  readFile(name: string, path: string): Promise<Uint8Array>
+  /** Write bytes to a file on the machine's filesystem (M-J2-S3, AC2.3). */
+  writeFile(name: string, path: string, data: Uint8Array): Promise<void>
+  /** List a directory on the machine's filesystem (M-J2-S3, AC2.3). */
+  listDir(name: string, path: string): Promise<DirEntry[]>
 }
 
 /**
@@ -86,9 +100,11 @@ export class ContainerRuntimeUnavailableError extends Error {
 }
 
 /**
- * Runs the `container` CLI with the given args, resolving its stdout/stderr.
- * Injectable so the CLI runtime is unit-testable; the default shells out to the
- * real binary via {@link execFile}.
+ * Runs one management CLI command (`system start` / `machine create` /
+ * `inspect`), resolving its stdout/stderr. `machine run` one-shots do NOT go
+ * through this — they need a terminal and ride the PTY (see `runPty`).
+ * Injectable so the CLI runtime is unit-testable; production uses
+ * {@link defaultExec}.
  */
 export type ContainerCliExec = (args: string[]) => Promise<{ stdout: string; stderr: string }>
 
@@ -129,23 +145,84 @@ interface CliExecError extends Error {
   code?: string
 }
 
-function defaultExec(binary: string): ContainerCliExec {
-  return (args) =>
-    new Promise((resolvePromise, reject) => {
-      execFile(binary, args, { encoding: 'utf8' }, (error, stdout, stderr) => {
-        if (error) {
-          reject(Object.assign(error, { stdout, stderr }))
-        } else {
-          resolvePromise({ stdout, stderr })
-        }
-      })
-    })
+/**
+ * Runs one management command with its stdio bound to real temp files — the
+ * same shape as `container … < in > out 2> err` in a shell — and never to Node
+ * pipes, which are AF_UNIX *socketpairs* on macOS that some CLI stdio probing
+ * chokes on ("Operation not supported on socket"). Exported for direct unit
+ * tests against real binaries; the error shape mirrors `execFile`'s ("Command
+ * failed" message, `code`, captured `stdout`/`stderr`), which `isMissingBinary`
+ * and the user-facing messages rely on.
+ */
+export function defaultExec(binary: string): ContainerCliExec {
+  return async (args) => {
+    const dir = await mkdtemp(join(tmpdir(), 'tessera-container-cli-'))
+    try {
+      const stdinPath = join(dir, 'stdin')
+      const stdoutPath = join(dir, 'stdout')
+      const stderrPath = join(dir, 'stderr')
+      // An empty stdin file gives the command immediate EOF instead of a hang.
+      await writeFile(stdinPath, '')
+      const files = await Promise.all([
+        open(stdinPath, 'r'),
+        open(stdoutPath, 'w'),
+        open(stderrPath, 'w')
+      ])
+      const exitCode = await new Promise<number | null>((resolvePromise, reject) => {
+        const child = spawn(binary, args, { stdio: files.map((file) => file.fd) })
+        // Spawn failures (e.g. ENOENT) keep their `code` for isMissingBinary.
+        child.once('error', reject)
+        child.once('exit', (code) => resolvePromise(code))
+      }).finally(() => Promise.all(files.map((file) => file.close())))
+      const [stdout, stderr] = await Promise.all([
+        readFile(stdoutPath, 'utf8'),
+        readFile(stderrPath, 'utf8')
+      ])
+      if (exitCode !== 0) {
+        throw Object.assign(new Error(`Command failed: ${binary} ${args.join(' ')}\n${stderr}`), {
+          code: exitCode,
+          stdout,
+          stderr
+        })
+      }
+      return { stdout, stderr }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
 }
 
 /** True when an exec error means the `container` binary isn't installed/on PATH. */
 function isMissingBinary(error: unknown): boolean {
   return (error as CliExecError | null)?.code === 'ENOENT'
 }
+
+/**
+ * Single-quote a guest path for embedding in a `sh -c` command line, so
+ * whitespace and shell metacharacters survive verbatim (`'` becomes `'\''`).
+ */
+function shellQuote(path: string): string {
+  return `'${path.replaceAll("'", `'\\''`)}'`
+}
+
+/**
+ * Fixed markers bracketing a one-shot guest command's output on the exec PTY
+ * (see `runPty`). Everything the guest sends between them is base64, whose
+ * alphabet can never contain the markers — so the parse cannot be spoofed by
+ * file content or CLI chatter.
+ */
+const PTY_BEGIN = '__TESSERA_BEGIN__'
+const PTY_END = '__TESSERA_END__'
+
+/**
+ * Base64 payload slice embedded per write command (see `runPty` — the whole
+ * command travels as one shell statement, so the slice rides inside it as a
+ * quoted literal). Linux caps one exec argument at 128KiB (MAX_ARG_STRLEN) and
+ * the joined statement lands in the guest as a single `sh -c` argument; 96KiB
+ * leaves headroom for the rest of the command line and stays 4-aligned, so
+ * every slice decodes as standalone base64.
+ */
+const WRITE_CHUNK_B64_CHARS = 96 * 1024
 
 class CliContainerRuntime implements ContainerRuntime {
   /** Cached `ensureSystem` promise so the daemon is only started once. */
@@ -232,6 +309,132 @@ class CliContainerRuntime implements ContainerRuntime {
     }
   }
 
+  async readFile(name: string, path: string): Promise<Uint8Array> {
+    // Redirection (not an argv) so any `sh` handles odd filenames; the output
+    // is pure base64, which survives the PTY and cannot collide with the end
+    // marker. Node's decoder ignores the newlines `base64` wraps lines with.
+    const body = await this.runPty(name, `base64 < ${shellQuote(path)}`)
+    return Uint8Array.from(Buffer.from(body, 'base64'))
+  }
+
+  async writeFile(name: string, path: string, data: Uint8Array): Promise<void> {
+    // Nothing can be *written* to the exec PTY reliably (canonical-mode line
+    // limits + echo), so the bytes travel as base64 slices embedded in the
+    // command string itself — single-quoted literals are safe because the
+    // base64 alphabet cannot contain a quote — sized so the whole command
+    // stays under the guest's per-argument exec limit. Slices accumulate in a
+    // sibling partial file; only a fully-written file is moved onto the
+    // target, so a failed save never truncates it (a stray `.tessera-partial`
+    // may remain, overwritten by the next save).
+    const target = shellQuote(path)
+    const partial = shellQuote(`${path}.tessera-partial`)
+    const b64 = Buffer.from(data).toString('base64')
+    const chunks: string[] = []
+    for (let i = 0; i < b64.length; i += WRITE_CHUNK_B64_CHARS) {
+      chunks.push(b64.slice(i, i + WRITE_CHUNK_B64_CHARS))
+    }
+    if (chunks.length === 0) {
+      chunks.push('')
+    }
+    for (let i = 0; i < chunks.length; i++) {
+      const redirect = i === 0 ? '>' : '>>'
+      const finalize = i === chunks.length - 1 ? ` && mv -f ${partial} ${target}` : ''
+      await this.runPty(
+        name,
+        `printf %s '${chunks[i]!}' | base64 -d ${redirect} ${partial}${finalize}`
+      )
+    }
+  }
+
+  async listDir(name: string, path: string): Promise<DirEntry[]> {
+    // `-1` one name per line, `-A` dotfiles without `.`/`..`, `-p` a trailing
+    // `/` on directories — the one bit the browser needs to descend vs open.
+    // The listing is re-encoded to base64 so names survive the PTY and the
+    // marker parse; a failed `ls` short-circuits the `&&`, leaving its stderr
+    // and exit status for the error path.
+    const body = await this.runPty(
+      name,
+      `out=$(ls -1Ap -- ${shellQuote(path)}) && printf %s "$out" | base64`
+    )
+    return Buffer.from(body, 'base64')
+      .toString('utf8')
+      .split('\n')
+      .filter((line) => line.length > 0)
+      .map((line) =>
+        line.endsWith('/') ? { name: line.slice(0, -1), isDir: true } : { name: line, isDir: false }
+      )
+  }
+
+  /**
+   * Run one guest command via `machine run` on an exec PTY and return the text
+   * it printed between the {@link PTY_BEGIN}/{@link PTY_END} markers.
+   *
+   * `machine run` insists on a real terminal — it probes its stdio with
+   * terminal ioctls and aborts when they fail ("Operation not supported on
+   * socket" on Node's pipes, "Inappropriate ioctl for device" on plain files) —
+   * so one-shots ride the same node-pty transport that the interactive
+   * terminals already prove out.
+   *
+   * IMPORTANT: `machine run` does NOT preserve command argv boundaries — it
+   * joins every trailing argument with spaces and hands the *string* to a guest
+   * shell for re-parsing (observed on-device: an `sh -c <script> <arg>` form
+   * ran `sh -c echo` and printed the `<arg>` filler). So the whole command must
+   * be ONE trailing argument that is itself a valid shell statement, with any
+   * data embedded pre-quoted; positional arguments cannot be used. That
+   * statement is
+   *
+   *   echo BEGIN; <script>; echo END$?
+   *
+   * bracketing the guest's output with the markers and its exit status. The
+   * PTY cooks the stream (`\n` → `\r\n`) and the CLI decorates it with ANSI
+   * control sequences (cursor hide/show was observed), so both are stripped
+   * before parsing and callers put arbitrary data on the wire only as base64.
+   * Nothing is ever written to the PTY, so there is no input echo to filter.
+   * Rejects when the markers never appear (the CLI failed before the guest
+   * ran) or the guest exit status is non-zero — both with the captured output
+   * as the detail.
+   */
+  private async runPty(name: string, script: string): Promise<string> {
+    const spawn = this.ptySpawn ?? (await getNodePtySpawn())
+    const wrapped = `echo ${PTY_BEGIN}; ${script}; echo ${PTY_END}$?`
+    const pty = spawn(CONTAINER_BIN, ['machine', 'run', '-n', name, wrapped], {
+      name: 'xterm-256color',
+      cols: 200,
+      rows: 50,
+      // Host-side launcher cwd/env, exactly as in spawnExecPty — the guest
+      // command sees only the machine's own environment (AC2.3).
+      cwd: homedir(),
+      env: hostEnv()
+    })
+    const raw = await new Promise<string>((resolvePromise) => {
+      let buffer = ''
+      pty.onData((chunk) => {
+        buffer += chunk
+      })
+      pty.onExit(() => resolvePromise(buffer))
+    })
+    // Strip PTY carriage returns plus ANSI CSI/OSC decorations before parsing;
+    // none of them can occur in the markers or a base64 body. The control
+    // characters are the point here — ESC/BEL delimit the escape sequences.
+    const text = raw
+      .replaceAll('\r', '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[^a-zA-Z]*[a-zA-Z]/g, '')
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '')
+    const match = new RegExp(`${PTY_BEGIN}\\n([\\s\\S]*?)${PTY_END}(\\d+)`).exec(text)
+    if (!match) {
+      const detail = text.trim().slice(-400)
+      throw new Error(`container machine run did not complete: ${detail || '(no output)'}`)
+    }
+    const [, body, status] = match
+    if (status !== '0') {
+      const detail = body!.trim().slice(-400)
+      throw new Error(`guest command failed (exit ${status}): ${detail || '(no output)'}`)
+    }
+    return body!
+  }
+
   private run(args: string[]): Promise<{ stdout: string; stderr: string }> {
     return this.exec(args)
   }
@@ -252,7 +455,7 @@ class CliContainerRuntime implements ContainerRuntime {
 /**
  * Build the production container runtime backed by the real `container` CLI.
  * `exec` (one-shot commands) and `ptySpawn` (exec sessions) are injectable for
- * tests; production uses {@link execFile} and lazily-loaded node-pty.
+ * tests; production uses {@link defaultExec} and lazily-loaded node-pty.
  */
 export function createCliContainerRuntime(
   exec: ContainerCliExec = defaultExec(CONTAINER_BIN),

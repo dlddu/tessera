@@ -44,6 +44,16 @@ export interface ContainerBackendConfig {
 
 export type BackendConfig = HostBackendConfig | ContainerBackendConfig
 
+/**
+ * One entry in a backend directory listing (M-J2-S3, AC2.3). Serializable so it
+ * can cross IPC to the renderer's container file browser.
+ */
+export interface DirEntry {
+  name: string
+  /** True for directories — the browser descends into these instead of opening. */
+  isDir: boolean
+}
+
 /** Lifecycle of a backend instance. AC2.6. */
 export type BackendStatus = 'starting' | 'running' | 'stopped' | 'error'
 
