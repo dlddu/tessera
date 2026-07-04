@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { defaultExec } from '@main/backend/ContainerRuntime'
 
 /**
- * defaultExec runs one-shot CLI commands with file-bound stdio — never Node's
- * socketpair pipes, whose terminal probing kills `container machine run` with
- * "Operation not supported on socket" (M-J2-S3). These tests drive it against
+ * defaultExec runs the management CLI one-shots (`system start` / `machine
+ * create` / `inspect`) with file-bound stdio — never Node's socketpair pipes,
+ * which some CLI stdio probing chokes on ("Operation not supported on socket",
+ * M-J2-S3). `machine run` one-shots don't come through here at all; they need
+ * a real terminal and ride the exec PTY. These tests drive the runner against
  * real host binaries (sh/cat, present on macOS and the Linux CI) to prove the
- * plumbing itself: stdout capture, stdin delivery + immediate EOF, the
- * execFile-shaped failure object, and ENOENT for a missing binary.
+ * plumbing itself: stdout capture, immediate stdin EOF, the execFile-shaped
+ * failure object, and ENOENT for a missing binary.
  */
 describe('defaultExec — file-stdio CLI runner', () => {
   it('captures stdout from a real process', async () => {
@@ -18,22 +20,10 @@ describe('defaultExec — file-stdio CLI runner', () => {
     expect(stdout).toBe('hello')
   })
 
-  it('delivers `input` on stdin, and EOFs immediately without input', async () => {
+  it('gives commands immediate stdin EOF instead of a hang', async () => {
     const exec = defaultExec('/bin/cat')
 
-    expect((await exec([], 'from stdin')).stdout).toBe('from stdin')
-    // No input → empty stdin file → cat sees EOF at once instead of hanging.
     expect((await exec([])).stdout).toBe('')
-  })
-
-  it('base64 round-trips bytes through the write-path shape (`base64 -d` + stdin)', async () => {
-    const exec = defaultExec('/bin/sh')
-    const raw = 'héllo, 월드'
-    const encoded = Buffer.from(raw, 'utf8').toString('base64')
-
-    const { stdout } = await exec(['-c', 'base64 -d'], encoded)
-
-    expect(stdout).toBe(raw)
   })
 
   it('rejects with the exit code, stderr, and a "Command failed" message', async () => {

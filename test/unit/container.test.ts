@@ -32,7 +32,7 @@ import {
   HostBackend,
   createCliContainerRuntime
 } from '@main/backend'
-import type { ContainerCliExec, ContainerRuntime, CreateMachineSpec } from '@main/backend'
+import type { ContainerRuntime, CreateMachineSpec } from '@main/backend'
 import { registerWorkspaceIpc } from '@main/workspace'
 
 /** A sentinel PtyProcess the fake runtime hands back from `spawnExecPty`. */
@@ -290,89 +290,126 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
   })
 })
 
-describe('createCliContainerRuntime — file I/O (M-J2-S3)', () => {
-  /** Record every exec invocation (argv + stdin) and script the next stdout. */
-  function recordingExec() {
-    const calls: Array<{ args: string[]; input: string | undefined }> = []
-    let stdout = ''
-    const exec: ContainerCliExec = async (args, input) => {
-      calls.push({ args, input })
-      return { stdout, stderr: '' }
+describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', () => {
+  const BEGIN = '__TESSERA_BEGIN__'
+  const END = '__TESSERA_END__'
+
+  /** Marker-bracketed guest output as the PTY delivers it (CRLF-cooked). */
+  const reply = (body: string, status = 0) => `${BEGIN}\r\n${body}${END}${status}\r\n`
+
+  /**
+   * One fake PTY per spawn: records every argv and answers each run with
+   * `respond(argv, call#)` a microtask later — after the runtime has attached
+   * its listeners — then exits, like a real one-shot `machine run`.
+   */
+  function ptyRuntime(respond: (args: string[], call: number) => string) {
+    const spawned: string[][] = []
+    const spawn: PtySpawn = (_file, args) => {
+      const fake = makeFakeNativePty()
+      const call = spawned.push(args) - 1
+      queueMicrotask(() => {
+        fake.emitData(respond(args, call))
+        fake.emitExit(0)
+      })
+      return fake as unknown as NativePty
     }
-    return {
-      exec,
-      calls,
-      setStdout(next: string) {
-        stdout = next
-      }
-    }
+    const runtime = createCliContainerRuntime(async () => ({ stdout: '', stderr: '' }), spawn)
+    return { runtime, spawned }
   }
 
-  it('readFile runs `machine run -n <name> base64 <path>` and decodes the stdout', async () => {
-    const { exec, calls, setStdout } = recordingExec()
-    setStdout(Buffer.from('héllo, 월드', 'utf8').toString('base64') + '\n')
-    const runtime = createCliContainerRuntime(exec)
+  /** The `sh -c` script inside a recorded `machine run` argv. */
+  const scriptOf = (args: string[]) => args[6]!
+
+  it('readFile wraps `base64 < <path>` in markers and decodes the body', async () => {
+    const content = Buffer.from('héllo, 월드', 'utf8').toString('base64')
+    const { runtime, spawned } = ptyRuntime(() => reply(`${content}\r\n`))
 
     const bytes = await runtime.readFile('ws-9', '/etc/motd')
 
-    expect(calls).toEqual([
-      { args: ['machine', 'run', '-n', 'ws-9', 'base64', '/etc/motd'], input: undefined }
-    ])
+    expect(spawned).toHaveLength(1)
+    expect(spawned[0]!.slice(0, 6)).toEqual(['machine', 'run', '-n', 'ws-9', 'sh', '-c'])
+    expect(scriptOf(spawned[0]!)).toBe(`echo ${BEGIN}; base64 < '/etc/motd'; echo ${END}$?`)
     expect(new TextDecoder().decode(bytes)).toBe('héllo, 월드')
   })
 
-  it('readFile survives the line wrapping `base64` emits for larger files', async () => {
-    const { exec, setStdout } = recordingExec()
+  it('readFile survives CRLF cooking and `base64` line wrapping', async () => {
     const raw = 'x'.repeat(300)
     const wrapped = Buffer.from(raw, 'utf8')
       .toString('base64')
-      .replace(/(.{76})/g, '$1\n')
-    setStdout(wrapped)
-    const runtime = createCliContainerRuntime(exec)
+      .replace(/(.{76})/g, '$1\r\n')
+    const { runtime } = ptyRuntime(() => reply(`${wrapped}\r\n`))
 
     const bytes = await runtime.readFile('ws-9', '/big.txt')
 
     expect(new TextDecoder().decode(bytes)).toBe(raw)
   })
 
-  it('writeFile pipes the bytes as base64 stdin into `base64 -d > <path>`', async () => {
-    const { exec, calls } = recordingExec()
-    const runtime = createCliContainerRuntime(exec)
+  it('readFile rejects with the guest error when the command exits non-zero', async () => {
+    const { runtime } = ptyRuntime(() => reply("sh: can't open /nope\r\n", 2))
+
+    await expect(runtime.readFile('ws-9', '/nope')).rejects.toThrow(/exit 2.*can't open \/nope/s)
+  })
+
+  it('rejects when the CLI dies before the guest runs (no markers)', async () => {
+    const { runtime } = ptyRuntime(() => 'Error: machine not running\r\n')
+
+    await expect(runtime.readFile('ws-9', '/etc/motd')).rejects.toThrow(
+      /did not complete.*machine not running/s
+    )
+  })
+
+  it('writeFile sends the bytes as one base64 argv slice into a partial file, then moves it', async () => {
+    const { runtime, spawned } = ptyRuntime(() => reply(''))
 
     await runtime.writeFile('ws-9', '/srv/app/a.ts', new TextEncoder().encode('saved, 저장!'))
 
-    expect(calls).toHaveLength(1)
-    expect(calls[0]!.args).toEqual([
-      'machine',
-      'run',
-      '-n',
-      'ws-9',
-      'sh',
-      '-c',
-      "base64 -d > '/srv/app/a.ts'"
-    ])
-    expect(Buffer.from(calls[0]!.input!, 'base64').toString('utf8')).toBe('saved, 저장!')
+    expect(spawned).toHaveLength(1)
+    expect(scriptOf(spawned[0]!)).toBe(
+      `echo ${BEGIN}; printf %s "$1" | base64 -d > '/srv/app/a.ts.tessera-partial'` +
+        ` && mv -f '/srv/app/a.ts.tessera-partial' '/srv/app/a.ts'; echo ${END}$?`
+    )
+    // The payload rides as the $1 positional argument, after the $0 filler.
+    expect(spawned[0]!.at(-2)).toBe('tessera')
+    expect(Buffer.from(spawned[0]!.at(-1)!, 'base64').toString('utf8')).toBe('saved, 저장!')
+  })
+
+  it('writeFile splits large payloads into standalone argv slices and finalizes once', async () => {
+    // 96KiB of base64 per slice = 72KiB of raw bytes; +3 bytes forces slice 2.
+    const raw = Buffer.alloc(72 * 1024 + 3, 7)
+    const { runtime, spawned } = ptyRuntime(() => reply(''))
+
+    await runtime.writeFile('ws-9', '/srv/big.bin', raw)
+
+    expect(spawned).toHaveLength(2)
+    expect(scriptOf(spawned[0]!)).toContain("base64 -d > '/srv/big.bin.tessera-partial'")
+    expect(scriptOf(spawned[0]!)).not.toContain('mv -f')
+    expect(scriptOf(spawned[1]!)).toContain("base64 -d >> '/srv/big.bin.tessera-partial'")
+    expect(scriptOf(spawned[1]!)).toContain("mv -f '/srv/big.bin.tessera-partial' '/srv/big.bin'")
+    // Each slice decodes standalone; together they are the original bytes.
+    const joined = Buffer.concat(spawned.map((args) => Buffer.from(args.at(-1)!, 'base64')))
+    expect(joined.equals(raw)).toBe(true)
   })
 
   it('writeFile single-quotes shell-hostile paths', async () => {
-    const { exec, calls } = recordingExec()
-    const runtime = createCliContainerRuntime(exec)
+    const { runtime, spawned } = ptyRuntime(() => reply(''))
 
     await runtime.writeFile('ws-9', "/tmp/it's a file.txt", new Uint8Array([1]))
 
-    expect(calls[0]!.args.at(-1)).toBe("base64 -d > '/tmp/it'\\''s a file.txt'")
+    expect(scriptOf(spawned[0]!)).toContain("mv -f '/tmp/it'\\''s a file.txt.tessera-partial'")
+    expect(scriptOf(spawned[0]!)).toContain("'/tmp/it'\\''s a file.txt'")
   })
 
-  it('listDir runs `ls -1Ap` and parses trailing slashes into DirEntry flags', async () => {
-    const { exec, calls, setStdout } = recordingExec()
-    setStdout('src/\n.gitignore\nREADME.md\nnode_modules/\n')
-    const runtime = createCliContainerRuntime(exec)
+  it('listDir re-encodes `ls -1Ap` to base64 and parses trailing slashes into DirEntry flags', async () => {
+    const listing = Buffer.from('src/\n.gitignore\nREADME.md\nnode_modules/\n', 'utf8').toString(
+      'base64'
+    )
+    const { runtime, spawned } = ptyRuntime(() => reply(`${listing}\r\n`))
 
     const entries = await runtime.listDir('ws-9', '/work')
 
-    expect(calls).toEqual([
-      { args: ['machine', 'run', '-n', 'ws-9', 'ls', '-1Ap', '--', '/work'], input: undefined }
-    ])
+    expect(scriptOf(spawned[0]!)).toBe(
+      `echo ${BEGIN}; out=$(ls -1Ap -- '/work') && printf %s "$out" | base64; echo ${END}$?`
+    )
     expect(entries).toEqual([
       { name: 'src', isDir: true },
       { name: '.gitignore', isDir: false },
@@ -382,11 +419,15 @@ describe('createCliContainerRuntime — file I/O (M-J2-S3)', () => {
   })
 
   it('listDir of an empty directory yields no entries', async () => {
-    const { exec, setStdout } = recordingExec()
-    setStdout('')
-    const runtime = createCliContainerRuntime(exec)
+    const { runtime } = ptyRuntime(() => reply(''))
 
     expect(await runtime.listDir('ws-9', '/empty')).toEqual([])
+  })
+
+  it('listDir rejects with the ls error for an unreadable path', async () => {
+    const { runtime } = ptyRuntime(() => reply('ls: /gone: No such file or directory\r\n', 1))
+
+    await expect(runtime.listDir('ws-9', '/gone')).rejects.toThrow(/exit 1.*No such file/s)
   })
 })
 
