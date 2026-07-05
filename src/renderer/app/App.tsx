@@ -15,10 +15,22 @@
  * restore is out of scope here (J4/PRD-4) — only the window/pane/tab skeleton is
  * rebuilt, but keep-alive means a switched-away workspace keeps its live tree.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Window, WorkspaceDialog, WorkspaceRail } from '@renderer/components'
+import {
+  commandById,
+  dispatchKey,
+  workspaceContext,
+  type WorkspaceCommandHandlers
+} from '@renderer/commands'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { WorkspaceView } from './WorkspaceView'
+
+// The two workspace-scope shortcuts the App shell owns. ⌘N opens the creation
+// dialog; ⌘1–9 switches by rail position. Dispatched through the shared registry
+// (same source the layout keymap + ⌘K palette read) so they can't drift.
+const NEW_WORKSPACE = commandById('new-workspace')
+const SWITCH_WORKSPACE = commandById('switch-workspace')
 
 export function App() {
   // Every known workspace skeleton (`{ workspace, layout }`), active + restored.
@@ -47,16 +59,40 @@ export function App() {
     }
   }, [])
 
+  // Switch to the next workspace in the rail (wraps). Backs the ⌘K palette's
+  // "워크스페이스 전환" command, which WorkspaceView invokes via a prop.
+  const switchNext = useCallback(() => {
+    if (workspaces.length < 2) return
+    const idx = workspaces.findIndex((w) => w.workspace.id === activeId)
+    setActiveId(workspaces[(idx + 1) % workspaces.length]!.workspace.id)
+  }, [workspaces, activeId])
+
+  // The workspace-scope command effects (⌘N / ⌘1–9) and the palette both run
+  // against these handlers. Rebuilt when the workspace list / active id change so
+  // positional switching + next-switching see the current rail.
+  const workspaceHandlers = useMemo<WorkspaceCommandHandlers>(
+    () => ({
+      create: () => setDialogOpen(true),
+      // ⇧⌘W (close) lives in WorkspaceView; the App shell never closes by key.
+      close: () => undefined,
+      switchTo: (index) => {
+        const target = workspaces[index]
+        if (target) setActiveId(target.workspace.id)
+      },
+      switchNext
+    }),
+    [workspaces, switchNext]
+  )
+
+  // ⌘N — open the creation dialog. Bubble phase (as before): the empty state has
+  // no surface to intercept it, and with workspaces present it still reaches here.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && (e.key === 'n' || e.key === 'N')) {
-        e.preventDefault()
-        setDialogOpen(true)
-      }
+      dispatchKey(e, [NEW_WORKSPACE], workspaceContext(workspaceHandlers))
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [workspaceHandlers])
 
   // ⌘/Ctrl+1–9 → switch to the workspace at that rail position (AC1.7). Capture
   // phase so a focused terminal/editor can't swallow it (it beats the active
@@ -64,18 +100,11 @@ export function App() {
   // (no such workspace) are a no-op; positions past 9 stay click-only.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return
-      const n = Number(e.key)
-      if (!Number.isInteger(n) || n < 1 || n > 9) return
-      const target = workspaces[n - 1]
-      if (!target) return
-      e.preventDefault()
-      e.stopPropagation()
-      setActiveId(target.workspace.id)
+      dispatchKey(e, [SWITCH_WORKSPACE], workspaceContext(workspaceHandlers))
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [workspaces])
+  }, [workspaceHandlers])
 
   useEffect(() => {
     return window.tessera.update.onDownloaded((e) => setUpdateReady(e.version))
@@ -167,6 +196,8 @@ export function App() {
                 created={w}
                 active={isActive}
                 onClose={handleClose}
+                onNewWorkspace={workspaceHandlers.create}
+                onSwitchNext={switchNext}
                 onZoomChange={setZoomed}
               />
             </div>

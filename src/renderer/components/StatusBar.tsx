@@ -2,8 +2,23 @@
  * C-statusbar: tmux-style bottom bar. With a workspace: left = tessera mark +
  * name, middle = backend, right = keymap hints + clock. Empty (no-workspace)
  * variant: "워크스페이스 없음" + the ⌘N hint. The clock is a static placeholder.
+ *
+ * The keymap hints are read from the shared command registry (J2-S5), so the
+ * displayed keycaps always match the real bindings — the same source the keymap
+ * dispatches and the ⌘K palette lists.
  */
 import type { BackendKind } from '@shared/types'
+import { commandById, type CommandId } from '@renderer/commands'
+import { Keycap } from './Keycap'
+
+/** The condensed set of shortcuts the status bar teases (workspace variant). */
+const KEY_HINTS: ReadonlyArray<{ id: CommandId; label: string }> = [
+  { id: 'split-v', label: '분할' },
+  { id: 'focus', label: '포커스' },
+  { id: 'tab-switch', label: '탭' },
+  { id: 'zoom', label: '전체화면' },
+  { id: 'overlay', label: '단축키' }
+]
 
 function Mark() {
   return (
@@ -74,12 +89,7 @@ export function StatusBar({
         <div className="spacer" />
         <div className="seg keys">
           <span>
-            <b>새 워크스페이스</b>{' '}
-            <span className="kcrow">
-              <span className="kc">⌘</span>
-              <span className="plus">+</span>
-              <span className="kc">N</span>
-            </span>
+            <b>새 워크스페이스</b> <Keycap keycap={commandById('new-workspace').keycap} />
           </span>
         </div>
         <UpdateAffordance version={updateReadyVersion} onRestart={onUpdateRestart} />
@@ -97,46 +107,11 @@ export function StatusBar({
       <div className={`seg ${backendKind === 'container' ? 'cont' : 'host'}`}>{backend}</div>
       <div className="spacer" />
       <div className="seg keys">
-        <span>
-          <b>분할</b>{' '}
-          <span className="kcrow">
-            <span className="kc">⌘</span>
-            <span className="plus">+</span>
-            <span className="kc">D</span>
+        {KEY_HINTS.map(({ id, label }) => (
+          <span key={id}>
+            <b>{label}</b> <Keycap keycap={commandById(id).keycap} />
           </span>
-        </span>
-        <span>
-          <b>포커스</b>{' '}
-          <span className="kcrow">
-            <span className="kc">⌥⌘</span>
-            <span className="plus">+</span>
-            <span className="kc">→</span>
-          </span>
-        </span>
-        <span>
-          <b>탭</b>{' '}
-          <span className="kcrow">
-            <span className="kc">⇧⌘</span>
-            <span className="plus">+</span>
-            <span className="kc">]</span>
-          </span>
-        </span>
-        <span>
-          <b>전체화면</b>{' '}
-          <span className="kcrow">
-            <span className="kc">⇧⌘</span>
-            <span className="plus">+</span>
-            <span className="kc">⏎</span>
-          </span>
-        </span>
-        <span>
-          <b>단축키</b>{' '}
-          <span className="kcrow">
-            <span className="kc">⌥⌘</span>
-            <span className="plus">+</span>
-            <span className="kc">/</span>
-          </span>
-        </span>
+        ))}
       </div>
       <UpdateAffordance version={updateReadyVersion} onRestart={onUpdateRestart} />
       <div className="clock">—:—</div>

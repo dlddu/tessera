@@ -47,9 +47,10 @@
 ### 시나리오 5: 조작 동등성
 
 - **사전 조건**: host workspace와 container workspace
-- **실행 단계**: 동일한 단축키·조작 시퀀스(분할/탭 생성/포커스 이동)를 양쪽에 적용
-- **기대 결과**: 양쪽에서 동등한 결과, 별도 조작 학습 불필요
+- **실행 단계**: 동일한 단축키·조작 시퀀스(분할/탭 생성/포커스 이동)를 양쪽에 적용. ⌘K 커맨드 팔레트로도 동일 커맨드를 실행.
+- **기대 결과**: 양쪽에서 동등한 결과, 별도 조작 학습 불필요. 조작·단축키·팔레트가 backend를 분기하지 않으므로 parity가 구조적으로 성립.
 - **검증 AC**: AC2.5
+- **자동화**: 비게이트 단위 `test/unit/command-parity.test.ts`(backendKind만 다른 두 레이아웃에 동일 시퀀스 → 동일 `LayoutSnapshot` 구조·포커스 위치, CI-그린 parity 증명) + `test/unit/command-registry.test.ts`(공유 레지스트리 match/dispatch/run/filter). 게이트드 e2e `test/e2e/M-J2-S5.spec.ts` — ⌘K 팔레트 UI(검색·실행·닫기)는 비게이트, host=container 동등 시퀀스는 `TESSERA_CONTAINER_E2E=1`(Apple Silicon 맥) 게이트.
 
 ### 시나리오 6: 컨테이너 생명주기와 응답성
 

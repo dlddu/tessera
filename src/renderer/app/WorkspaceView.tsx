@@ -11,10 +11,14 @@
  * drive the layout without a mouse (AC1.4): ⌘⌥+arrows move focus, ⌘⇧[ / ⌘⇧]
  * switch tabs, ⌃⌘+arrows move the active tab across panes, and ⌘W closes it —
  * closing the last tab closes the whole workspace, and ⇧⌘W closes it outright.
- * ⌘⌥/ toggles the on-demand key-hint overlay. Tabs can also be dragged between
- * panes (AC1.3), and clicking a pane — its tab bar or its surface — focuses it.
- * All keys are captured before the focused surface so xterm/CodeMirror can't
- * swallow them; ⌘S / ⌘O stay with the editor.
+ * ⌘⌥/ toggles the on-demand key-hint overlay, and ⌘K opens the command palette —
+ * a searchable, mouse-reachable twin of these same shortcuts (J2-S5, AC2.5).
+ * Both the keymap and the palette dispatch the one shared command registry, so a
+ * host and a container workspace are driven identically (parity is structural —
+ * no command branches on the backend). Tabs can also be dragged between panes
+ * (AC1.3), and clicking a pane — its tab bar or its surface — focuses it. All
+ * keys are captured before the focused surface so xterm/CodeMirror can't swallow
+ * them; ⌘S / ⌘O stay with the editor.
  *
  * Under the S8 keep-alive switcher (AC1.7) every workspace stays mounted at once
  * — only the active one is visible. So the two *global* effects here, the
@@ -32,12 +36,26 @@ import {
   useLayout,
   useTabDrag
 } from '@renderer/layout'
-import type { FocusDirection, LayoutActions } from '@renderer/layout'
-import { KeymapOverlay, SurfacePicker } from '@renderer/components'
+import type { LayoutActions } from '@renderer/layout'
+import { CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
+import {
+  COMMANDS,
+  LAYOUT_COMMANDS,
+  commandById,
+  dispatchKey,
+  type Command,
+  type CommandContext,
+  type PendingPick
+} from '@renderer/commands'
 import { SURFACE_META } from '@renderer/surfaces'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { buildWorkspaceSnapshot } from '@shared/types'
 import type { LayoutNode, LayoutSnapshot, SurfaceKind } from '@shared/types'
+
+// The chords the layout view dispatches: every layout shortcut plus ⇧⌘W (close
+// workspace). ⌘N / ⌘1–9 stay with the App shell; ⌘K + Esc are handled inline
+// below (they own modal priority, so they aren't registry commands).
+const WORKSPACE_VIEW_KEYS: readonly Command[] = [...LAYOUT_COMMANDS, commandById('close-workspace')]
 
 /** Debounce window for coalescing rapid layout edits into one persist. */
 const SAVE_DEBOUNCE_MS = 500
@@ -57,14 +75,18 @@ interface WorkspaceViewProps {
    * into closing the workspace itself (AC1.7).
    */
   onClose: (id: string) => void
+  /**
+   * Open the new-workspace dialog (⌘N). Threaded from the App shell so the ⌘K
+   * palette can run the workspace-scope "새 워크스페이스" command (AC2.5 superset).
+   */
+  onNewWorkspace: () => void
+  /**
+   * Advance to the next workspace in the rail. Backs the palette's "워크스페이스
+   * 전환" command; the App shell owns positional ⌘1–9 switching itself.
+   */
+  onSwitchNext: () => void
   /** Report zoom state up so the window title-bar badge can reflect it (AC1.6). */
   onZoomChange?: (zoomed: boolean) => void
-}
-
-/** A pending surface choice: which pane it targets and what the pick will do. */
-interface PendingPick {
-  action: 'add' | 'split-v' | 'split-h'
-  paneId: string
 }
 
 const PICKER_TITLE: Record<PendingPick['action'], string> = {
@@ -78,22 +100,6 @@ function countTabs(node: LayoutNode): number {
   return node.type === 'pane'
     ? node.tabs.length
     : node.children.reduce((sum, child) => sum + countTabs(child), 0)
-}
-
-/** Map an arrow key to a focus direction (S5 keyboard), or `null`. */
-function arrowDirection(key: string): FocusDirection | null {
-  switch (key) {
-    case 'ArrowLeft':
-      return 'left'
-    case 'ArrowRight':
-      return 'right'
-    case 'ArrowUp':
-      return 'up'
-    case 'ArrowDown':
-      return 'down'
-    default:
-      return null
-  }
 }
 
 /** Short label for a pane (its active tab's identity), for the drag toast. */
@@ -114,7 +120,14 @@ function paneLabel(snapshot: LayoutSnapshot, paneId: string | null): string {
   return 'pane'
 }
 
-export function WorkspaceView({ created, active, onClose, onZoomChange }: WorkspaceViewProps) {
+export function WorkspaceView({
+  created,
+  active,
+  onClose,
+  onNewWorkspace,
+  onSwitchNext,
+  onZoomChange
+}: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
   const [pending, setPending] = useState<PendingPick | null>(null)
@@ -123,6 +136,9 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
   // The key-hint overlay is summoned on demand with `⌘⌥/` rather than always
   // sitting over the layout, so it stays out of the way until wanted (default off).
   const [showKeymap, setShowKeymap] = useState(false)
+  // The ⌘K command palette (default off) — a searchable, mouse-reachable twin of
+  // the keymap, drawn from the same registry so the two can't drift (AC2.5).
+  const [showPalette, setShowPalette] = useState(false)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
   const paneBodies = useRef(createPaneBodyRegistry()).current
@@ -152,34 +168,68 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
     [actions, closeTabOrWorkspace, closeActiveOrWorkspace]
   )
 
+  // The context every command runs against — shared by the keymap dispatcher and
+  // the ⌘K palette so a shortcut and its palette twin do exactly the same thing.
+  // Built on demand (not memoized as a value) so `focusedPaneId` is read live at
+  // the moment of dispatch. `layout` is the guarded action bundle, so ⌘W / the
+  // "탭 닫기" command close the workspace when the last tab goes (AC1.7).
+  const makeCtx = useCallback(
+    (): CommandContext => ({
+      layout: layoutActions,
+      setPending,
+      focusedPaneId: engine.focusedPaneId,
+      toggleKeymap: () => setShowKeymap((shown) => !shown),
+      workspace: {
+        create: onNewWorkspace,
+        close: closeWorkspace,
+        // Positional switching is the App shell's job (⌘1–9); the palette only
+        // ever advances to the next workspace, so this stays a no-op here.
+        switchTo: () => undefined,
+        switchNext: onSwitchNext
+      }
+    }),
+    [layoutActions, engine, onNewWorkspace, closeWorkspace, onSwitchNext]
+  )
+
+  // Run a command chosen in the palette, then close it. If the command opens the
+  // surface picker (split / add tab), `pending` takes over and the picker shows.
+  const runCommand = useCallback(
+    (command: Command) => {
+      command.run(makeCtx())
+      setShowPalette(false)
+    },
+    [makeCtx]
+  )
+
   useEffect(() => {
     // Only the visible workspace owns the global (capture-phase) keymap. Hidden
     // keep-alive workspaces stay mounted but must not intercept shortcuts (S8).
     if (!active) return
     function onKey(e: KeyboardEvent) {
-      const focused = engine.focusedPaneId
-
-      // ⌘⌥/ — toggle the key-hint overlay. Matched by physical key code so
-      // macOS's ⌥-remapped "/" glyph (÷) doesn't matter; a Cmd chord works from
-      // anywhere (incl. a focused terminal/editor) without eating a typed "/".
-      if (e.metaKey && e.altKey && !e.ctrlKey && !e.shiftKey && e.code === 'Slash') {
+      // ⌘K — toggle the command palette. Held off while the surface picker is
+      // open so two modals never stack. Exact chord (no ⌥/⌃/⇧) so it can't be
+      // confused with other bindings.
+      if (
+        e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.shiftKey &&
+        (e.key === 'k' || e.key === 'K') &&
+        !pending
+      ) {
         e.preventDefault()
         e.stopPropagation()
-        setShowKeymap((shown) => !shown)
+        setShowPalette((shown) => !shown)
         return
       }
+      // While the palette is open it owns the keyboard: its input handles typing
+      // and ↑/↓/Enter/Esc, so the layout chords stay inert (no double-fire).
+      if (showPalette) return
 
-      // ⇧⌘⏎ — toggle window-filling zoom on the focused pane (AC1.6). Ctrl/Alt
-      // excluded so it's an exact chord.
-      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && e.key === 'Enter') {
-        e.preventDefault()
-        e.stopPropagation()
-        actions.toggleZoom()
-        return
-      }
       // Esc — leave zoom. Deferred to the surface picker while it's open (it has
       // its own Esc-to-cancel), and a no-op when nothing is zoomed so it never
-      // swallows Esc from the focused surface.
+      // swallows Esc from the focused surface. Kept inline (not a registry
+      // command) because it's the picker-priority inverse of zoom.
       if (e.key === 'Escape') {
         if (!pending && engine.zoomedPaneId !== null) {
           e.preventDefault()
@@ -189,62 +239,17 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
         return
       }
 
-      // ⌘D / ⌘⇧D — split the focused pane (vertical / horizontal) via the picker.
-      // Ctrl is excluded so Ctrl+D still reaches the terminal as EOF.
-      if (e.metaKey && !e.ctrlKey && (e.key === 'd' || e.key === 'D')) {
-        e.preventDefault()
-        e.stopPropagation()
-        if (focused) setPending({ action: e.shiftKey ? 'split-h' : 'split-v', paneId: focused })
-        return
-      }
-      // ⌘T — add a tab to the focused pane (via the picker).
-      if (e.metaKey && !e.ctrlKey && !e.shiftKey && (e.key === 't' || e.key === 'T')) {
-        e.preventDefault()
-        e.stopPropagation()
-        if (focused) setPending({ action: 'add', paneId: focused })
-        return
-      }
-      // ⌘W — close the focused pane's active tab. Closing the *last* remaining
-      // tab closes the workspace instead of leaving it empty (AC1.7).
-      if (e.metaKey && !e.ctrlKey && !e.shiftKey && (e.key === 'w' || e.key === 'W')) {
-        e.preventDefault()
-        e.stopPropagation()
-        closeActiveOrWorkspace()
-        return
-      }
-      // ⇧⌘W — close (permanently delete) the whole workspace.
-      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && (e.key === 'w' || e.key === 'W')) {
-        e.preventDefault()
-        e.stopPropagation()
-        closeWorkspace()
-        return
-      }
-      // ⌘⇧[ / ⌘⇧] — switch the active tab within the focused pane. Match the
-      // shifted glyphs ({ }) the bracket keys actually produce, plus the bare
-      // brackets for layouts that report them.
-      if (e.metaKey && e.shiftKey && !e.ctrlKey && !e.altKey && '[]{}'.includes(e.key)) {
-        e.preventDefault()
-        e.stopPropagation()
-        actions.cycleTab(e.key === ']' || e.key === '}' ? 'next' : 'prev')
-        return
-      }
-      // Arrow keys: ⌘⌥ moves focus; ⌃⌘ moves the active tab across panes.
-      const dir = arrowDirection(e.key)
-      if (dir && e.metaKey && !e.shiftKey) {
-        if (e.altKey && !e.ctrlKey) {
-          e.preventDefault()
-          e.stopPropagation()
-          actions.focusDirection(dir)
-        } else if (e.ctrlKey && !e.altKey) {
-          e.preventDefault()
-          e.stopPropagation()
-          actions.moveActiveTabToDirection(dir)
-        }
-      }
+      // Every other shortcut runs through the shared registry: the first command
+      // whose chord matches is dispatched against a live context. This is the
+      // single source the ⌘K palette and the hint surfaces also read, so a
+      // rebinding updates all of them at once. Covers the layout shortcuts
+      // (split ⌘D/⇧⌘D, ⌘T, ⌘W, focus ⌥⌘+arrows, tab-move ⌃⌘+arrows, tab-switch
+      // ⇧⌘[ ], zoom ⇧⌘⏎, overlay ⌘⌥/) plus ⇧⌘W (close workspace).
+      dispatchKey(e, WORKSPACE_VIEW_KEYS, makeCtx())
     }
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
-  }, [engine, actions, pending, active, closeActiveOrWorkspace, closeWorkspace])
+  }, [engine, actions, pending, active, showPalette, makeCtx])
 
   // Mirror zoom state to the shell (title-bar badge, AC1.6) — but only while
   // active, so a hidden keep-alive workspace can't drive the badge (S8). The
@@ -347,6 +352,13 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
         paneBodies={paneBodies}
       />
       {showKeymap ? <KeymapOverlay /> : null}
+      {showPalette ? (
+        <CommandPalette
+          commands={COMMANDS}
+          onRun={runCommand}
+          onCancel={() => setShowPalette(false)}
+        />
+      ) : null}
       {saved ? (
         <div className="toast ok" data-testid="layout-saved-toast">
           <span className="ti">✓</span>

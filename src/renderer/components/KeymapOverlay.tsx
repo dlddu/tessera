@@ -6,67 +6,34 @@
  * only while toggled on. Purely decorative: it is `pointer-events:none` (see
  * `.keymap-overlay`) so it never intercepts clicks. The status bar carries the
  * same hints in condensed form, including the `⌘⌥/` toggle itself.
+ *
+ * Keycaps are read from the shared command registry (J2-S5), so they always
+ * reflect the actual bindings — the same source the keymap dispatches and the
+ * ⌘K palette lists. Each row pairs a registry command's keycap with a short
+ * overlay label and an optional contextual note.
  */
+import { commandById, type CommandId } from '@renderer/commands'
+import { Keycap } from './Keycap'
+
+/** Overlay rows: a command's keycap under a short label, with an optional note. */
+const ROWS: ReadonlyArray<{ id: CommandId; label: string; note?: string }> = [
+  { id: 'focus', label: '포커스' },
+  { id: 'tab-switch', label: '탭 전환' },
+  { id: 'move', label: '탭 이동', note: '또는 드래그' },
+  { id: 'zoom', label: '전체화면', note: '복귀 Esc' },
+  { id: 'close-workspace', label: '워크스페이스 닫기' },
+  { id: 'overlay', label: '단축키 닫기' }
+]
+
 export function KeymapOverlay() {
   return (
     <div className="keymap-overlay" data-testid="keymap-overlay" aria-hidden="true">
-      <span className="row-gap">
-        <span className="muted">포커스</span>{' '}
-        <span className="kcrow">
-          <span className="kc">⌥⌘</span>
-          <span className="plus">+</span>
-          <span className="kc">←</span>
-          <span className="kc">→</span>
-          <span className="kc">↑</span>
-          <span className="kc">↓</span>
+      {ROWS.map(({ id, label, note }) => (
+        <span className="row-gap" key={id}>
+          <span className="muted">{label}</span> <Keycap keycap={commandById(id).keycap} />
+          {note ? <span className="faint">{note}</span> : null}
         </span>
-      </span>
-      <span className="row-gap">
-        <span className="muted">탭 전환</span>{' '}
-        <span className="kcrow">
-          <span className="kc">⇧⌘</span>
-          <span className="plus">+</span>
-          <span className="kc">[</span>
-          <span className="kc">]</span>
-        </span>
-      </span>
-      <span className="row-gap">
-        <span className="muted">탭 이동</span>{' '}
-        <span className="kcrow">
-          <span className="kc">⌃⌘</span>
-          <span className="plus">+</span>
-          <span className="kc">←</span>
-          <span className="kc">→</span>
-          <span className="kc">↑</span>
-          <span className="kc">↓</span>
-        </span>{' '}
-        <span className="faint">또는 드래그</span>
-      </span>
-      <span className="row-gap">
-        <span className="muted">전체화면</span>{' '}
-        <span className="kcrow">
-          <span className="kc">⇧⌘</span>
-          <span className="plus">+</span>
-          <span className="kc">⏎</span>
-        </span>{' '}
-        <span className="faint">복귀 Esc</span>
-      </span>
-      <span className="row-gap">
-        <span className="muted">워크스페이스 닫기</span>{' '}
-        <span className="kcrow">
-          <span className="kc">⇧⌘</span>
-          <span className="plus">+</span>
-          <span className="kc">W</span>
-        </span>
-      </span>
-      <span className="row-gap">
-        <span className="muted">단축키 닫기</span>{' '}
-        <span className="kcrow">
-          <span className="kc">⌥⌘</span>
-          <span className="plus">+</span>
-          <span className="kc">/</span>
-        </span>
-      </span>
+      ))}
     </div>
   )
 }
