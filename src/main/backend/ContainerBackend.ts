@@ -78,8 +78,14 @@ export class ContainerBackend implements Backend {
    * `container machine run` exec PTY. The session sees the container's hostname,
    * env, and filesystem — host-isolated. We deliberately do NOT forward
    * `options.env` (the caller's host-env snapshot); the machine supplies its own
-   * env. `options.cwd`, when set, starts the shell there — a previous container
-   * terminal's live cwd, tracked via OSC 7 (M-J2-S2).
+   * env, plus the one explicit guest marker we set below. `options.cwd`, when
+   * set, starts the shell there — a previous container terminal's live cwd,
+   * tracked via OSC 7 (M-J2-S2).
+   *
+   * The injected `TESSERA_BACKEND=container` var tags every terminal in the
+   * area with its backend (AC2.4): `echo $TESSERA_BACKEND` → `container`, the
+   * host counterpart being `host`. It's a fixed machine-side var, so setting it
+   * doesn't copy any host environment in — isolation (AC2.3) still holds.
    *
    * `start()` (workspace create) has already booted the machine to `running`,
    * and `machine run` also boots on demand, so there is no extra guard here.
@@ -88,7 +94,8 @@ export class ContainerBackend implements Backend {
     return this.options.runtime.spawnExecPty(this.options.name, {
       cols: options.cols,
       rows: options.rows,
-      ...(options.cwd !== undefined ? { cwd: options.cwd } : {})
+      ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
+      env: { TESSERA_BACKEND: 'container' }
     })
   }
 

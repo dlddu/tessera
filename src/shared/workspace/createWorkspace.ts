@@ -9,6 +9,7 @@
  */
 import { randomUUID } from 'node:crypto'
 import type { BackendConfig, BackendKind, ContainerHomeMount, Workspace } from '../types/backend'
+import { DEFAULT_AREA_ID } from '../types/layout'
 import type { LayoutSnapshot } from '../types/layout'
 import { buildWorkspaceSnapshot } from '../types/persistence'
 import type { WorkspaceStateSnapshot } from '../types/persistence'
@@ -85,7 +86,7 @@ export function buildWorkspace(input: BuildWorkspaceInput): BuildWorkspaceResult
 
   const name = input.name.trim()
   const id = `ws-${randomUUID()}`
-  const areaId = 'area-default'
+  const areaId = DEFAULT_AREA_ID
   const tabId = 'P-single-t0'
 
   const backend: BackendConfig =

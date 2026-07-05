@@ -12,6 +12,7 @@
  * (empty state) `.winmain` just holds the children.
  */
 import type { ReactNode } from 'react'
+import type { BackendKind } from '@shared/types'
 import { StatusBar } from './StatusBar'
 
 interface WindowProps {
@@ -19,10 +20,12 @@ interface WindowProps {
   workspace: string | null
   /** Host working directory shown in the title bar (when a workspace exists). */
   dir?: string
-  /** Status-bar backend label (e.g. "host"). */
+  /** Status-bar backend label (e.g. "host", "container · node:22"). */
   backendLabel: string
   /** Title-bar badge text. */
   backendBadge: string
+  /** Backend kind — drives both the title-bar badge and status-bar segment styling. */
+  backendKind: BackendKind
   children: ReactNode
   /** Left-column workspace switcher (C-workspace-rail, AC1.7); omitted when empty. */
   rail?: ReactNode
@@ -41,6 +44,7 @@ export function Window({
   dir,
   backendLabel,
   backendBadge,
+  backendKind,
   children,
   rail,
   overlay,
@@ -68,7 +72,7 @@ export function Window({
               <span className="led" />⤢ 전체화면
             </span>
           ) : null}
-          <span className={`badge ${backendBadge === 'container' ? 'cont' : 'host'}`}>
+          <span className={`badge ${backendKind === 'container' ? 'cont' : 'host'}`}>
             <span className="led" />
             {backendBadge}
           </span>
@@ -81,6 +85,7 @@ export function Window({
       <StatusBar
         workspace={workspace}
         backend={backendLabel}
+        backendKind={backendKind}
         updateReadyVersion={updateReadyVersion}
         onUpdateRestart={onUpdateRestart}
       />

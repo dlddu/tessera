@@ -92,6 +92,34 @@ describe('HostBackend.spawnPty', () => {
     expect(calls[0]!.file).toBe('/bin/bash')
     expect(calls[0]!.options.cwd).toBe('/elsewhere')
   })
+
+  it('injects TESSERA_BACKEND=host into the spawned environment (AC2.4)', async () => {
+    const calls: Array<{ options: NativePtyOptions }> = []
+    const spawn: PtySpawn = (_file, _args, options) => {
+      calls.push({ options })
+      return makeFakeNativePty() as unknown as NativePty
+    }
+    const backend = new HostBackend({ cwd: '/work', spawn })
+
+    await backend.spawnPty({ cols: 80, rows: 24 })
+
+    // No caller env → the shell inherits the host environment plus the marker.
+    expect(calls[0]!.options.env['TESSERA_BACKEND']).toBe('host')
+  })
+
+  it('the host marker overrides an inherited value and keeps other vars', async () => {
+    const calls: Array<{ options: NativePtyOptions }> = []
+    const spawn: PtySpawn = (_file, _args, options) => {
+      calls.push({ options })
+      return makeFakeNativePty() as unknown as NativePty
+    }
+    const backend = new HostBackend({ cwd: '/work', spawn })
+
+    await backend.spawnPty({ cols: 80, rows: 24, env: { TESSERA_BACKEND: 'stale', FOO: 'bar' } })
+
+    // Merged last, so the marker wins; sibling vars pass through untouched.
+    expect(calls[0]!.options.env).toMatchObject({ TESSERA_BACKEND: 'host', FOO: 'bar' })
+  })
 })
 
 describe('SurfaceRegistry', () => {

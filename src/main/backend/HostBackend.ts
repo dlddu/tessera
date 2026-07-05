@@ -64,7 +64,10 @@ export class HostBackend implements Backend {
       cols: options.cols,
       rows: options.rows,
       cwd: options.cwd ?? this.options.cwd,
-      env: options.env ?? hostEnv()
+      // Tag the shell with its backend (AC2.4): `echo $TESSERA_BACKEND` → `host`,
+      // the container counterpart being `container`. Merged last so it wins over
+      // any inherited value in the host environment.
+      env: { ...(options.env ?? hostEnv()), TESSERA_BACKEND: 'host' }
     })
 
     return {

@@ -11,6 +11,7 @@
  * thin stateful shell around them. Directional focus + tab move ship as engine
  * methods (with tests) ahead of their S5 interaction UI.
  */
+import { DEFAULT_AREA_ID } from '@shared/types'
 import type {
   LayoutNode,
   LayoutSnapshot,
@@ -313,7 +314,7 @@ export class LayoutEngine {
     const pane = findPane(this.snapshot.root, paneId)
     if (!pane) return null
 
-    const areaId = pane.tabs[0]?.areaId ?? this.snapshot.areas[0]?.id ?? 'area-default'
+    const areaId = pane.tabs[0]?.areaId ?? this.snapshot.areas[0]?.id ?? DEFAULT_AREA_ID
     const tab = makeTab(surface, areaId)
     const newPane: PaneNode = { type: 'pane', id: uid('pane'), tabs: [tab], activeTabId: tab.id }
     const split: SplitNode = {
@@ -342,7 +343,7 @@ export class LayoutEngine {
   addTab(paneId: string, surface: SurfaceKind): string | null {
     const pane = findPane(this.snapshot.root, paneId)
     if (!pane) return null
-    const areaId = pane.tabs[0]?.areaId ?? this.snapshot.areas[0]?.id ?? 'area-default'
+    const areaId = pane.tabs[0]?.areaId ?? this.snapshot.areas[0]?.id ?? DEFAULT_AREA_ID
     const tab = makeTab(surface, areaId)
     const root = updatePane(this.snapshot.root, paneId, (p) => ({
       ...p,

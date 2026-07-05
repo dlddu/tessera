@@ -14,6 +14,15 @@ import type { SurfaceKind } from './surface'
 
 export type SplitDirection = 'horizontal' | 'vertical'
 
+/**
+ * Id of the workspace's default area — the one every workspace is born with,
+ * whose backend is the workspace's own (AC2.4). Every pane/tab created without
+ * an explicit area inherits this one, so its backend is uniform. The single
+ * source of truth for the literal: the factory, the sample layout, and the
+ * engine's split/add-tab fallback all reference it (no scattered strings).
+ */
+export const DEFAULT_AREA_ID = 'area-default'
+
 /** A backend-bounded region within a workspace. AC2.4, AC2.7, #11. */
 export interface Area {
   id: string

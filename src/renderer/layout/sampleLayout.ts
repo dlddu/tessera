@@ -3,6 +3,7 @@
  * plain data literal (no layout behavior) describing a 2×2 mosaic with one of
  * each surface kind — it is NOT the real layout engine.
  */
+import { DEFAULT_AREA_ID } from '@shared/types'
 import type { LayoutSnapshot, PaneNode, SurfaceKind } from '@shared/types'
 
 function pane(id: string, surface: SurfaceKind, title: string): PaneNode {
@@ -11,7 +12,7 @@ function pane(id: string, surface: SurfaceKind, title: string): PaneNode {
     type: 'pane',
     id,
     activeTabId: tabId,
-    tabs: [{ id: tabId, title, surface, areaId: 'area-default' }]
+    tabs: [{ id: tabId, title, surface, areaId: DEFAULT_AREA_ID }]
   }
 }
 
@@ -21,7 +22,7 @@ export function buildInitialLayout(): LayoutSnapshot {
     workspaceId: 'ws-sample',
     focusedPaneId: 'pane-claude',
     zoomedPaneId: null,
-    areas: [{ id: 'area-default', kind: 'default', backend: 'host' }],
+    areas: [{ id: DEFAULT_AREA_ID, kind: 'default', backend: 'host' }],
     root: {
       type: 'split',
       id: 'root',
