@@ -7,6 +7,11 @@
  * (`ResizeObserver` → fit → `surface.resize`). On unmount it disposes both the
  * surface (killing the PTY) and the xterm instance.
  *
+ * When the PTY exits on its own (the shell's `exit`/EOF, or the process dying)
+ * it reports upward via `onExit`, so the shell can close the owning tab — a live
+ * terminal and its tab share a lifetime. Absent that handler it falls back to
+ * printing a "process exited" notice and leaving the (dead) terminal in place.
+ *
  * On a container workspace the PTY execs *inside* the machine (AC2.3), so it has
  * no persistent cwd. To open a new container terminal where the last one was,
  * this surface tracks its live cwd via OSC 7 and reports focus into a shared
@@ -35,6 +40,12 @@ interface TerminalSurfaceProps {
   areaId: string
   /** The owning workspace's backend kind — container terminals exec into the machine. */
   backendKind: BackendKind
+  /**
+   * Called once the backing PTY exits on its own (shell `exit`/EOF), so the
+   * owner can close this terminal's tab. Optional: without it the surface just
+   * prints a "process exited" notice and stays put.
+   */
+  onExit?: () => void
 }
 
 /** C-terminal palette, mapped from the design-system tokens (tessera.css). */
@@ -55,8 +66,18 @@ const TERMINAL_THEME = {
   brightBlack: '#636C80'
 } as const
 
-export function TerminalSurface({ workspaceId, areaId, backendKind }: TerminalSurfaceProps) {
+export function TerminalSurface({
+  workspaceId,
+  areaId,
+  backendKind,
+  onExit
+}: TerminalSurfaceProps) {
   const hostRef = useRef<HTMLDivElement>(null)
+  // Hold the latest `onExit` in a ref so the mount effect can call it without
+  // listing it as a dependency — a changed callback identity must NOT re-run the
+  // effect, which would dispose the PTY and respawn a fresh shell on every render.
+  const onExitRef = useRef(onExit)
+  onExitRef.current = onExit
 
   useEffect(() => {
     const host = hostRef.current
@@ -115,7 +136,11 @@ export function TerminalSurface({ workspaceId, areaId, backendKind }: TerminalSu
     })
     const offExit = window.tessera.surface.onPtyExit((event) => {
       if (event.surfaceId === surfaceId) {
+        // Close the owning tab if the owner wired a handler; otherwise leave the
+        // dead terminal with a notice. The notice is written first so it still
+        // shows in that fallback (it's moot once the tab unmounts).
         term.write('\r\n\x1b[2m[프로세스가 종료되었습니다]\x1b[0m\r\n')
+        onExitRef.current?.()
       }
     })
 

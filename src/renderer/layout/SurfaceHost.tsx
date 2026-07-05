@@ -64,7 +64,12 @@ function TabSurface({
   switch (tab.surface) {
     case 'terminal':
       return (
-        <TerminalSurface workspaceId={workspaceId} areaId={tab.areaId} backendKind={backendKind} />
+        <TerminalSurface
+          workspaceId={workspaceId}
+          areaId={tab.areaId}
+          backendKind={backendKind}
+          onExit={() => actions.closeTab(tab.id)}
+        />
       )
     case 'editor':
       return (
