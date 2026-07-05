@@ -129,10 +129,12 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
   const { drag, onTabPointerDown } = useTabDrag(actions)
 
   // Closing the *last* surface closes the workspace instead of leaving it empty:
-  // when only one tab remains, a tab-close (⌘W or the tab ×) deletes the
-  // workspace (AC1.7). `layoutActions` swaps the two close ops for this guarded
-  // pair so both the keymap and the pane × honour it; everything else passes
-  // through unchanged. Reads live tab count from the engine so it stays stable.
+  // when only one tab remains, a tab-close (⌘W, the tab ×, or a terminal exiting
+  // on its own) deletes the workspace (AC1.7). `layoutActions` swaps the two
+  // close ops for this guarded pair so the keymap, the pane ×, and the
+  // keep-alive SurfaceHost (terminal exit → close tab) all honour it; everything
+  // else passes through unchanged. Reads live tab count from the engine so it
+  // stays stable.
   const closeWorkspace = useCallback(() => onClose(workspace.id), [onClose, workspace.id])
   const closeActiveOrWorkspace = useCallback(() => {
     if (countTabs(engine.getSnapshot().root) <= 1) closeWorkspace()
@@ -341,7 +343,7 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
         workspaceId={workspace.id}
         backendKind={workspace.backend.kind}
         active={active}
-        actions={actions}
+        actions={layoutActions}
         paneBodies={paneBodies}
       />
       {showKeymap ? <KeymapOverlay /> : null}
