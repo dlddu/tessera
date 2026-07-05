@@ -127,6 +127,52 @@ test('keyboard drives pane focus, tab switch, and cross-pane tab move (AC1.4)', 
   }
 })
 
+test('keyboard pane focus moves DOM keyboard focus, not just the highlight (AC1.4)', async () => {
+  const app = await launchApp()
+
+  try {
+    const window = await app.firstWindow()
+    await createWorkspace(window, 'e2e-s5-domfocus')
+
+    // Split terminal | terminal so both panes take keyboard input. The new
+    // (right) pane is focused after the split, and its terminal self-focuses.
+    await window.keyboard.press('Meta+d')
+    await expect(window.getByTestId('surface-picker')).toBeVisible()
+    await window.getByTestId('surface-pick-terminal').click()
+    await expect(window.getByTestId('terminal-surface')).toHaveCount(2)
+
+    // Both shells must be live (a prompt drawn) before we test where typing lands.
+    const rows = window.locator('.term-surface .xterm-rows')
+    await expect
+      .poll(async () => (await rows.allInnerTexts()).filter((t) => t.trim().length > 0).length, {
+        timeout: 15_000
+      })
+      .toBe(2)
+
+    // Move focus to the LEFT pane by keyboard only (no click). The highlight
+    // moves — that alone already passed before the fix.
+    await window.keyboard.press('Alt+Meta+ArrowLeft')
+    await expect(window.locator('.pane.focused')).toHaveCount(1)
+    const leftPane = window.locator('.pane.focused')
+
+    // The regression: DOM keyboard focus must follow into the left pane's
+    // terminal, not stay behind on the right one. `focusDirection` only moved
+    // `focusedPaneId` in the layout, so without the SurfaceHost focus
+    // reconciliation the xterm textarea here would NOT be the active element.
+    await expect(leftPane.locator('.xterm-helper-textarea')).toBeFocused()
+
+    // Prove it end-to-end: type with no click and the marker lands in the LEFT
+    // terminal only — the right (previously focused) shell never sees it.
+    const marker = `DOMFOCUS_${Date.now()}`
+    await window.keyboard.type(`echo ${marker}`)
+    await window.keyboard.press('Enter')
+    await expect(leftPane.locator('.xterm-rows')).toContainText(marker, { timeout: 15_000 })
+    await expect(window.locator('.pane:not(.focused) .xterm-rows')).not.toContainText(marker)
+  } finally {
+    await app.close()
+  }
+})
+
 test('the key-hint overlay is hidden by default and toggles with ⌘⌥/ (AC1.4)', async () => {
   const app = await launchApp()
 

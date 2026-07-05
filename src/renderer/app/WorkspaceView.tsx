@@ -340,6 +340,7 @@ export function WorkspaceView({ created, active, onClose, onZoomChange }: Worksp
         snapshot={snapshot}
         workspaceId={workspace.id}
         backendKind={workspace.backend.kind}
+        active={active}
         actions={actions}
         paneBodies={paneBodies}
       />

@@ -19,7 +19,7 @@
  */
 import { useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import type { BackendKind, LayoutNode, LayoutSnapshot, TabNode } from '@shared/types'
+import type { BackendKind, LayoutNode, LayoutSnapshot, SurfaceKind, TabNode } from '@shared/types'
 import {
   BrowserSurface,
   ClaudeSurface,
@@ -84,11 +84,36 @@ function TabSurface({
   }
 }
 
+/**
+ * Push DOM keyboard focus onto a surface so typing lands in the focused pane
+ * (AC1.4). Terminals and editors expose a real focusable element — xterm's
+ * hidden textarea, CodeMirror's contenteditable — and focusing it is exactly
+ * what `term.focus()` / `view.focus()` do. Static surfaces (browser/Claude
+ * placeholders) have no input, so we instead blur whatever held focus, so keys
+ * can't leak into the surface the focus just left. A live surface that hasn't
+ * mounted its input yet (a fresh split/tab) self-focuses on mount, so a missing
+ * element here is a no-op, not a miss.
+ */
+function focusSurface(slot: HTMLElement, surface: SurfaceKind): void {
+  if (surface === 'terminal' || surface === 'editor') {
+    slot.querySelector<HTMLElement>('.xterm-helper-textarea, .cm-content')?.focus()
+    return
+  }
+  const activeEl = document.activeElement
+  if (activeEl instanceof HTMLElement) activeEl.blur()
+}
+
 interface SurfaceHostProps {
   snapshot: LayoutSnapshot
   workspaceId: string
   /** The workspace's backend kind, forwarded to terminal + editor surfaces (AC2.3, M-J2-S2/S3). */
   backendKind: BackendKind
+  /**
+   * Whether this workspace is the visible/active one (S8 keep-alive, AC1.7).
+   * Only the active view reconciles DOM focus — a hidden workspace mustn't grab
+   * the keyboard away from the visible one.
+   */
+  active: boolean
   actions: LayoutActions
   paneBodies: PaneBodyRegistry
 }
@@ -97,11 +122,16 @@ export function SurfaceHost({
   snapshot,
   workspaceId,
   backendKind,
+  active,
   actions,
   paneBodies
 }: SurfaceHostProps) {
   // One detached slot <div> per live tab; the stable portal container per tab.
   const slots = useRef(new Map<string, HTMLDivElement>())
+  // The `focusedPane:activeTab` we last pushed DOM focus to. Focus is only
+  // re-asserted when this changes (or was lost to a slot re-parent), never on
+  // every commit — so it can't fight a click, a picker, or the user.
+  const lastFocusKey = useRef<string | null>(null)
 
   const live: LiveTab[] = []
   collectLiveTabs(snapshot.root, live)
@@ -118,24 +148,64 @@ export function SurfaceHost({
     return slot
   }
 
-  // Re-parent each slot into its pane body and show only the active tab. Runs
-  // after every commit; the parent/`hidden` guards make the steady state a
-  // no-op. Slots for closed tabs are removed (their portals already unmounted).
+  // Re-parent each slot into its pane body, show only the active tab, then
+  // reconcile DOM focus to the focused pane. Runs after every commit; the
+  // parent/`hidden`/focus guards make the steady state a no-op. Slots for
+  // closed tabs are removed (their portals already unmounted).
   useLayoutEffect(() => {
+    // The surface DOM focus belongs on: the focused pane's active tab.
+    const focusedPaneId = snapshot.focusedPaneId
+    const focusTab = focusedPaneId
+      ? live.find((lt) => lt.paneId === focusedPaneId && lt.active)
+      : undefined
+
     const liveIds = new Set<string>()
-    for (const { tab, paneId, active } of live) {
+    // Re-homing a focused element blurs it (Chromium), so track whether the
+    // focus target's slot moved and re-assert focus below.
+    let focusSlotReparented = false
+    for (const { tab, paneId, active: activeTab } of live) {
       liveIds.add(tab.id)
       const slot = slots.current.get(tab.id)
       if (!slot) continue
       const body = paneBodies.get(paneId)
-      if (body && slot.parentElement !== body) body.appendChild(slot)
-      slot.hidden = !active
+      if (body && slot.parentElement !== body) {
+        body.appendChild(slot)
+        if (focusTab && tab.id === focusTab.tab.id) focusSlotReparented = true
+      }
+      slot.hidden = !activeTab
     }
     for (const [id, slot] of slots.current) {
       if (!liveIds.has(id)) {
         slot.remove()
         slots.current.delete(id)
       }
+    }
+
+    // Keyboard focus follows the focused pane (AC1.4). A shortcut-driven focus
+    // move (⌘⌥/⌃⌘ arrows, ⌘⇧[ ]) only changes `focusedPaneId` in the layout —
+    // nothing puts DOM focus on the newly focused surface, so click-to-focus
+    // works but shortcut-to-focus would leave the keyboard behind. Push it here.
+    // Gated to the visible workspace and suppressed while a modal (the shared
+    // `.scrim`) owns the keyboard; a no-op once the target already holds focus,
+    // so it never fights a click, a self-focusing surface, or the picker.
+    if (!active) return
+    if (document.querySelector('.scrim')) return
+    if (!focusTab) {
+      lastFocusKey.current = null
+      return
+    }
+    const key = `${focusedPaneId}:${focusTab.tab.id}`
+    const slot = slots.current.get(focusTab.tab.id)
+    if (!slot || slot.contains(document.activeElement)) {
+      lastFocusKey.current = key
+      return
+    }
+    const focusLost =
+      focusSlotReparented &&
+      (document.activeElement === null || document.activeElement === document.body)
+    if (key !== lastFocusKey.current || focusLost) {
+      focusSurface(slot, focusTab.tab.surface)
+      lastFocusKey.current = key
     }
   })
 
