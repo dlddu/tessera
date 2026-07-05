@@ -5,6 +5,7 @@
  * handler that throws `NotImplementedError`.
  */
 import type {
+  Area,
   BackendKind,
   BackendLifecycleState,
   ContainerHomeMount,
@@ -101,6 +102,30 @@ export interface CreateWorkspaceResult {
 export interface CloseWorkspaceRequest {
   /** The workspace to close: its on-disk snapshot is deleted and its backend dropped. */
   workspaceId: string
+}
+
+/**
+ * Open a container workspace's optional host-only area (AC2.7). The main process
+ * mints the area id, registers its host backend, and returns the {@link Area} so
+ * the renderer's layout engine can add the matching host subtree under the same
+ * id. The area's first host terminal starts in {@link OpenHostAreaRequest.cwd} —
+ * the last-focused host-area terminal's tracked cwd, or the host home directory
+ * when none (the first host area has no inheritance source).
+ */
+export interface OpenHostAreaRequest {
+  workspaceId: string
+  /** Host working directory for the area; defaults to the host home when omitted. */
+  cwd?: string
+}
+export interface OpenHostAreaResult {
+  /** The newly registered host area — its id ties the host subtree to its backend. */
+  area: Area
+}
+
+/** Close a host-only area: drop its host backend, leaving the default area intact. */
+export interface CloseHostAreaRequest {
+  workspaceId: string
+  areaId: string
 }
 
 export interface PickDirectoryResult {
@@ -241,6 +266,10 @@ export interface WorkspaceApi {
   create(req: CreateWorkspaceRequest): Promise<CreateWorkspaceResult>
   /** Close a workspace: permanently delete its snapshot and drop its backend (AC1.7). */
   close(req: CloseWorkspaceRequest): Promise<void>
+  /** Open a container workspace's host-only area, registering its backend (AC2.7). */
+  openHostArea(req: OpenHostAreaRequest): Promise<OpenHostAreaResult>
+  /** Close a host-only area, dropping its host backend (AC2.7). */
+  closeHostArea(req: CloseHostAreaRequest): Promise<void>
   pickDirectory(): Promise<PickDirectoryResult>
   /** Native file picker for opening a host file in the editor (AC2.2). */
   pickFile(): Promise<PickFileResult>

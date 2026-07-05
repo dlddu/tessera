@@ -11,7 +11,7 @@
  * bar and the drop-zone overlay are this component's own DOM.
  */
 import { useCallback, type MouseEvent } from 'react'
-import type { PaneNode } from '@shared/types'
+import type { BackendKind, PaneNode } from '@shared/types'
 import { SURFACE_META } from '@renderer/surfaces'
 import { basename, dirname } from '@renderer/layout/LayoutEngine'
 import type { LayoutActions, PaneBodyRegistry, TabDragState } from '@renderer/layout'
@@ -34,6 +34,12 @@ interface PaneProps {
   onTabPointerDown: TabDragController['onTabPointerDown']
   /** Open the surface picker to add a tab to this pane ("+"). M-J1-S4, AC1.1. */
   onRequestAddTab: (paneId: string) => void
+  /**
+   * Backend badge for this pane's area — `container`/`host` chip in the tab bar,
+   * shown only while a host area is open so it's clear which backend each pane
+   * runs on (AC2.8). `null`/omitted → no badge (single-area workspace).
+   */
+  areaBadge?: BackendKind | null
 }
 
 /** Editor breadcrumb: "workspace › parent-dir" (matches the M-J1-S3 mockup). */
@@ -52,7 +58,8 @@ export function Pane({
   paneBodies,
   drag,
   onTabPointerDown,
-  onRequestAddTab
+  onRequestAddTab,
+  areaBadge = null
 }: PaneProps) {
   const activeTab = node.tabs.find((t) => t.id === node.activeTabId) ?? node.tabs[0]
   const activeMeta = SURFACE_META[activeTab?.surface ?? 'terminal']
@@ -123,6 +130,16 @@ export function Pane({
           +
         </span>
         <div className="spacer" />
+        {areaBadge ? (
+          <span
+            className={`badge ${areaBadge === 'container' ? 'cont' : 'host'} pane-badge`}
+            data-testid="pane-backend-badge"
+            data-backend={areaBadge}
+          >
+            <span className="led" />
+            {areaBadge === 'container' ? 'container' : 'host'}
+          </span>
+        ) : null}
         {showCrumb ? (
           <div className="crumb">{breadcrumb(workspaceName, activeTab.path!)}</div>
         ) : null}

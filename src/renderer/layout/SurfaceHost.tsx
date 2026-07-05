@@ -131,6 +131,13 @@ export function SurfaceHost({
   actions,
   paneBodies
 }: SurfaceHostProps) {
+  // A tab runs on *its area's* backend, not the workspace's (AC2.4/AC2.7): in a
+  // container workspace with a host area open, the host area's terminals exec on
+  // the host and its editor browses the host fs. Resolve each tab's backend kind
+  // from its area, falling back to the workspace kind (single-area workspaces).
+  const areaBackend = new Map(snapshot.areas.map((area) => [area.id, area.backend]))
+  const backendKindFor = (tab: TabNode): BackendKind => areaBackend.get(tab.areaId) ?? backendKind
+
   // One detached slot <div> per live tab; the stable portal container per tab.
   const slots = useRef(new Map<string, HTMLDivElement>())
   // The `focusedPane:activeTab` we last pushed DOM focus to. Focus is only
@@ -227,7 +234,7 @@ export function SurfaceHost({
             <TabSurface
               tab={tab}
               workspaceId={workspaceId}
-              backendKind={backendKind}
+              backendKind={backendKindFor(tab)}
               actions={actions}
             />
           </div>,

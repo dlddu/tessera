@@ -17,6 +17,10 @@ export const IpcChannels = {
     create: 'tessera:workspace:create',
     /** renderer → main: close a workspace — delete its snapshot + drop its backend. */
     close: 'tessera:workspace:close',
+    /** renderer → main: open a container workspace's host-only area (AC2.7). */
+    openHostArea: 'tessera:workspace:open-host-area',
+    /** renderer → main: close the host-only area — drop its host backend (AC2.7). */
+    closeHostArea: 'tessera:workspace:close-host-area',
     pickDirectory: 'tessera:workspace:pick-directory',
     /** renderer → main: native file picker (open a host file in the editor). */
     pickFile: 'tessera:workspace:pick-file',

@@ -81,3 +81,87 @@ export interface LayoutSnapshot {
    */
   zoomedPaneId: string | null
 }
+
+/* ---------------------------------------------------- host area restore strip */
+
+/** The area a pane belongs to — its tabs are uniform within an area (AC2.4). */
+function paneArea(pane: PaneNode): string | undefined {
+  return pane.tabs[0]?.areaId
+}
+
+/** Scale a list of sizes to sum to 1 (equal split when they sum to ≤ 0). */
+function normalizeSizes(sizes: number[]): number[] {
+  const total = sizes.reduce((a, b) => a + b, 0)
+  return total > 0 ? sizes.map((s) => s / total) : sizes.map(() => 1 / sizes.length)
+}
+
+/** Remove every pane whose area is in `areaIds`, collapsing emptied splits. */
+function dropAreaPanes(node: LayoutNode, areaIds: Set<string>): LayoutNode | null {
+  if (node.type === 'pane') {
+    const area = paneArea(node)
+    return area !== undefined && areaIds.has(area) ? null : node
+  }
+  const kept: LayoutNode[] = []
+  const keptSizes: number[] = []
+  node.children.forEach((child, i) => {
+    const result = dropAreaPanes(child, areaIds)
+    if (result !== null) {
+      kept.push(result)
+      keptSizes.push(node.sizes[i] ?? 1)
+    }
+  })
+  if (kept.length === 0) return null
+  if (kept.length === 1) return kept[0]!
+  return { ...node, children: kept, sizes: normalizeSizes(keptSizes) }
+}
+
+/** First pane id in pre-order, or null for an empty tree. */
+function firstPaneId(node: LayoutNode): string | null {
+  if (node.type === 'pane') return node.id
+  for (const child of node.children) {
+    const id = firstPaneId(child)
+    if (id) return id
+  }
+  return null
+}
+
+/** True if a pane with `paneId` exists anywhere in the tree. */
+function hasPane(node: LayoutNode, paneId: string): boolean {
+  if (node.type === 'pane') return node.id === paneId
+  return node.children.some((child) => hasPane(child, paneId))
+}
+
+/**
+ * Return `layout` with every host area removed and the top-level area split
+ * collapsed back to the default (container) subtree.
+ *
+ * Host areas are live-session only (AC2.7): their host backends are registered
+ * on open and dropped on close, never re-registered on boot restore — so a
+ * restored host subtree would have no backend to spawn its terminals against.
+ * Rather than carry that broken state, restore reopens container-only; full
+ * host-area restore (re-register + re-spawn) is deferred to J4. Pure and
+ * defensive: a garbled layout (missing / non-array `areas`, absent `root`) is
+ * returned unchanged so a bad on-disk snapshot can't crash restore.
+ */
+export function stripHostAreas(layout: LayoutSnapshot): LayoutSnapshot {
+  if (!Array.isArray(layout.areas) || layout.root == null) return layout
+  const hostAreaIds = new Set(
+    layout.areas.filter((area) => area?.kind === 'host').map((area) => area.id)
+  )
+  if (hostAreaIds.size === 0) return layout
+
+  const root = dropAreaPanes(layout.root, hostAreaIds)
+  // The default area always keeps a pane, so the tree should never fully drain;
+  // if a corrupt snapshot somehow held only host panes, keep the original rather
+  // than produce a rootless layout.
+  if (root === null) return layout
+
+  const areas = layout.areas.filter((area) => area?.kind !== 'host')
+  const focusedPaneId =
+    layout.focusedPaneId && hasPane(root, layout.focusedPaneId)
+      ? layout.focusedPaneId
+      : firstPaneId(root)
+  const zoomedPaneId =
+    layout.zoomedPaneId && hasPane(root, layout.zoomedPaneId) ? layout.zoomedPaneId : null
+  return { ...layout, root, areas, focusedPaneId, zoomedPaneId }
+}

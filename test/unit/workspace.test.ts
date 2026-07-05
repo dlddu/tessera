@@ -297,6 +297,51 @@ describe('PersistenceStore.load', () => {
     const loaded = await store.load(snapshot.workspaceId)
     expect(loaded!.layout.zoomedPaneId).toBe(snapshot.layout.focusedPaneId)
   })
+
+  it('strips a persisted host area on load — restore reopens without it (AC2.7)', async () => {
+    // The strip is layout-level (backend-agnostic); a host workspace is used
+    // only because it is restorable (container snapshots are dropped wholesale
+    // by the cwd check today). What is under test: a restorable snapshot that
+    // carries a host area has it removed on load, since a host area's backend is
+    // never re-registered on boot (full host-area restore is deferred to J4).
+    const { snapshot } = buildWorkspace({ name: 'proj', cwd: '/tmp/proj', backendKind: 'host' })
+    const store = new PersistenceStore(baseDir)
+
+    const defaultRoot = snapshot.layout.root
+    const hostPane: PaneNode = {
+      type: 'pane',
+      id: 'P-host',
+      activeTabId: 'P-host-t0',
+      tabs: [{ id: 'P-host-t0', title: 'zsh', surface: 'terminal', areaId: 'area-host' }]
+    }
+    const withHostArea = {
+      ...snapshot,
+      layout: {
+        ...snapshot.layout,
+        areas: [
+          ...snapshot.layout.areas,
+          { id: 'area-host', kind: 'host' as const, backend: 'host' as const }
+        ],
+        focusedPaneId: 'P-host',
+        root: {
+          type: 'split' as const,
+          id: 'area-split',
+          direction: 'vertical' as const,
+          sizes: [0.5, 0.5],
+          children: [defaultRoot, hostPane]
+        }
+      }
+    }
+    await store.save(withHostArea)
+
+    const loaded = await store.load(snapshot.workspaceId)
+    expect(loaded).not.toBeNull()
+    // The host area is gone and the top split collapsed back to the default
+    // subtree, with focus re-homed off the now-absent host pane.
+    expect(loaded!.layout.areas.some((a) => a.kind === 'host')).toBe(false)
+    expect(loaded!.layout.root).toEqual(defaultRoot)
+    expect(loaded!.layout.focusedPaneId).toBe((defaultRoot as PaneNode).id)
+  })
 })
 
 describe('PersistenceStore.list', () => {

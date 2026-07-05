@@ -12,7 +12,7 @@
  * only expose their body element (via `paneBodies`) for it to portal into.
  */
 import type { CSSProperties, ReactNode } from 'react'
-import type { LayoutNode, LayoutSnapshot } from '@shared/types'
+import type { Area, BackendKind, LayoutNode, LayoutSnapshot } from '@shared/types'
 import { Pane } from '@renderer/components'
 import type { LayoutActions } from './useLayout'
 import type { PaneBodyRegistry } from './paneBodies'
@@ -27,6 +27,8 @@ interface LayoutViewProps {
   onTabPointerDown: TabDragController['onTabPointerDown']
   /** Open the surface picker to add a tab to a pane ("+"). M-J1-S4. */
   onRequestAddTab: (paneId: string) => void
+  /** Close the host-only area from its band × affordance (AC2.7). */
+  onCloseHostArea?: () => void
 }
 
 interface RenderContext {
@@ -38,10 +40,26 @@ interface RenderContext {
   drag: TabDragState | null
   onTabPointerDown: TabDragController['onTabPointerDown']
   onRequestAddTab: (paneId: string) => void
+  /** The workspace's areas — used to badge each pane by its backend (AC2.8). */
+  areas: Area[]
+  /**
+   * Whether to show per-pane backend badges. On only while a host area is open,
+   * so single-area workspaces stay unbadged (the badge signals the boundary).
+   */
+  showAreaBadges: boolean
 }
 
 function flexStyle(size: number | undefined): CSSProperties {
   return { flex: `${size ?? 1} 1 0` }
+}
+
+/** The backend kind a pane runs on, resolved via its area (AC2.4). */
+function paneBackendKind(
+  pane: Extract<LayoutNode, { type: 'pane' }>,
+  areas: Area[]
+): BackendKind | null {
+  const areaId = pane.tabs[0]?.areaId
+  return areas.find((a) => a.id === areaId)?.backend ?? null
 }
 
 function renderPane(pane: Extract<LayoutNode, { type: 'pane' }>, ctx: RenderContext): ReactNode {
@@ -61,6 +79,7 @@ function renderPane(pane: Extract<LayoutNode, { type: 'pane' }>, ctx: RenderCont
       drag={ctx.drag}
       onTabPointerDown={ctx.onTabPointerDown}
       onRequestAddTab={ctx.onRequestAddTab}
+      areaBadge={ctx.showAreaBadges ? paneBackendKind(pane, ctx.areas) : null}
     />
   )
 }
@@ -116,6 +135,83 @@ function renderNode(node: LayoutNode, ctx: RenderContext): ReactNode {
   )
 }
 
+/** The first area id encountered in a subtree (its panes are area-uniform). */
+function firstAreaId(node: LayoutNode): string | undefined {
+  if (node.type === 'pane') return node.tabs[0]?.areaId
+  for (const child of node.children) {
+    const id = firstAreaId(child)
+    if (id !== undefined) return id
+  }
+  return undefined
+}
+
+/** Copy for each area band (label glyph + name, backend chip, caption). */
+const AREA_BAND: Record<
+  Area['kind'],
+  { label: string; badge: string; badgeClass: string; desc: string }
+> = {
+  default: {
+    label: '▦ 컨테이너 기본 영역',
+    badge: 'container',
+    badgeClass: 'cont',
+    desc: 'workspace 기본 backend · 격리'
+  },
+  host: {
+    label: '⌂ HOST 전용 영역',
+    badge: 'host',
+    badgeClass: 'host',
+    desc: '이 영역의 도구만 호스트에서 실행'
+  }
+}
+
+/**
+ * One area region: a header band (label + backend badge + caption, and a × to
+ * close on the host area) over its pane subtree. The band makes the host/
+ * container boundary explicit (AC2.8) so it's obvious which panes run where.
+ */
+function AreaBand({
+  area,
+  size,
+  onClose,
+  children
+}: {
+  area: Area
+  size: number | undefined
+  onClose?: (() => void) | undefined
+  children: ReactNode
+}): ReactNode {
+  const copy = AREA_BAND[area.kind]
+  return (
+    <div
+      className={`area area-${copy.badgeClass}`}
+      style={flexStyle(size)}
+      data-testid="area"
+      data-area-kind={area.kind}
+    >
+      <div className="area-band">
+        <span className="area-label">{copy.label}</span>
+        <span className={`badge ${copy.badgeClass}`}>
+          <span className="led" />
+          {copy.badge}
+        </span>
+        <span className="area-desc muted">{copy.desc}</span>
+        {area.kind === 'host' && onClose ? (
+          <span
+            className="area-close"
+            data-testid="host-area-close"
+            role="button"
+            aria-label="host 영역 닫기"
+            onMouseDown={onClose}
+          >
+            ×
+          </span>
+        ) : null}
+      </div>
+      <div className="area-body">{children}</div>
+    </div>
+  )
+}
+
 export function LayoutView({
   snapshot,
   workspaceName,
@@ -123,8 +219,10 @@ export function LayoutView({
   paneBodies,
   drag,
   onTabPointerDown,
-  onRequestAddTab
+  onRequestAddTab,
+  onCloseHostArea
 }: LayoutViewProps) {
+  const hasHostArea = snapshot.areas.some((a) => a.kind === 'host')
   const ctx: RenderContext = {
     focusedPaneId: snapshot.focusedPaneId,
     zoomedPaneId: snapshot.zoomedPaneId,
@@ -133,7 +231,35 @@ export function LayoutView({
     paneBodies,
     drag,
     onTabPointerDown,
-    onRequestAddTab
+    onRequestAddTab,
+    areas: snapshot.areas,
+    showAreaBadges: hasHostArea
   }
+
+  // Two-area layout (a host area is open): the root is the area-boundary split,
+  // one child per area. Wrap each child's subtree in its area band so the
+  // container/host boundary is explicit (AC2.7/AC2.8). Otherwise render the
+  // single-area tree exactly as before.
+  if (hasHostArea && snapshot.root.type === 'split' && snapshot.root.children.length === 2) {
+    const split = snapshot.root
+    return (
+      <>
+        {split.children.map((child, i) => {
+          const area = snapshot.areas.find((a) => a.id === firstAreaId(child)) ?? snapshot.areas[0]!
+          return (
+            <AreaBand
+              key={area.id}
+              area={area}
+              size={split.sizes[i]}
+              onClose={area.kind === 'host' ? onCloseHostArea : undefined}
+            >
+              {renderNode(child, ctx)}
+            </AreaBand>
+          )
+        })}
+      </>
+    )
+  }
+
   return <>{renderNode(snapshot.root, ctx)}</>
 }

@@ -127,6 +127,29 @@ body{
 .pane.zoomed{position:absolute; inset:0; z-index:6}
 .pane.zoom-hidden{display:none}
 
+/* ============================================ host 전용 영역 (M-J2-S7, AC2.7/2.8)
+   Two areas side by side in the grout `.surface`: the container default area and
+   the optional host escape area. Each is a bordered region with a header band
+   (label + backend badge + caption) over its pane subtree. `.area-body` mirrors
+   `.surface`'s inner flex so a subtree lays out the same inside it; neither is
+   positioned, so a zoomed pane still escapes to fill the whole `.surface`. The
+   host area's thicker mint border marks the boundary (컨테이너 격리 유지). */
+.area{flex:1 1 0; min-width:0; min-height:0; display:flex; flex-direction:column; gap:var(--gutter);
+  border:1px solid var(--line-soft); border-radius:var(--r-card); padding:7px}
+.area.area-host{border:1.5px solid color-mix(in srgb,var(--id-term) 48%,var(--line))}
+.area-band{flex:0 0 auto; display:flex; align-items:center; gap:9px; height:24px; padding:0 4px;
+  background:var(--tile-raise); border-radius:7px}
+.area-label{font-family:var(--font-mono); font-size:10.5px; font-weight:600; letter-spacing:.4px}
+.area.area-cont .area-label{color:var(--route)}
+.area.area-host .area-label{color:var(--id-term)}
+.area-desc{font-size:10.5px; margin-left:auto; padding-right:2px}
+.area-close{flex:0 0 auto; color:var(--faint); font-size:14px; line-height:1; padding:1px 5px;
+  border-radius:5px; cursor:pointer; transition:color .1s, background .1s}
+.area-close:hover{color:var(--ink); background:color-mix(in srgb,var(--danger) 24%,transparent)}
+.area-body{flex:1 1 auto; min-width:0; min-height:0; display:flex; gap:var(--gutter)}
+/* per-pane backend chip in the tab bar (shown only while a host area is open) */
+.tabbar .pane-badge{flex:0 0 auto; align-self:center; margin-right:6px}
+
 /* ----------------------------------------------------------- C-tabbar / C-tab */
 .tabbar{height:30px; flex:0 0 30px; background:var(--tile-raise); border-bottom:1px solid var(--line-soft);
   display:flex; align-items:stretch; gap:2px; padding:0 4px; overflow:hidden}

@@ -21,6 +21,7 @@
     "test/unit/update.test.ts",
     "test/unit/container.test.ts",
     "test/unit/container-cli-exec.test.ts",
-    "test/unit/fix-path.test.ts"
+    "test/unit/fix-path.test.ts",
+    "test/unit/host-area-registry.test.ts"
   ]
 }
