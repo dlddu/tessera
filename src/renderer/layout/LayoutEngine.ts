@@ -11,7 +11,7 @@
  * thin stateful shell around them. Directional focus + tab move ship as engine
  * methods (with tests) ahead of their S5 interaction UI.
  */
-import { DEFAULT_AREA_ID } from '@shared/types'
+import { DEFAULT_AREA_ID, defaultTitle } from '@shared/types'
 import type {
   LayoutNode,
   LayoutSnapshot,
@@ -58,19 +58,6 @@ export function dirname(path: string): string {
 /** A fresh, empty tab of the given surface kind in the given area. */
 function makeTab(surface: SurfaceKind, areaId: string): TabNode {
   return { id: uid('tab'), title: defaultTitle(surface), surface, areaId }
-}
-
-function defaultTitle(surface: SurfaceKind): string {
-  switch (surface) {
-    case 'terminal':
-      return 'zsh'
-    case 'editor':
-      return 'untitled'
-    case 'browser':
-      return 'Browser'
-    case 'claude':
-      return 'Claude Code'
-  }
 }
 
 /** Scale a list of sizes so they sum to 1 (falls back to an equal split). */

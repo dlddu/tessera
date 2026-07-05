@@ -12,3 +12,21 @@ export const SURFACE_KINDS: readonly SurfaceKind[] = [
   'browser',
   'claude'
 ] as const
+
+/**
+ * Default title a freshly created tab of each surface kind gets. The single
+ * source of truth for both tab-creation paths: the workspace factory's first
+ * tab and the layout engine's split/add-tab (no scattered per-surface strings).
+ */
+export function defaultTitle(surface: SurfaceKind): string {
+  switch (surface) {
+    case 'terminal':
+      return 'zsh'
+    case 'editor':
+      return 'untitled'
+    case 'browser':
+      return 'Browser'
+    case 'claude':
+      return 'Claude Code'
+  }
+}
