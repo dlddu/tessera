@@ -203,6 +203,26 @@ describe('LayoutEngine tabs', () => {
     expect(tab.path).toBe('/home/me/proj-web/src/server.ts')
     expect(tab.title).toBe('server.ts')
   })
+
+  it('setTabTitle retitles a terminal tab to the live process name', () => {
+    const engine = new LayoutEngine(singlePane())
+
+    engine.setTabTitle('P0-t0', 'vim')
+
+    const tab = collectPanes(engine.serialize().root)[0]!.tabs.find((t) => t.id === 'P0-t0')!
+    expect(tab.title).toBe('vim')
+  })
+
+  it('setTabTitle is a no-op when the title is unchanged (poll never churns)', () => {
+    const engine = new LayoutEngine(singlePane())
+    engine.setTabTitle('P0-t0', 'vim')
+
+    // The ~1s process poll re-sends the same name every tick; an unchanged title
+    // must not commit a fresh snapshot, or the tree would re-render each second.
+    const before = engine.serialize()
+    engine.setTabTitle('P0-t0', 'vim')
+    expect(engine.serialize()).toBe(before)
+  })
 })
 
 describe('LayoutEngine focus + resize', () => {

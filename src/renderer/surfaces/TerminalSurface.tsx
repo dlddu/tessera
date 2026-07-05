@@ -46,6 +46,12 @@ interface TerminalSurfaceProps {
    * prints a "process exited" notice and stays put.
    */
   onExit?: () => void
+  /**
+   * Called with the PTY's live foreground-process name (`zsh`, `vim`, `node`, …)
+   * whenever it changes, so the owner can retitle this terminal's tab. Optional:
+   * without it the tab keeps its default title.
+   */
+  onTitle?: (title: string) => void
 }
 
 /** C-terminal palette, mapped from the design-system tokens (tessera.css). */
@@ -70,14 +76,18 @@ export function TerminalSurface({
   workspaceId,
   areaId,
   backendKind,
-  onExit
+  onExit,
+  onTitle
 }: TerminalSurfaceProps) {
   const hostRef = useRef<HTMLDivElement>(null)
-  // Hold the latest `onExit` in a ref so the mount effect can call it without
-  // listing it as a dependency — a changed callback identity must NOT re-run the
-  // effect, which would dispose the PTY and respawn a fresh shell on every render.
+  // Hold the latest `onExit`/`onTitle` in refs so the mount effect can call them
+  // without listing them as dependencies — a changed callback identity must NOT
+  // re-run the effect, which would dispose the PTY and respawn a fresh shell on
+  // every render.
   const onExitRef = useRef(onExit)
   onExitRef.current = onExit
+  const onTitleRef = useRef(onTitle)
+  onTitleRef.current = onTitle
 
   useEffect(() => {
     const host = hostRef.current
@@ -143,6 +153,13 @@ export function TerminalSurface({
         onExitRef.current?.()
       }
     })
+    // Live tab title: main polls the PTY's foreground-process name and pushes it
+    // here on change, so the tab reads what's actually running (M-J1-S2).
+    const offTitle = window.tessera.surface.onPtyTitle((event) => {
+      if (event.surfaceId === surfaceId) {
+        onTitleRef.current?.(event.title)
+      }
+    })
 
     const inputSub = term.onData((data) => {
       if (surfaceId) {
@@ -197,6 +214,7 @@ export function TerminalSurface({
       unmounted = true
       offData()
       offExit()
+      offTitle()
       inputSub.dispose()
       resizeObserver.disconnect()
       if (isContainer) {

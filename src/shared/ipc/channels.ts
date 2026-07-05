@@ -36,6 +36,8 @@ export const IpcChannels = {
     ptyData: 'tessera:surface:pty-data',
     /** main → renderer: the PTY for a surface exited, keyed by surfaceId. */
     ptyExit: 'tessera:surface:pty-exit',
+    /** main → renderer: a surface's live foreground-process name changed (tab title). */
+    ptyTitle: 'tessera:surface:pty-title',
     /** renderer → main: keyboard/paste input for a surface's PTY. */
     ptyInput: 'tessera:surface:pty-input',
     /** renderer → main: a surface's PTY was resized (cols/rows). */

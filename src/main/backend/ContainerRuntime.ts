@@ -325,7 +325,10 @@ class CliContainerRuntime implements ContainerRuntime {
     })
 
     // Same wrapper shape as HostBackend.spawnPty: adapt the native handle to the
-    // backend-agnostic PtyProcess contract.
+    // backend-agnostic PtyProcess contract. `process` is deliberately omitted —
+    // this host PTY runs the `container` CLI, not the guest shell, so its
+    // foreground-process name is `container`, not the process the user actually
+    // ran inside the machine. A container terminal's tab keeps its default title.
     return {
       id: `pty-${randomUUID()}`,
       write: (data) => pty.write(data),

@@ -69,6 +69,7 @@ function TabSurface({
           areaId={tab.areaId}
           backendKind={backendKind}
           onExit={() => actions.closeTab(tab.id)}
+          onTitle={(title) => actions.setTabTitle(tab.id, title)}
         />
       )
     case 'editor':

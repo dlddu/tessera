@@ -19,6 +19,15 @@ export interface PtySpawnOptions {
 /** A live pseudo-terminal handle. */
 export interface PtyProcess {
   readonly id: string
+  /**
+   * Name of the PTY's live foreground process (e.g. `zsh`, `vim`, `node`) — the
+   * source for a terminal tab's live title. Backed by node-pty's `process`
+   * getter, which tracks the foreground process group on the host. Only host
+   * PTYs expose it; a container PTY is the host-side `container` CLI, so reading
+   * it would report `container` rather than the guest's process — those omit it
+   * (`undefined`) and their tab keeps its default title.
+   */
+  readonly process?: string | undefined
   write(data: string): void
   resize(cols: number, rows: number): void
   onData(listener: (chunk: string) => void): void
@@ -34,6 +43,8 @@ export interface PtyProcess {
  */
 export interface NativePty {
   readonly pid: number
+  /** node-pty's live foreground-process name (see {@link PtyProcess.process}). */
+  readonly process?: string
   write(data: string): void
   resize(cols: number, rows: number): void
   onData(listener: (data: string) => void): void
