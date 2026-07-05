@@ -125,23 +125,24 @@ const CONTAINER_BIN = 'container'
  *
  *  - {@link OSC7_PROMPT_COMMAND} — bash runs `PROMPT_COMMAND` before each prompt.
  *  - {@link OSC7_PS1} — POSIX sh (dash / busybox ash) has no `PROMPT_COMMAND`,
- *    but re-expands `PS1` before each prompt and expands `$PWD` there, so the
- *    same OSC 7 rides in `PS1`. sh does NOT interpret `\033`, so this carries a
- *    real ESC byte, and it is terminated by BEL (`\x07`) — NOT `ESC \`: some sh
- *    prompt processors read a following `\[` as a non-printing-region marker, so
- *    an `ESC \` sitting right before the visible `[<pwd>]` gets its `\` eaten and
- *    the prompt's first bytes are corrupted. BEL has no backslash, so `[<pwd>]`
- *    follows cleanly. The `[<pwd>] $ ` visible prompt trails the (invisible) OSC 7.
+ *    but re-expands `PS1` before each prompt (command substitution included). The
+ *    OSC 7 is emitted as a *side effect* of a `$(printf … >&2)`: printf writes
+ *    the sequence to the terminal (fd 2) and the substitution captures its empty
+ *    stdout, so the escape never appears in the prompt *text*. That matters —
+ *    POSIX sh has no `\[…\]` non-printing markers, so an escape embedded directly
+ *    in `PS1` would be counted in the prompt width and corrupt redraws (lost
+ *    lines / a "reset" look) on every resize. Only the visible `[<pwd>] $ ` is
+ *    counted. BEL terminates the OSC (no `ESC \`, whose trailing `\` a following
+ *    `[` could swallow on shells that treat `\[` as a marker).
  *
  * Both set only guest-side vars, so no host environment is copied in — isolation
  * (AC2.3) holds. `PS1` is best-effort: an image whose login profile *re-sets*
  * `PS1` after these are applied overrides it (bash still reports via
- * `PROMPT_COMMAND`); and dash has no way to mark the OSC 7 as zero-width, so a
- * heavily line-edited prompt may miscount its width. A shell that honours neither
- * hook falls back to the machine's default home — graceful degradation.
+ * `PROMPT_COMMAND`). A shell that honours neither hook falls back to the
+ * machine's default home — graceful degradation, not an error.
  */
 const OSC7_PROMPT_COMMAND = `PROMPT_COMMAND=printf '\\033]7;file://%s%s\\033\\\\' "$HOSTNAME" "$PWD"`
-const OSC7_PS1 = `PS1=\x1b]7;file://$HOSTNAME$PWD\x07[$PWD] $ `
+const OSC7_PS1 = `PS1=$(printf '\\033]7;file://%s%s\\007' "$HOSTNAME" "$PWD" >&2)[$PWD] $ `
 
 /**
  * Snapshot of the host environment for the `container` CLI *process* (so it can

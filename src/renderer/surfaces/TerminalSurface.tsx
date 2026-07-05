@@ -126,6 +126,15 @@ export function TerminalSurface({ workspaceId, areaId, backendKind }: TerminalSu
     })
 
     const resizeObserver = new ResizeObserver(() => {
+      // An inactive keep-alive tab is `display:none` (0×0, see `.surface-slot`).
+      // The observer still fires then, but fitting a zero-size terminal snaps it
+      // to xterm's 2×1 minimum and resizes the PTY to it — the guest shell
+      // reflows/redraws at that tiny geometry, so the tab looks "reset" (and
+      // loses lines) when shown again. Skip until it has a real size; the show
+      // transition fires the observer again with the true geometry.
+      if (host.clientWidth === 0 || host.clientHeight === 0) {
+        return
+      }
       safeFit()
       if (surfaceId) {
         window.tessera.surface.resize({ surfaceId, cols: term.cols, rows: term.rows })

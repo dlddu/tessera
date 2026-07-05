@@ -298,14 +298,16 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     // `\033`, and it reports the live `$PWD`.
     expect(promptCommand).toContain(']7;file://')
     expect(promptCommand).toContain('$PWD')
-    // sh: no PROMPT_COMMAND and no `\033` interpretation, so PS1 carries a real
-    // ESC byte + the OSC 7 + `$PWD` (re-expanded each prompt).
-    expect(ps1).toContain('\x1b]7;file://')
+    // sh: the OSC 7 rides in a `$(printf … >&2)` side effect — printf writes it
+    // to the terminal and the substitution captures empty stdout, so it never
+    // lands in the counted prompt text (no width miscount → no corrupt redraws).
+    expect(ps1).toContain('$(printf')
+    expect(ps1).toContain(']7;file://')
     expect(ps1).toContain('$PWD')
-    // Terminated by BEL, never `ESC \` — a following `\[` would eat the `\` and
-    // corrupt the visible prompt's first bytes.
-    expect(ps1).toContain('$PWD\x07')
-    expect(ps1).not.toContain('\x1b\\')
+    expect(ps1).toContain('>&2')
+    // No raw ESC in the value: the sequence lives only in printf's output, not in
+    // what sh measures for prompt width.
+    expect(ps1).not.toContain('\x1b')
   })
 
   it('maps the native PTY handle onto the PtyProcess contract', async () => {
