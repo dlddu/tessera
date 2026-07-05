@@ -68,8 +68,16 @@ function mockCtx(focusedPaneId: string | null = 'P0') {
     switchTo: vi.fn(),
     switchNext: vi.fn()
   }
-  const ctx: CommandContext = { layout, setPending, focusedPaneId, toggleKeymap, workspace }
-  return { ctx, layout, setPending, toggleKeymap, workspace }
+  const hostArea = { open: vi.fn(), close: vi.fn() }
+  const ctx: CommandContext = {
+    layout,
+    setPending,
+    focusedPaneId,
+    toggleKeymap,
+    workspace,
+    hostArea
+  }
+  return { ctx, layout, setPending, toggleKeymap, workspace, hostArea }
 }
 
 describe('registry shape', () => {
@@ -144,6 +152,22 @@ describe('match — exact chords', () => {
     )
   })
 
+  it('open-host-area = ⌃⌘H, close-host-area = ⇧⌃⌘H (shift is the discriminator)', () => {
+    const open = commandById('open-host-area')
+    const close = commandById('close-host-area')
+    // ⌃⌘H opens; the shift-twin ⇧⌃⌘H closes — neither matches the other's chord.
+    expect(open.match(kbd({ meta: true, ctrl: true, key: 'h' }))).toBe(true)
+    expect(open.match(kbd({ meta: true, ctrl: true, shift: true, key: 'H' }))).toBe(false)
+    expect(close.match(kbd({ meta: true, ctrl: true, shift: true, key: 'H' }))).toBe(true)
+    expect(close.match(kbd({ meta: true, ctrl: true, key: 'h' }))).toBe(false)
+    // ⌥ excluded (⌃⌘H is not an ⌥ chord), and a bare ⌘H doesn't reach either.
+    expect(open.match(kbd({ meta: true, ctrl: true, alt: true, key: 'h' }))).toBe(false)
+    expect(open.match(kbd({ meta: true, key: 'h' }))).toBe(false)
+    // The ⌃⌘+arrow tab-move command never collides with the ⌃⌘H host-area key.
+    expect(commandById('move').match(kbd({ meta: true, ctrl: true, key: 'h' }))).toBe(false)
+    expect(open.match(kbd({ meta: true, ctrl: true, key: 'ArrowRight' }))).toBe(false)
+  })
+
   it('new-workspace = ⌘/Ctrl+N, switch-workspace = ⌘1–9 only', () => {
     const n = commandById('new-workspace')
     expect(n.match(kbd({ meta: true, key: 'n' }))).toBe(true)
@@ -203,6 +227,14 @@ describe('run — effects (keymap with event, palette without)', () => {
     expect(m.layout.toggleZoom).toHaveBeenCalledTimes(1)
     expect(m.toggleKeymap).toHaveBeenCalledTimes(1)
     expect(m.layout.closeActiveTab).toHaveBeenCalledTimes(1)
+  })
+
+  it('host-area commands open/close via the hostArea handlers (AC2.7)', () => {
+    const m = mockCtx()
+    commandById('open-host-area').run(m.ctx)
+    commandById('close-host-area').run(m.ctx)
+    expect(m.hostArea.open).toHaveBeenCalledTimes(1)
+    expect(m.hostArea.close).toHaveBeenCalledTimes(1)
   })
 
   it('workspace commands switch by index from the event, next from the palette', () => {

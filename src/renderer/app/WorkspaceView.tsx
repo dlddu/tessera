@@ -87,6 +87,12 @@ interface WorkspaceViewProps {
   onSwitchNext: () => void
   /** Report zoom state up so the window title-bar badge can reflect it (AC1.6). */
   onZoomChange?: (zoomed: boolean) => void
+  /**
+   * Report the host-only area's live state up so the window chrome (title-bar
+   * "host 영역" badge + status-bar "+ host 영역 · N pane") can reflect it, or
+   * `null` when no host area is open (AC2.7/AC2.8).
+   */
+  onHostAreaChange?: (state: { paneCount: number } | null) => void
 }
 
 const PICKER_TITLE: Record<PendingPick['action'], string> = {
@@ -100,6 +106,15 @@ function countTabs(node: LayoutNode): number {
   return node.type === 'pane'
     ? node.tabs.length
     : node.children.reduce((sum, child) => sum + countTabs(child), 0)
+}
+
+/** Number of panes belonging to `areaId` (for the "+ host 영역 · N pane" segment). */
+function countAreaPanes(node: LayoutNode, areaId: string): number {
+  return node.type === 'pane'
+    ? node.tabs[0]?.areaId === areaId
+      ? 1
+      : 0
+    : node.children.reduce((sum, child) => sum + countAreaPanes(child, areaId), 0)
 }
 
 /** Short label for a pane (its active tab's identity), for the drag toast. */
@@ -126,7 +141,8 @@ export function WorkspaceView({
   onClose,
   onNewWorkspace,
   onSwitchNext,
-  onZoomChange
+  onZoomChange,
+  onHostAreaChange
 }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
@@ -168,6 +184,28 @@ export function WorkspaceView({
     [actions, closeTabOrWorkspace, closeActiveOrWorkspace]
   )
 
+  // Host-only area (AC2.7). Open registers a host backend for a fresh area (main
+  // process) and then adds the matching host subtree to the layout under the
+  // same id; a host workspace, or one that already has a host area, is a no-op.
+  // Close just collapses the layout — the backend is dropped by the reconcile
+  // effect below, which also covers the last host pane being closed on its own.
+  const openHostArea = useCallback(() => {
+    if (workspace.backend.kind !== 'container') return
+    if (engine.getSnapshot().areas.some((a) => a.kind === 'host')) return
+    void window.tessera.workspace
+      .openHostArea({ workspaceId: workspace.id })
+      .then(({ area }) => engine.openHostArea(area))
+      .catch(() => {
+        // Opening failed (e.g. the workspace backend is gone) — leave the layout
+        // untouched rather than add a host subtree with no backend behind it.
+      })
+  }, [engine, workspace.id, workspace.backend.kind])
+
+  const closeHostArea = useCallback(() => {
+    const host = engine.getSnapshot().areas.find((a) => a.kind === 'host')
+    if (host) engine.closeHostArea(host.id)
+  }, [engine])
+
   // The context every command runs against — shared by the keymap dispatcher and
   // the ⌘K palette so a shortcut and its palette twin do exactly the same thing.
   // Built on demand (not memoized as a value) so `focusedPaneId` is read live at
@@ -186,9 +224,18 @@ export function WorkspaceView({
         // ever advances to the next workspace, so this stays a no-op here.
         switchTo: () => undefined,
         switchNext: onSwitchNext
-      }
+      },
+      hostArea: { open: openHostArea, close: closeHostArea }
     }),
-    [layoutActions, engine, onNewWorkspace, closeWorkspace, onSwitchNext]
+    [
+      layoutActions,
+      engine,
+      onNewWorkspace,
+      closeWorkspace,
+      onSwitchNext,
+      openHostArea,
+      closeHostArea
+    ]
   )
 
   // Run a command chosen in the palette, then close it. If the command opens the
@@ -260,6 +307,39 @@ export function WorkspaceView({
   }, [active, snapshot.zoomedPaneId, onZoomChange])
 
   useEffect(() => () => onZoomChange?.(false), [onZoomChange])
+
+  // Reconcile host-area backends with the layout (AC2.7). The engine owns the
+  // layout; the host backend lives in the main process. When a host area leaves
+  // the snapshot — an explicit close (⇧⌃⌘H / band ×) or its last pane closing on
+  // its own — drop its host backend so nothing can spawn against the gone area
+  // (AC2.4/AC2.8). Additions need no call here: the open path registered the
+  // backend before adding the area. `snapshot.areas` keeps a stable reference
+  // across non-area mutations, so this only runs when the area set changes.
+  const knownHostAreas = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const current = new Set(snapshot.areas.filter((a) => a.kind === 'host').map((a) => a.id))
+    for (const areaId of knownHostAreas.current) {
+      if (!current.has(areaId)) {
+        void window.tessera.workspace.closeHostArea({ workspaceId: workspace.id, areaId })
+      }
+    }
+    knownHostAreas.current = current
+  }, [snapshot.areas, workspace.id])
+
+  // Report the host area's live state (present? how many panes?) up to the shell
+  // so the title-bar "host 영역" badge + status-bar "+ host 영역 · N pane" track
+  // it — gated to the active view (like zoom) so a hidden workspace can't drive
+  // the chrome (S8). Report `null` on unmount so a teardown leaves no stale badge.
+  const hostAreaState = useMemo(() => {
+    const host = snapshot.areas.find((a) => a.kind === 'host')
+    return host ? { paneCount: countAreaPanes(snapshot.root, host.id) } : null
+  }, [snapshot])
+
+  useEffect(() => {
+    if (active) onHostAreaChange?.(hostAreaState)
+  }, [active, hostAreaState, onHostAreaChange])
+
+  useEffect(() => () => onHostAreaChange?.(null), [onHostAreaChange])
 
   // Autosave the layout skeleton (AC1.5): persist a debounced snapshot on every
   // layout change, flush synchronously on app quit so the last edit can't be
@@ -342,6 +422,7 @@ export function WorkspaceView({
         drag={drag}
         onTabPointerDown={onTabPointerDown}
         onRequestAddTab={requestAddTab}
+        onCloseHostArea={closeHostArea}
       />
       <SurfaceHost
         snapshot={snapshot}

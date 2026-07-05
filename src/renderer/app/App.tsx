@@ -44,6 +44,10 @@ export function App() {
   // here so the title-bar badge (drawn by the surrounding Window) can reflect
   // it; the active WorkspaceView reports its zoom state up via onZoomChange.
   const [zoomed, setZoomed] = useState(false)
+  // The active workspace's host-only area, or null when none is open (AC2.7).
+  // Drives the title-bar "host 영역" badge + status-bar "+ host 영역 · N pane"
+  // segment; the active WorkspaceView reports it up via onHostAreaChange.
+  const [hostArea, setHostArea] = useState<{ paneCount: number } | null>(null)
 
   // Boot restore: pull every persisted workspace and activate the most recently
   // saved one. An empty list keeps the quiet empty state.
@@ -171,6 +175,7 @@ export function App() {
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
         zoomed={zoomed}
+        hostAreaPaneCount={hostArea?.paneCount ?? null}
         rail={
           <WorkspaceRail
             workspaces={workspaces}
@@ -199,6 +204,7 @@ export function App() {
                 onNewWorkspace={workspaceHandlers.create}
                 onSwitchNext={switchNext}
                 onZoomChange={setZoomed}
+                onHostAreaChange={setHostArea}
               />
             </div>
           )

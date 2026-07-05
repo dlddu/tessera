@@ -58,6 +58,8 @@ export interface CommandContext {
   toggleKeymap: () => void
   /** Workspace-level operations (new / switch / close). AC1.7. */
   workspace: WorkspaceCommandHandlers
+  /** Host-only area open/close (⌃⌘H / ⇧⌃⌘H). AC2.7. */
+  hostArea: HostAreaCommandHandlers
 }
 
 /** The workspace-scope effects, supplied by the App shell. */
@@ -70,6 +72,14 @@ export interface WorkspaceCommandHandlers {
   switchTo: (index: number) => void
   /** Switch to the next workspace in the rail (palette "전환"). */
   switchNext: () => void
+}
+
+/** The host-area effects, supplied by the workspace view. AC2.7. */
+export interface HostAreaCommandHandlers {
+  /** Open the container workspace's host-only area (⌃⌘H). No-op on host / if open. */
+  open: () => void
+  /** Close the host-only area (⇧⌃⌘H / band ×). No-op if none is open. */
+  close: () => void
 }
 
 /** A keycap cluster: a modifier glyph run + the key glyph(s) it combines with. */
@@ -109,6 +119,8 @@ export type CommandId =
   | 'tab-switch'
   | 'zoom'
   | 'overlay'
+  | 'open-host-area'
+  | 'close-host-area'
   | 'new-workspace'
   | 'switch-workspace'
   | 'close-workspace'
@@ -247,6 +259,27 @@ export const COMMANDS: readonly Command[] = [
     run: (ctx) => ctx.layout.closeActiveTab()
   },
   {
+    id: 'open-host-area',
+    label: 'host 영역 열기',
+    keycap: { mods: '⌃⌘', keys: ['H'] },
+    scope: 'layout',
+    identityVar: '--id-term',
+    // ⌃⌘H — open the container workspace's host-only escape area (AC2.7). No-op
+    // on a host workspace or when a host area is already open (handled by `run`).
+    match: (e) => e.metaKey && e.ctrlKey && !e.altKey && !e.shiftKey && isKey(e, 'h'),
+    run: (ctx) => ctx.hostArea.open()
+  },
+  {
+    id: 'close-host-area',
+    label: 'host 영역 닫기',
+    keycap: { mods: '⇧⌃⌘', keys: ['H'] },
+    scope: 'layout',
+    identityVar: '--id-term',
+    // ⇧⌃⌘H — close the host-only area (the shift twin of ⌃⌘H). No-op if none.
+    match: (e) => e.metaKey && e.ctrlKey && e.shiftKey && !e.altKey && isKey(e, 'h'),
+    run: (ctx) => ctx.hostArea.close()
+  },
+  {
     id: 'new-workspace',
     label: '새 워크스페이스',
     keycap: { mods: '⌘', keys: ['N'] },
@@ -323,7 +356,10 @@ export function workspaceContext(workspace: WorkspaceCommandHandlers): CommandCo
     setPending: () => undefined,
     focusedPaneId: null,
     toggleKeymap: () => undefined,
-    workspace
+    workspace,
+    // The App shell owns no layout, so host-area commands (⌃⌘H) are inert here —
+    // they're dispatched only by the workspace view, which supplies live handlers.
+    hostArea: { open: () => undefined, close: () => undefined }
   }
 }
 

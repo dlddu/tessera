@@ -7,7 +7,8 @@
  * *(workspace, area)*, never per workspace alone. Today a workspace has exactly
  * one area (the default, whose backend is the workspace's own), so `create`
  * registers under {@link DEFAULT_AREA_ID}; a container workspace's optional
- * host-only area (AC2.7) will register a second backend here later.
+ * host-only area (AC2.7) registers a second, host backend via {@link
+ * BackendRegistry.addArea} and drops it again via {@link BackendRegistry.removeArea}.
  *
  * The `workspace.create` handler registers a backend; `surface.create` and the
  * file handlers {@link BackendRegistry.resolve} it by the requesting tab's
@@ -53,6 +54,36 @@ export class BackendRegistry {
     areas.set(DEFAULT_AREA_ID, backend)
     this.workspaces.set(workspaceId, areas)
     return backend
+  }
+
+  /**
+   * Construct + register a workspace's optional host-only area backend (AC2.7),
+   * returning it. The host area is a container workspace's escape hatch: a second
+   * area whose panes/tabs run on the host. Like {@link create} this only builds
+   * and tracks the backend — the caller drives {@link Backend.start} (a host
+   * backend is a no-op there). Throws when the workspace has no default-area
+   * backend yet (a host area can only extend a live workspace), so a stray
+   * registration can't invent a workspace out of thin air.
+   */
+  addArea(workspaceId: string, areaId: string, config: HostBackendConfig): Backend {
+    const areas = this.workspaces.get(workspaceId)
+    if (!areas) {
+      throw new Error(`no backend for workspace ${workspaceId}`)
+    }
+    const backend = this.createHost(config)
+    areas.set(areaId, backend)
+    return backend
+  }
+
+  /**
+   * Drop a single area's backend (host-area close, AC2.7), leaving the rest of
+   * the workspace — its default area especially — untouched. Idempotent: removing
+   * an already-absent area (closed twice, or never opened) is a no-op. Resolving
+   * the area afterwards throws, which is what keeps the closed host area's panes
+   * from silently borrowing the container backend (AC2.4/AC2.8).
+   */
+  removeArea(workspaceId: string, areaId: string): void {
+    this.workspaces.get(workspaceId)?.delete(areaId)
   }
 
   /**

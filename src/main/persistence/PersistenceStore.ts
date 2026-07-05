@@ -16,7 +16,7 @@
 import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { WORKSPACE_SNAPSHOT_VERSION, migrateWorkspaceSnapshot } from '@shared/types'
+import { WORKSPACE_SNAPSHOT_VERSION, migrateWorkspaceSnapshot, stripHostAreas } from '@shared/types'
 import type { WorkspaceStateSnapshot } from '@shared/types'
 
 /** Suffix every persisted workspace file carries. */
@@ -66,7 +66,12 @@ function parseSnapshot(raw: string): WorkspaceStateSnapshot | null {
     return null
   }
   const migrated = migrateWorkspaceSnapshot(value)
-  return migrated !== null && isRestorable(migrated) ? migrated : null
+  if (migrated === null || !isRestorable(migrated)) return null
+  // A host-only area (AC2.7) is live-session state: its host backend isn't
+  // re-registered on boot, so restore drops it and reopens container-only —
+  // otherwise the restored host terminals would have no backend to spawn
+  // against. Full host-area restore is deferred to J4.
+  return { ...migrated, layout: stripHostAreas(migrated.layout) }
 }
 
 export class PersistenceStore {

@@ -13,6 +13,7 @@
  */
 import { DEFAULT_AREA_ID, defaultTitle } from '@shared/types'
 import type {
+  Area,
   LayoutNode,
   LayoutSnapshot,
   PaneNode,
@@ -162,6 +163,41 @@ function removePane(node: LayoutNode, paneId: string): LayoutNode | null {
   if (kept.length === 0) return null
   if (kept.length === 1) return kept[0]!
   return { ...node, children: kept, sizes: normalize(keptSizes) }
+}
+
+/** The area a pane belongs to (its tabs are uniform within an area, AC2.4). */
+function paneAreaId(pane: PaneNode): string | undefined {
+  return pane.tabs[0]?.areaId
+}
+
+/** Ids of every pane whose area is `areaId` (pre-order). */
+function paneIdsInArea(node: LayoutNode, areaId: string): string[] {
+  if (node.type === 'pane') {
+    return paneAreaId(node) === areaId ? [node.id] : []
+  }
+  return node.children.flatMap((c) => paneIdsInArea(c, areaId))
+}
+
+/** The set of area ids still referenced by some pane in the tree. */
+function areaIdsInTree(node: LayoutNode, acc: Set<string>): void {
+  if (node.type === 'pane') {
+    const id = paneAreaId(node)
+    if (id !== undefined) acc.add(id)
+    return
+  }
+  for (const child of node.children) areaIdsInTree(child, acc)
+}
+
+/**
+ * Drop any host area that no longer has a pane in `root` (default areas always
+ * stay). Called after a structural removal so closing the last pane of the
+ * host-only area removes the area itself (AC2.7), which the shell then reconciles
+ * into dropping the area's host backend.
+ */
+function pruneEmptyHostAreas(root: LayoutNode, areas: Area[]): Area[] {
+  const present = new Set<string>()
+  areaIdsInTree(root, present)
+  return areas.filter((a) => a.kind !== 'host' || present.has(a.id))
 }
 
 /** Map every pane to its normalized rectangle (used by directional focus). */
@@ -326,6 +362,68 @@ export class LayoutEngine {
     return this.split(paneId, 'horizontal', surface)
   }
 
+  /**
+   * Open a host-only area beside the workspace's default area (AC2.7). Wraps the
+   * whole current root as one child of a new top-level split and adds the host
+   * area's first pane (a single host terminal, tagged with the host `areaId`) as
+   * the other child, then focuses it. The split is the *area boundary*: the
+   * renderer draws each child under its area band, directional focus crosses it
+   * freely, but tab moves can't (see {@link moveTab}). A no-op if a host area is
+   * already open — a workspace has at most the default + one host area. The
+   * caller registers the area's host backend (via the open-host-area IPC) before
+   * this runs, so the new terminal resolves it.
+   */
+  openHostArea(area: Area): void {
+    if (this.snapshot.areas.some((a) => a.kind === 'host')) return
+
+    const tab = makeTab('terminal', area.id)
+    const hostPane: PaneNode = { type: 'pane', id: uid('pane'), tabs: [tab], activeTabId: tab.id }
+    // Side-by-side (vertical split): container area left, host area right — the
+    // M-J2-S7 mockup arrangement.
+    const split: SplitNode = {
+      type: 'split',
+      id: uid('split'),
+      direction: 'vertical',
+      sizes: [0.5, 0.5],
+      children: [this.snapshot.root, hostPane]
+    }
+    this.commit({
+      ...this.snapshot,
+      root: split,
+      areas: [...this.snapshot.areas, area],
+      focusedPaneId: hostPane.id,
+      // Opening the area is a structural change; drop any zoom so both areas show.
+      zoomedPaneId: null
+    })
+  }
+
+  /**
+   * Close the host-only area `areaId` (AC2.7): remove every pane that belongs to
+   * it, collapsing the top-level split back to the default (container) subtree,
+   * and drop the area from `areas`. Focus re-homes to a surviving pane if it was
+   * in the host area. A no-op if `areaId` isn't an open host area. The shell
+   * reconciles the removed area into dropping its host backend (close-host-area
+   * IPC), so the container area's isolation is untouched (AC2.8).
+   */
+  closeHostArea(areaId: string): void {
+    if (!this.snapshot.areas.some((a) => a.id === areaId && a.kind === 'host')) return
+
+    let root: LayoutNode | null = this.snapshot.root
+    for (const paneId of paneIdsInArea(this.snapshot.root, areaId)) {
+      root = root && removePane(root, paneId)
+    }
+    // The default area always keeps at least one pane, so the tree never fully
+    // drains — but guard anyway rather than commit a null root.
+    if (root === null) return
+
+    const areas = this.snapshot.areas.filter((a) => a.id !== areaId)
+    const focusedPaneId =
+      this.snapshot.focusedPaneId && findPane(root, this.snapshot.focusedPaneId)
+        ? this.snapshot.focusedPaneId
+        : (firstPane(root)?.id ?? null)
+    this.commit({ ...this.snapshot, root, areas, focusedPaneId })
+  }
+
   /** Append a tab of `surface` to `paneId` and activate it. AC1.1. */
   addTab(paneId: string, surface: SurfaceKind): string | null {
     const pane = findPane(this.snapshot.root, paneId)
@@ -377,11 +475,14 @@ export class LayoutEngine {
 
     const root = removePane(this.snapshot.root, pane.id)
     if (root === null) return // last pane standing — keep it
+    // Closing the host area's last pane removes the area itself (AC2.7); the
+    // shell then drops its host backend. The container area always survives.
+    const areas = pruneEmptyHostAreas(root, this.snapshot.areas)
     const focusedPaneId =
       this.snapshot.focusedPaneId === pane.id
         ? (firstPane(root)?.id ?? null)
         : this.snapshot.focusedPaneId
-    this.commit({ ...this.snapshot, root, focusedPaneId })
+    this.commit({ ...this.snapshot, root, areas, focusedPaneId })
   }
 
   /**
@@ -394,6 +495,12 @@ export class LayoutEngine {
     if (!source || !target) return
     const tab = source.tabs.find((t) => t.id === tabId)
     if (!tab) return
+
+    // Area boundary (AC2.4/AC2.8): a tab can't move into a pane that runs a
+    // different area's backend — the host and container areas never mix panes.
+    // (Directional *focus* still crosses the boundary; only moves are blocked.)
+    const targetArea = paneAreaId(target)
+    if (targetArea !== undefined && targetArea !== tab.areaId) return
 
     if (source.id === targetPaneId) {
       const without = source.tabs.filter((t) => t.id !== tabId)

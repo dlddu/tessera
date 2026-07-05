@@ -40,6 +40,11 @@ interface StatusBarProps {
    * the empty (no-workspace) variant, which shows no backend segment.
    */
   backendKind: BackendKind
+  /**
+   * Pane count of the open host-only area, or `null` when none is open (AC2.7).
+   * Renders the "+ host 영역 · N pane" segment beside the backend segment.
+   */
+  hostAreaPaneCount?: number | null
   /** Pending update version when one is downloaded and ready to install. */
   updateReadyVersion?: string | null
   /** Invoked when the user clicks the restart affordance. */
@@ -76,6 +81,7 @@ export function StatusBar({
   workspace,
   backend,
   backendKind,
+  hostAreaPaneCount = null,
   updateReadyVersion = null,
   onUpdateRestart
 }: StatusBarProps) {
@@ -98,6 +104,13 @@ export function StatusBar({
     )
   }
 
+  // A container workspace teases the host-area shortcut (⌃⌘H) too, matching the
+  // M-J2-S7 mockup — it's the one operation unique to container workspaces.
+  const hints =
+    backendKind === 'container'
+      ? [{ id: 'open-host-area' as const, label: 'host 영역' }, ...KEY_HINTS]
+      : KEY_HINTS
+
   return (
     <div className="statusbar" data-testid="statusbar">
       <div className="seg ws">
@@ -105,9 +118,14 @@ export function StatusBar({
         <span>{workspace}</span>
       </div>
       <div className={`seg ${backendKind === 'container' ? 'cont' : 'host'}`}>{backend}</div>
+      {hostAreaPaneCount !== null ? (
+        <div className="seg host" data-testid="host-area-segment">
+          + host 영역 · {hostAreaPaneCount} pane
+        </div>
+      ) : null}
       <div className="spacer" />
       <div className="seg keys">
-        {KEY_HINTS.map(({ id, label }) => (
+        {hints.map(({ id, label }) => (
           <span key={id}>
             <b>{label}</b> <Keycap keycap={commandById(id).keycap} />
           </span>

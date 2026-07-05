@@ -37,6 +37,11 @@ interface WindowProps {
   onUpdateRestart?: (() => void) | undefined
   /** Whether a pane is zoomed to fill the window — shows the title-bar badge (AC1.6). */
   zoomed?: boolean
+  /**
+   * Pane count of the open host-only area, or `null` when none is open (AC2.7).
+   * Adds a "host 영역" title-bar badge and a "+ host 영역 · N pane" status segment.
+   */
+  hostAreaPaneCount?: number | null
 }
 
 export function Window({
@@ -50,7 +55,8 @@ export function Window({
   overlay,
   updateReadyVersion = null,
   onUpdateRestart,
-  zoomed = false
+  zoomed = false,
+  hostAreaPaneCount = null
 }: WindowProps) {
   const empty = workspace === null
   return (
@@ -76,6 +82,12 @@ export function Window({
             <span className="led" />
             {backendBadge}
           </span>
+          {hostAreaPaneCount !== null ? (
+            <span className="badge host" data-testid="host-area-badge">
+              <span className="led" />
+              host 영역
+            </span>
+          ) : null}
         </div>
       </div>
       <div className="winmain">
@@ -86,6 +98,7 @@ export function Window({
         workspace={workspace}
         backend={backendLabel}
         backendKind={backendKind}
+        hostAreaPaneCount={hostAreaPaneCount}
         updateReadyVersion={updateReadyVersion}
         onUpdateRestart={onUpdateRestart}
       />

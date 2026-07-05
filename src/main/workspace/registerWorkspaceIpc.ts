@@ -18,19 +18,24 @@
  * shared {@link BackendRegistry} and started (host = no-op, container = machine
  * create+boot) so surfaces (M-J1-S2 terminals) can spawn against it.
  */
+import { randomUUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { IpcChannels } from '@shared/ipc'
 import type {
+  CloseHostAreaRequest,
   CloseWorkspaceRequest,
   CreateWorkspaceRequest,
   CreateWorkspaceResult,
   DefaultCwdResult,
+  OpenHostAreaRequest,
+  OpenHostAreaResult,
   PickDirectoryResult,
   PickFileResult,
   PickSaveFileResult
 } from '@shared/ipc'
+import type { Area } from '@shared/types'
 import { buildWorkspace, validateWorkspaceInput } from '@shared/workspace'
 import type { BackendRegistry } from '@main/backend'
 import { PersistenceStore } from '@main/persistence'
@@ -152,4 +157,41 @@ export function registerWorkspaceIpc({
       await store.delete(req.workspaceId)
     }
   )
+
+  // Open a container workspace's optional host-only area (AC2.7): register a
+  // fresh HOST backend under a new area id and hand the area back so the
+  // renderer's engine can add the matching host subtree. The area's cwd is a
+  // real host path — the requested one if it exists, else the host home (the
+  // first host area has no inheritance source, and a container workspace has no
+  // host cwd of its own). Mirrors `create`'s register→start→return seam at the
+  // area grain; start is a no-op for a host backend but is kept for symmetry
+  // (and rollback) with the workspace-level path.
+  ipcMain.handle(
+    IpcChannels.workspace.openHostArea,
+    async (_event, req: OpenHostAreaRequest): Promise<OpenHostAreaResult> => {
+      const requested = req.cwd?.trim()
+      const cwd = requested && (await isDirectory(requested)) ? requested : homedir()
+
+      const areaId = `area-host-${randomUUID()}`
+      const backend = backends.addArea(req.workspaceId, areaId, { kind: 'host', cwd })
+      try {
+        await backend.start()
+      } catch (err) {
+        backends.removeArea(req.workspaceId, areaId)
+        const detail = err instanceof Error ? err.message : String(err)
+        throw new Error(`host 영역을 열지 못했습니다: ${detail}`)
+      }
+
+      const area: Area = { id: areaId, kind: 'host', backend: 'host' }
+      return { area }
+    }
+  )
+
+  // Close a host-only area (AC2.7): drop just its host backend. The renderer has
+  // already collapsed the host subtree (and torn down its PTYs) by the time this
+  // fires, so there is nothing process-level to kill here — this only ensures a
+  // later surface can't resolve the now-gone area (AC2.4/AC2.8). Idempotent.
+  ipcMain.handle(IpcChannels.workspace.closeHostArea, (_event, req: CloseHostAreaRequest): void => {
+    backends.removeArea(req.workspaceId, req.areaId)
+  })
 }
