@@ -29,8 +29,8 @@ export function WorkspaceDialog({ backendKinds, onCreated, onCancel }: Workspace
   const [cwd, setCwd] = useState('')
   const [backendKind, setBackendKind] = useState<BackendKind>('host')
   // Container-only fields (ignored for host), pre-filled with sensible defaults:
-  // a small image, 2 vCPU / 4G, and no host home mount.
-  const [image, setImage] = useState('alpine:latest')
+  // the project's local image, 2 vCPU / 4G, and no host home mount.
+  const [image, setImage] = useState('local/tessera')
   const [homeMount, setHomeMount] = useState<ContainerHomeMount>('none')
   const [cpus, setCpus] = useState('2')
   const [memory, setMemory] = useState('4G')
