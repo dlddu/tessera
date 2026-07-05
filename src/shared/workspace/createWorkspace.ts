@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto'
 import type { BackendConfig, BackendKind, ContainerHomeMount, Workspace } from '../types/backend'
 import { DEFAULT_AREA_ID } from '../types/layout'
 import type { LayoutSnapshot } from '../types/layout'
+import { defaultTitle } from '../types/surface'
 import { buildWorkspaceSnapshot } from '../types/persistence'
 import type { WorkspaceStateSnapshot } from '../types/persistence'
 
@@ -114,7 +115,7 @@ export function buildWorkspace(input: BuildWorkspaceInput): BuildWorkspaceResult
       type: 'pane',
       id: 'P-single',
       activeTabId: tabId,
-      tabs: [{ id: tabId, title: name, surface: 'terminal', areaId }]
+      tabs: [{ id: tabId, title: defaultTitle('terminal'), surface: 'terminal', areaId }]
     }
   }
 
