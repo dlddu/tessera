@@ -119,6 +119,10 @@ export function TerminalSurface({
 
     let surfaceId: string | null = null
     let unmounted = false
+    // Container terminals report their title (OSC 0/2) via this xterm event; kept
+    // here so the cleanup can dispose it. Host terminals leave it null (their tab
+    // title comes from the main-side process poll instead).
+    let titleSub: { dispose(): void } | null = null
 
     // Container terminals only: track the guest shell's live cwd (reported via
     // OSC 7) and which terminal was last focused, so the next container terminal
@@ -135,6 +139,16 @@ export function TerminalSurface({
           recordContainerCwd(workspaceId, surfaceId, cwd)
         }
         return true
+      })
+      // A container terminal's host PTY is the `container` CLI, so the process
+      // poll can't name the guest's foreground process. Instead the guest reports
+      // its title over OSC: our injected prompt hook emits the shell name each
+      // prompt, and programs (vim, top, …) set their own. Mirror that into the tab.
+      titleSub = term.onTitleChange((title) => {
+        const name = title.trim()
+        if (name) {
+          onTitleRef.current?.(name)
+        }
       })
       host.addEventListener('focusin', onFocusIn)
     }
@@ -219,6 +233,7 @@ export function TerminalSurface({
       resizeObserver.disconnect()
       if (isContainer) {
         host.removeEventListener('focusin', onFocusIn)
+        titleSub?.dispose()
         if (surfaceId) {
           forgetContainerTerminal(surfaceId)
         }

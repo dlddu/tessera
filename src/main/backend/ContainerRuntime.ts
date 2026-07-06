@@ -118,31 +118,44 @@ export type ContainerCliExec = (args: string[]) => Promise<{ stdout: string; std
 const CONTAINER_BIN = 'container'
 
 /**
- * OSC 7 cwd-reporting hooks, injected into the guest as `--env`s so the renderer
- * can track a container terminal's live cwd and open the next one there
- * (M-J2-S2). Both emit `ESC ] 7 ; file://<host>/<pwd> ESC \` before each prompt;
- * two hooks cover the two common container login shells:
+ * Guest prompt hooks, injected as `--env`s so the guest itself reports, before
+ * each prompt, the two things the renderer needs: its live cwd via OSC 7 (so a
+ * new terminal opens where the last one was, M-J2-S2) and its shell name via
+ * OSC 2 as a tab-title baseline. A container terminal's host PTY is the
+ * `container` CLI, not the guest shell, so node-pty's process poll can't name the
+ * guest's foreground process — the guest cooperating over OSC is the only clean
+ * way in. Each hook emits `ESC ] 7 ; file://<host>/<pwd>` then `ESC ] 2 ; <shell>`
+ * before each prompt; two cover the two common container login shells:
  *
- *  - {@link OSC7_PROMPT_COMMAND} — bash runs `PROMPT_COMMAND` before each prompt.
- *  - {@link OSC7_PS1} — POSIX sh (dash / busybox ash) has no `PROMPT_COMMAND`,
- *    but re-expands `PS1` before each prompt (command substitution included). The
- *    OSC 7 is emitted as a *side effect* of a `$(printf … >&2)`: printf writes
- *    the sequence to the terminal (fd 2) and the substitution captures its empty
- *    stdout, so the escape never appears in the prompt *text*. That matters —
- *    POSIX sh has no `\[…\]` non-printing markers, so an escape embedded directly
- *    in `PS1` would be counted in the prompt width and corrupt redraws (lost
- *    lines / a "reset" look) on every resize. Only the visible `[<pwd>] $ ` is
- *    counted. BEL terminates the OSC (no `ESC \`, whose trailing `\` a following
- *    `[` could swallow on shells that treat `\[` as a marker).
+ *  - {@link PROMPT_HOOK_BASH} — bash runs `PROMPT_COMMAND` (a direct printf)
+ *    before each prompt.
+ *  - {@link PROMPT_HOOK_SH} — POSIX sh (dash / busybox ash) has no
+ *    `PROMPT_COMMAND`, but re-expands `PS1` before each prompt (command
+ *    substitution included). The sequences ride as a *side effect* of a
+ *    `$(printf … >&2)`: printf writes them to the terminal (fd 2) and the
+ *    substitution captures its empty stdout, so they never appear in the prompt
+ *    *text*. That matters — POSIX sh has no `\[…\]` non-printing markers, so an
+ *    escape embedded directly in `PS1` would be counted in the prompt width and
+ *    corrupt redraws (lost lines / a "reset" look) on every resize. Only the
+ *    visible `[<pwd>] $ ` is counted. BEL terminates each OSC (no `ESC \`, whose
+ *    trailing `\` a following `[` could swallow on shells that treat `\[` as a
+ *    marker).
+ *
+ * The OSC 2 title is just the shell name — the baseline a tab resets to at each
+ * prompt. While a command runs, programs that set their own title (vim, top,
+ * tmux, ssh …) override it through xterm's `onTitleChange`; a plain CLI that sets
+ * no title (e.g. `node script.js`) leaves the shell-name baseline showing — the
+ * guest-cooperative ceiling, since the host can't see the guest's foreground
+ * process.
  *
  * Both set only guest-side vars, so no host environment is copied in — isolation
- * (AC2.3) holds. `PS1` is best-effort: an image whose login profile *re-sets*
- * `PS1` after these are applied overrides it (bash still reports via
- * `PROMPT_COMMAND`). A shell that honours neither hook falls back to the
- * machine's default home — graceful degradation, not an error.
+ * (AC2.3) holds. Best-effort: an image whose login profile *re-sets* `PS1` after
+ * these are applied overrides it (bash still reports via `PROMPT_COMMAND`); a
+ * shell honouring neither hook (e.g. zsh) falls back to the machine default —
+ * graceful degradation, not an error.
  */
-const OSC7_PROMPT_COMMAND = `PROMPT_COMMAND=printf '\\033]7;file://%s%s\\033\\\\' "$HOSTNAME" "$PWD"`
-const OSC7_PS1 = `PS1=$(printf '\\033]7;file://%s%s\\007' "$HOSTNAME" "$PWD" >&2)[$PWD] $ `
+const PROMPT_HOOK_BASH = `PROMPT_COMMAND=printf '\\033]7;file://%s%s\\033\\\\\\033]2;bash\\007' "$HOSTNAME" "$PWD"`
+const PROMPT_HOOK_SH = `PS1=$(printf '\\033]7;file://%s%s\\007\\033]2;sh\\007' "$HOSTNAME" "$PWD" >&2)[$PWD] $ `
 
 /**
  * Snapshot of the host environment for the `container` CLI *process* (so it can
@@ -298,15 +311,16 @@ class CliContainerRuntime implements ContainerRuntime {
     const spawn = this.ptySpawn ?? (await getNodePtySpawn())
 
     // `container machine run -n <name> [--workdir <cwd>] --env <PROMPT_COMMAND>
-    //  --env <PS1> [--env K=V …]`. The two OSC 7 hooks (bash + sh) and the
-    //  explicit guest vars (e.g. TESSERA_BACKEND=container, AC2.4) ride as
-    //  repeated `--env`s — all machine-side only, so host isolation holds.
+    //  --env <PS1> [--env K=V …]`. The two prompt hooks (bash + sh; OSC 7 cwd +
+    //  OSC 2 title) and the explicit guest vars (e.g. TESSERA_BACKEND=container,
+    //  AC2.4) ride as repeated `--env`s — all machine-side only, so host
+    //  isolation holds.
     const args = ['machine', 'run', '-n', name]
     if (options.cwd !== undefined) {
       args.push('--workdir', options.cwd)
     }
-    args.push('--env', OSC7_PROMPT_COMMAND)
-    args.push('--env', OSC7_PS1)
+    args.push('--env', PROMPT_HOOK_BASH)
+    args.push('--env', PROMPT_HOOK_SH)
     for (const [key, value] of Object.entries(options.env ?? {})) {
       args.push('--env', `${key}=${value}`)
     }
