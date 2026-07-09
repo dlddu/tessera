@@ -72,6 +72,12 @@ export class HostBackend implements Backend {
 
     return {
       id: `pty-${randomUUID()}`,
+      // Live foreground-process name for the tab title (M-J1-S2): read through to
+      // node-pty's getter each access, so it tracks `zsh` → `vim` → `zsh` as the
+      // user runs and exits programs.
+      get process() {
+        return pty.process
+      },
       write: (data) => pty.write(data),
       resize: (cols, rows) => pty.resize(cols, rows),
       onData: (listener) => pty.onData(listener),

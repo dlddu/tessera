@@ -26,6 +26,13 @@ import { SurfaceRegistry } from './SurfaceRegistry'
 const DEFAULT_COLS = 80
 const DEFAULT_ROWS = 24
 
+/**
+ * How often to sample a PTY's live foreground-process name for the tab title.
+ * node-pty has no change event, so a light poll is the standard approach; 1s is
+ * responsive without meaningfully taxing the host per terminal.
+ */
+const PROCESS_POLL_INTERVAL_MS = 1000
+
 export interface SurfaceIpcDeps {
   backends: BackendRegistry
   surfaces?: SurfaceRegistry
@@ -65,7 +72,38 @@ export function registerSurfaceIpc({
           sender.send(IpcChannels.surface.ptyData, { surfaceId, chunk })
         }
       })
+
+      // Live tab title: poll the PTY's foreground-process name and push it to the
+      // renderer whenever it changes, so the tab reads what's actually running
+      // (`zsh` → `vim` → `zsh`) instead of a fixed default. Only host PTYs expose
+      // `process` (a container PTY is the host-side CLI); others skip the poll and
+      // keep their default title. Seeded from `null` so the first tick corrects
+      // the tab to the real shell name even when it differs from the default.
+      let titlePoll: ReturnType<typeof setInterval> | null = null
+      if (pty.process !== undefined) {
+        let lastTitle: string | null = null
+        titlePoll = setInterval(() => {
+          if (sender.isDestroyed()) {
+            return
+          }
+          let name: string | undefined
+          try {
+            name = pty.process
+          } catch {
+            // A just-exited PTY can throw on read; the exit handler clears the poll.
+            return
+          }
+          if (name && name !== lastTitle) {
+            lastTitle = name
+            sender.send(IpcChannels.surface.ptyTitle, { surfaceId, title: name })
+          }
+        }, PROCESS_POLL_INTERVAL_MS)
+      }
+
       pty.onExit((code) => {
+        if (titlePoll) {
+          clearInterval(titlePoll)
+        }
         if (!sender.isDestroyed()) {
           sender.send(IpcChannels.surface.ptyExit, { surfaceId, code })
         }

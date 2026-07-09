@@ -24,6 +24,8 @@ export interface LayoutActions {
   focusPane(paneId: string): void
   focusDirection(dir: FocusDirection): void
   setTabPath(tabId: string, path: string): void
+  /** Retitle a tab — a terminal to its live foreground-process name. */
+  setTabTitle(tabId: string, title: string): void
   /** Activate the next/prev tab of the focused pane (⌘⇧[ / ⌘⇧]). AC1.4. */
   cycleTab(dir: TabCycle): void
   /** Move the focused pane's active tab to the neighbor in `dir` (⌃⌘+arrows). AC1.4. */
@@ -57,6 +59,7 @@ export function useLayout(initial: LayoutSnapshot): UseLayout {
       focusPane: (paneId) => engine.focusPane(paneId),
       focusDirection: (dir) => engine.focusDirection(dir),
       setTabPath: (tabId, path) => engine.setTabPath(tabId, path),
+      setTabTitle: (tabId, title) => engine.setTabTitle(tabId, title),
       cycleTab: (dir) => engine.cycleTab(dir),
       moveActiveTabToDirection: (dir) => engine.moveActiveTabToDirection(dir),
       closeActiveTab: () => engine.closeActiveTab(),

@@ -54,6 +54,7 @@ function mockCtx(focusedPaneId: string | null = 'P0') {
     focusPane: vi.fn(),
     focusDirection: vi.fn(),
     setTabPath: vi.fn(),
+    setTabTitle: vi.fn(),
     cycleTab: vi.fn(),
     moveActiveTabToDirection: vi.fn(),
     closeActiveTab: vi.fn(),

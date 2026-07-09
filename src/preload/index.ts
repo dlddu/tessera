@@ -8,6 +8,7 @@ import { IpcChannels } from '@shared/ipc'
 import type {
   PtyDataEvent,
   PtyExitEvent,
+  PtyTitleEvent,
   TesseraApi,
   UpdateAvailableEvent,
   UpdateDownloadedEvent,
@@ -56,6 +57,11 @@ const api: TesseraApi = {
       const handler = (_event: IpcRendererEvent, payload: PtyExitEvent) => listener(payload)
       ipcRenderer.on(IpcChannels.surface.ptyExit, handler)
       return () => ipcRenderer.removeListener(IpcChannels.surface.ptyExit, handler)
+    },
+    onPtyTitle: (listener) => {
+      const handler = (_event: IpcRendererEvent, payload: PtyTitleEvent) => listener(payload)
+      ipcRenderer.on(IpcChannels.surface.ptyTitle, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.surface.ptyTitle, handler)
     }
   },
   persistence: {

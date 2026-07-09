@@ -46,6 +46,12 @@ interface TerminalSurfaceProps {
    * prints a "process exited" notice and stays put.
    */
   onExit?: () => void
+  /**
+   * Called with the PTY's live foreground-process name (`zsh`, `vim`, `node`, …)
+   * whenever it changes, so the owner can retitle this terminal's tab. Optional:
+   * without it the tab keeps its default title.
+   */
+  onTitle?: (title: string) => void
 }
 
 /** C-terminal palette, mapped from the design-system tokens (tessera.css). */
@@ -70,14 +76,18 @@ export function TerminalSurface({
   workspaceId,
   areaId,
   backendKind,
-  onExit
+  onExit,
+  onTitle
 }: TerminalSurfaceProps) {
   const hostRef = useRef<HTMLDivElement>(null)
-  // Hold the latest `onExit` in a ref so the mount effect can call it without
-  // listing it as a dependency — a changed callback identity must NOT re-run the
-  // effect, which would dispose the PTY and respawn a fresh shell on every render.
+  // Hold the latest `onExit`/`onTitle` in refs so the mount effect can call them
+  // without listing them as dependencies — a changed callback identity must NOT
+  // re-run the effect, which would dispose the PTY and respawn a fresh shell on
+  // every render.
   const onExitRef = useRef(onExit)
   onExitRef.current = onExit
+  const onTitleRef = useRef(onTitle)
+  onTitleRef.current = onTitle
 
   useEffect(() => {
     const host = hostRef.current
@@ -109,6 +119,10 @@ export function TerminalSurface({
 
     let surfaceId: string | null = null
     let unmounted = false
+    // Container terminals report their title (OSC 0/2) via this xterm event; kept
+    // here so the cleanup can dispose it. Host terminals leave it null (their tab
+    // title comes from the main-side process poll instead).
+    let titleSub: { dispose(): void } | null = null
 
     // Container terminals only: track the guest shell's live cwd (reported via
     // OSC 7) and which terminal was last focused, so the next container terminal
@@ -126,6 +140,16 @@ export function TerminalSurface({
         }
         return true
       })
+      // A container terminal's host PTY is the `container` CLI, so the process
+      // poll can't name the guest's foreground process. Instead the guest reports
+      // its title over OSC: our injected prompt hook emits the shell name each
+      // prompt, and programs (vim, top, …) set their own. Mirror that into the tab.
+      titleSub = term.onTitleChange((title) => {
+        const name = title.trim()
+        if (name) {
+          onTitleRef.current?.(name)
+        }
+      })
       host.addEventListener('focusin', onFocusIn)
     }
 
@@ -141,6 +165,13 @@ export function TerminalSurface({
         // shows in that fallback (it's moot once the tab unmounts).
         term.write('\r\n\x1b[2m[프로세스가 종료되었습니다]\x1b[0m\r\n')
         onExitRef.current?.()
+      }
+    })
+    // Live tab title: main polls the PTY's foreground-process name and pushes it
+    // here on change, so the tab reads what's actually running (M-J1-S2).
+    const offTitle = window.tessera.surface.onPtyTitle((event) => {
+      if (event.surfaceId === surfaceId) {
+        onTitleRef.current?.(event.title)
       }
     })
 
@@ -197,10 +228,12 @@ export function TerminalSurface({
       unmounted = true
       offData()
       offExit()
+      offTitle()
       inputSub.dispose()
       resizeObserver.disconnect()
       if (isContainer) {
         host.removeEventListener('focusin', onFocusIn)
+        titleSub?.dispose()
         if (surfaceId) {
           forgetContainerTerminal(surfaceId)
         }

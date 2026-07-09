@@ -286,7 +286,7 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     ])
   })
 
-  it('emits OSC 7 cwd reports for both bash (PROMPT_COMMAND) and sh (PS1)', async () => {
+  it('emits OSC 7 cwd + OSC 2 title reports for both bash (PROMPT_COMMAND) and sh (PS1)', async () => {
     const { runtime, spawned } = spyingRuntime()
     await runtime.spawnExecPty('ws-7', { cols: 80, rows: 24 })
 
@@ -298,6 +298,9 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     // `\033`, and it reports the live `$PWD`.
     expect(promptCommand).toContain(']7;file://')
     expect(promptCommand).toContain('$PWD')
+    // …plus an OSC 2 shell-name title so a container tab has a live baseline
+    // (guest can't be seen by the host process poll).
+    expect(promptCommand).toContain(']2;bash')
     // sh: the OSC 7 rides in a `$(printf … >&2)` side effect — printf writes it
     // to the terminal and the substitution captures empty stdout, so it never
     // lands in the counted prompt text (no width miscount → no corrupt redraws).
@@ -305,7 +308,10 @@ describe('createCliContainerRuntime — spawnExecPty', () => {
     expect(ps1).toContain(']7;file://')
     expect(ps1).toContain('$PWD')
     expect(ps1).toContain('>&2')
-    // No raw ESC in the value: the sequence lives only in printf's output, not in
+    // The OSC 2 title rides the same side-effect printf, so it's off the prompt
+    // width too.
+    expect(ps1).toContain(']2;sh')
+    // No raw ESC in the value: the sequences live only in printf's output, not in
     // what sh measures for prompt width.
     expect(ps1).not.toContain('\x1b')
   })

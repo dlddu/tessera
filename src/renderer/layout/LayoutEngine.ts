@@ -542,6 +542,19 @@ export class LayoutEngine {
     this.moveTab(tabId, paneId, index)
   }
 
+  /**
+   * Retitle a tab (e.g. a terminal to its live foreground-process name). A no-op
+   * when the title is unchanged, so the ~1s process poll never churns the tree.
+   */
+  setTabTitle(tabId: string, title: string): void {
+    const pane = findTabPane(this.snapshot.root, tabId)
+    if (pane?.tabs.find((t) => t.id === tabId)?.title === title) {
+      return
+    }
+    const root = updateTab(this.snapshot.root, tabId, (t) => ({ ...t, title }))
+    this.commit({ ...this.snapshot, root })
+  }
+
   /** Set the file path of an editor `tabId`, retitling it to the basename. */
   setTabPath(tabId: string, path: string): void {
     const root = updateTab(this.snapshot.root, tabId, (t) => ({

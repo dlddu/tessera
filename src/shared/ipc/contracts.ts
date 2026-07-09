@@ -186,6 +186,17 @@ export interface PtyExitEvent {
   code: number | null
 }
 
+/**
+ * main → renderer: a surface's live foreground-process name changed, so its tab
+ * can retitle to what's actually running (`zsh`, `vim`, `node`, …). Emitted only
+ * when the name differs from the last one sent, so the renderer never churns.
+ */
+export interface PtyTitleEvent {
+  surfaceId: string
+  /** The PTY's current foreground-process name. */
+  title: string
+}
+
 /** renderer → main: keyboard/paste input destined for a surface's PTY. */
 export interface PtyInputRequest {
   surfaceId: string
@@ -290,6 +301,8 @@ export interface SurfaceApi {
   onPtyData(listener: (event: PtyDataEvent) => void): () => void
   /** Subscribe to PTY exits (all surfaces). Returns an unsubscribe function. */
   onPtyExit(listener: (event: PtyExitEvent) => void): () => void
+  /** Subscribe to live process-name changes (all surfaces). Returns an unsubscribe function. */
+  onPtyTitle(listener: (event: PtyTitleEvent) => void): () => void
 }
 
 export interface PersistenceApi {
