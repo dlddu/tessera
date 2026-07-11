@@ -44,6 +44,14 @@ export interface TabNode {
    * in the snapshot so it survives serialize/restore (PRD-4).
    */
   path?: string
+  /**
+   * For browser tabs: the tab's current URL (AC3.2). Set when a tab is opened
+   * onto a routed URL and updated as the user navigates, so the live view can
+   * reload it and (PRD-4, AC4.4) a restored tab reopens where it was. Optional
+   * and absent-tolerant — it rides the snapshot as an extra field, so the
+   * persistence envelope check and schema version (v3) are unchanged.
+   */
+  url?: string
 }
 
 /** Leaf node: a pane holding an ordered set of tabs. */

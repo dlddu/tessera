@@ -266,6 +266,26 @@ body{
 .url .host{color:var(--ink)} .url .rest{color:var(--faint)}
 .bview{flex:1; overflow:hidden; padding:16px; position:relative}
 
+/* C-browser live chrome (PRD-3): clickable nav + an editable address bar, and a
+   host WebContentsView filling the (padding-free) page region. */
+.baddr .nav{display:flex; align-items:center; gap:2px}
+.navbtn{appearance:none; background:transparent; border:0; color:var(--faint);
+  font-family:var(--font-mono); font-size:14px; line-height:1; padding:2px 5px; border-radius:6px;
+  cursor:pointer}
+.navbtn:hover:not(:disabled){color:var(--ink); background:var(--tile)}
+.navbtn:disabled{opacity:.35; cursor:default}
+.urlinput{flex:1; min-width:0; background:#0B0D12; border:1px solid var(--line-soft);
+  border-radius:999px; padding:5px 12px; font-family:var(--font-mono); font-size:11.5px;
+  color:var(--ink); outline:none}
+.urlinput::placeholder{color:var(--faint)}
+.urlinput:focus{border-color:var(--brand)}
+.bspin{flex:0 0 12px; width:12px; height:12px; border-radius:50%;
+  border:2px solid var(--line-soft); border-top-color:var(--brand); animation:bspin .7s linear infinite}
+@keyframes bspin{to{transform:rotate(360deg)}}
+/* The native browser view is layered over this region, so it holds no DOM page
+   content and keeps no inner padding. */
+.bview-live{padding:0; background:#0F1218}
+
 /* simplified rendered page bits used inside .bview */
 .page-bar{height:34px; border-radius:6px; background:linear-gradient(90deg,#171b24,#12151c); margin-bottom:12px; display:flex; align-items:center; padding:0 12px; gap:10px}
 .page-bar .b-logo{width:18px;height:18px;border-radius:5px;background:var(--route)}
@@ -414,6 +434,10 @@ body{
 .banner.ok{background:color-mix(in srgb,var(--ok) 12%,var(--tile-raise)); color:var(--ok)} .banner.ok .bi{color:var(--ok)}
 .banner .bmsg{color:var(--ink)} .banner.danger .bmsg, .banner.warn .bmsg{color:var(--ink)}
 .banner .bact{margin-left:auto; display:flex; gap:6px}
+/* Routing banner: pinned across the top of the surface, above the layout (PRD-3). */
+.banner-slot{position:absolute; left:0; right:0; top:0; z-index:30}
+.banner-x{cursor:pointer; opacity:.55; font-size:15px; line-height:1; padding:0 4px}
+.banner-x:hover{opacity:1}
 
 /* ============================================================ C-palette */
 .palette{width:min(520px,92%); background:var(--tile-raise); border:1px solid var(--line); border-radius:var(--r-card); box-shadow:var(--shadow-dialog); overflow:hidden}

@@ -511,3 +511,43 @@ describe('LayoutEngine serialize/restore', () => {
     expect(notified).toBe(1)
   })
 })
+
+describe('LayoutEngine — browser tab URL (AC3.2 / AC4.4)', () => {
+  const urlTab = (tabId: string, engine: LayoutEngine) =>
+    collectPanes(engine.serialize().root)
+      .flatMap((p) => p.tabs)
+      .find((t) => t.id === tabId)!
+
+  it('addTab with a URL sets tab.url and titles a browser tab by its host', () => {
+    const engine = new LayoutEngine(singlePane())
+    const tabId = engine.addTab('P0', 'browser', 'https://idp.acme.dev/authorize?x=1')!
+    const tab = urlTab(tabId, engine)
+    expect(tab.url).toBe('https://idp.acme.dev/authorize?x=1')
+    expect(tab.title).toBe('idp.acme.dev')
+  })
+
+  it('addTab without a URL leaves url undefined and keeps the default title', () => {
+    const engine = new LayoutEngine(singlePane())
+    const tabId = engine.addTab('P0', 'browser')!
+    const tab = urlTab(tabId, engine)
+    expect(tab.url).toBeUndefined()
+    expect(tab.title).toBe('Browser')
+  })
+
+  it('setTabUrl updates the URL and is a no-op (no commit) when unchanged', () => {
+    const engine = new LayoutEngine(singlePane())
+    const tabId = engine.addTab('P0', 'browser', 'https://a.example')!
+    const before = engine.serialize()
+    engine.setTabUrl(tabId, 'https://a.example')
+    expect(engine.serialize()).toBe(before) // unchanged → same snapshot reference
+    engine.setTabUrl(tabId, 'https://b.example/next')
+    expect(urlTab(tabId, engine).url).toBe('https://b.example/next')
+  })
+
+  it('the URL survives a JSON serialize/restore round-trip (AC4.4)', () => {
+    const engine = new LayoutEngine(singlePane())
+    const tabId = engine.addTab('P0', 'browser', 'https://idp.acme.dev/authorize')!
+    const restored = new LayoutEngine(JSON.parse(JSON.stringify(engine.serialize())))
+    expect(urlTab(tabId, restored).url).toBe('https://idp.acme.dev/authorize')
+  })
+})

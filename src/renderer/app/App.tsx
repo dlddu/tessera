@@ -194,6 +194,7 @@ export function App() {
               key={w.workspace.id}
               className="surface"
               data-testid="workspace-surface"
+              data-workspace-id={w.workspace.id}
               data-active={isActive ? 'true' : undefined}
               hidden={!isActive}
             >

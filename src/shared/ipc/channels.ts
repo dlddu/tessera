@@ -53,7 +53,28 @@ export const IpcChannels = {
   },
   routing: {
     openUrlOnHost: 'tessera:routing:open-url-on-host',
-    forwardCallback: 'tessera:routing:forward-callback'
+    forwardCallback: 'tessera:routing:forward-callback',
+    /**
+     * main → renderer: a container-originated URL was routed to the host — open
+     * it in a new browser tab (direction A, AC3.2). Fired for both the guest
+     * shim/`$BROWSER` channel and the renderer's own `openUrlOnHost` invoke, so
+     * every routed URL lands the same way.
+     */
+    openUrl: 'tessera:routing:open-url'
+  },
+  browser: {
+    /** renderer → main: create a live `WebContentsView` for a browser tab (AC3.1). */
+    create: 'tessera:browser:create',
+    /** renderer → main: reposition + show/hide a view to track its pane body. */
+    setBounds: 'tessera:browser:set-bounds',
+    /** renderer → main: navigate a view to a URL (address bar / routed open). */
+    loadUrl: 'tessera:browser:load-url',
+    /** renderer → main: history/reload controls for a view (back/forward/reload). */
+    navigate: 'tessera:browser:navigate',
+    /** renderer → main: destroy a view (its browser tab closed). */
+    dispose: 'tessera:browser:dispose',
+    /** main → renderer: a view's navigation state changed (url/title/history). */
+    state: 'tessera:browser:state'
   },
   update: {
     /** main → renderer: a newer version is available and downloading. */
@@ -78,4 +99,5 @@ export type IpcChannel =
   | (typeof IpcChannels.surface)[keyof typeof IpcChannels.surface]
   | (typeof IpcChannels.persistence)[keyof typeof IpcChannels.persistence]
   | (typeof IpcChannels.routing)[keyof typeof IpcChannels.routing]
+  | (typeof IpcChannels.browser)[keyof typeof IpcChannels.browser]
   | (typeof IpcChannels.update)[keyof typeof IpcChannels.update]

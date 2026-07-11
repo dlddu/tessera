@@ -103,7 +103,8 @@ describe('ContainerBackend file IO delegates to the machine runtime', () => {
       async listDir(name, path) {
         calls.listDir.push({ name, path })
         return [{ name: 'src', isDir: true }] satisfies DirEntry[]
-      }
+      },
+      async writeExecutable() {}
     }
     return { runtime, calls }
   }

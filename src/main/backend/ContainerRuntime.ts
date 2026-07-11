@@ -88,6 +88,14 @@ export interface ContainerRuntime {
   writeFile(name: string, path: string, data: Uint8Array): Promise<void>
   /** List a directory on the machine's filesystem (M-J2-S3, AC2.3). */
   listDir(name: string, path: string): Promise<DirEntry[]>
+  /**
+   * Install a UTF-8 script to one or more executable paths on the machine, each
+   * `chmod +x` (PRD-3 browser shim). The same content lands at every path (the
+   * first is written, the rest copied) in one guest command; parent dirs are
+   * created. The script travels as base64 so its quotes/`$`/newlines survive the
+   * exec PTY intact, exactly as {@link ContainerRuntime.writeFile} does.
+   */
+  writeExecutable(name: string, paths: string[], contents: string): Promise<void>
 }
 
 /**
@@ -236,6 +244,13 @@ function isMissingBinary(error: unknown): boolean {
  */
 function shellQuote(path: string): string {
   return `'${path.replaceAll("'", `'\\''`)}'`
+}
+
+/** POSIX dirname of a guest path (for `mkdir -p` before a write). */
+function posixDirname(path: string): string {
+  const idx = path.lastIndexOf('/')
+  if (idx < 0) return '.'
+  return idx === 0 ? '/' : path.slice(0, idx)
 }
 
 /**
@@ -388,6 +403,27 @@ class CliContainerRuntime implements ContainerRuntime {
         `printf %s '${chunks[i]!}' | base64 -d ${redirect} ${partial}${finalize}`
       )
     }
+  }
+
+  async writeExecutable(name: string, paths: string[], contents: string): Promise<void> {
+    if (paths.length === 0) return
+    // The whole script rides as one base64 literal (its quotes/`$`/newlines can't
+    // collide with the base64 alphabet), decoded onto the first path; the rest
+    // are copies of it. `mkdir -p` each parent so a missing `/usr/local/bin`
+    // isn't fatal. Small (a ~1KB shim → ~1.4KB base64), so it stays one chunk.
+    const b64 = Buffer.from(contents, 'utf8').toString('base64')
+    const first = paths[0]!
+    const mkdirs = [...new Set(paths.map(posixDirname))]
+      .map((dir) => `mkdir -p ${shellQuote(dir)}`)
+      .join(' && ')
+    const write = `printf %s '${b64}' | base64 -d > ${shellQuote(first)} && chmod +x ${shellQuote(first)}`
+    const copies = paths
+      .slice(1)
+      .map(
+        (path) => `cp -f ${shellQuote(first)} ${shellQuote(path)} && chmod +x ${shellQuote(path)}`
+      )
+      .join(' && ')
+    await this.runPty(name, [mkdirs, write, copies].filter(Boolean).join(' && '))
   }
 
   async listDir(name: string, path: string): Promise<DirEntry[]> {

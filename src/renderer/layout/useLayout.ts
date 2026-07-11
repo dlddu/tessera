@@ -17,13 +17,15 @@ import type { FocusDirection, TabCycle } from './LayoutEngine'
 export interface LayoutActions {
   splitVertical(paneId: string, surface: SurfaceKind): void
   splitHorizontal(paneId: string, surface: SurfaceKind): void
-  addTab(paneId: string, surface: SurfaceKind): void
+  addTab(paneId: string, surface: SurfaceKind, url?: string): void
   activateTab(paneId: string, tabId: string): void
   closeTab(tabId: string): void
   moveTab(tabId: string, targetPaneId: string, index?: number): void
   focusPane(paneId: string): void
   focusDirection(dir: FocusDirection): void
   setTabPath(tabId: string, path: string): void
+  /** Record a browser tab's current URL as it navigates (AC3.2, AC4.4). */
+  setTabUrl(tabId: string, url: string): void
   /** Retitle a tab — a terminal to its live foreground-process name. */
   setTabTitle(tabId: string, title: string): void
   /** Activate the next/prev tab of the focused pane (⌘⇧[ / ⌘⇧]). AC1.4. */
@@ -52,13 +54,14 @@ export function useLayout(initial: LayoutSnapshot): UseLayout {
     () => ({
       splitVertical: (paneId, surface) => engine.splitVertical(paneId, surface),
       splitHorizontal: (paneId, surface) => engine.splitHorizontal(paneId, surface),
-      addTab: (paneId, surface) => engine.addTab(paneId, surface),
+      addTab: (paneId, surface, url) => engine.addTab(paneId, surface, url),
       activateTab: (paneId, tabId) => engine.activateTab(paneId, tabId),
       closeTab: (tabId) => engine.closeTab(tabId),
       moveTab: (tabId, targetPaneId, index) => engine.moveTab(tabId, targetPaneId, index),
       focusPane: (paneId) => engine.focusPane(paneId),
       focusDirection: (dir) => engine.focusDirection(dir),
       setTabPath: (tabId, path) => engine.setTabPath(tabId, path),
+      setTabUrl: (tabId, url) => engine.setTabUrl(tabId, url),
       setTabTitle: (tabId, title) => engine.setTabTitle(tabId, title),
       cycleTab: (dir) => engine.cycleTab(dir),
       moveActiveTabToDirection: (dir) => engine.moveActiveTabToDirection(dir),

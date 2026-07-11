@@ -56,9 +56,27 @@ export function dirname(path: string): string {
   return idx > 0 ? trimmed.slice(0, idx) : idx === 0 ? trimmed.slice(0, 1) : ''
 }
 
-/** A fresh, empty tab of the given surface kind in the given area. */
-function makeTab(surface: SurfaceKind, areaId: string): TabNode {
-  return { id: uid('tab'), title: defaultTitle(surface), surface, areaId }
+/** A tab title for a browser opened onto a URL: its host, else the default. */
+function browserTabTitle(url: string): string {
+  try {
+    return new URL(url).host || defaultTitle('browser')
+  } catch {
+    return defaultTitle('browser')
+  }
+}
+
+/**
+ * A fresh tab of the given surface kind in the given area. `url` seeds a browser
+ * tab opened onto a routed URL (AC3.2) — it rides the snapshot and titles the
+ * tab by the URL host until the page reports its own title.
+ */
+function makeTab(surface: SurfaceKind, areaId: string, url?: string): TabNode {
+  const tab: TabNode = { id: uid('tab'), title: defaultTitle(surface), surface, areaId }
+  if (url !== undefined) {
+    tab.url = url
+    if (surface === 'browser') tab.title = browserTabTitle(url)
+  }
+  return tab
 }
 
 /** Scale a list of sizes so they sum to 1 (falls back to an equal split). */
@@ -424,12 +442,16 @@ export class LayoutEngine {
     this.commit({ ...this.snapshot, root, areas, focusedPaneId })
   }
 
-  /** Append a tab of `surface` to `paneId` and activate it. AC1.1. */
-  addTab(paneId: string, surface: SurfaceKind): string | null {
+  /**
+   * Append a tab of `surface` to `paneId` and activate it. AC1.1. `url` opens a
+   * browser tab onto a routed URL (direction A, AC3.2) — its live view loads
+   * there and the tab is titled by the URL host.
+   */
+  addTab(paneId: string, surface: SurfaceKind, url?: string): string | null {
     const pane = findPane(this.snapshot.root, paneId)
     if (!pane) return null
     const areaId = pane.tabs[0]?.areaId ?? this.snapshot.areas[0]?.id ?? DEFAULT_AREA_ID
-    const tab = makeTab(surface, areaId)
+    const tab = makeTab(surface, areaId, url)
     const root = updatePane(this.snapshot.root, paneId, (p) => ({
       ...p,
       tabs: [...p.tabs, tab],
@@ -562,6 +584,21 @@ export class LayoutEngine {
       path,
       title: basename(path)
     }))
+    this.commit({ ...this.snapshot, root })
+  }
+
+  /**
+   * Record a browser `tabId`'s current URL as it navigates (AC3.2), so it rides
+   * the snapshot (a restored tab reopens where it was, AC4.4). A no-op when
+   * unchanged, so the view's per-navigation state pushes don't churn the tree.
+   * Title is set separately from the page's own title (see {@link setTabTitle}).
+   */
+  setTabUrl(tabId: string, url: string): void {
+    const pane = findTabPane(this.snapshot.root, tabId)
+    if (pane?.tabs.find((t) => t.id === tabId)?.url === url) {
+      return
+    }
+    const root = updateTab(this.snapshot.root, tabId, (t) => ({ ...t, url }))
     this.commit({ ...this.snapshot, root })
   }
 

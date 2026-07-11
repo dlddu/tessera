@@ -1,2 +1,6 @@
 export { BrowserRouter } from './BrowserRouter'
+export type { RoutingEmit, RoutingProvider, BrowserRouterOptions } from './BrowserRouter'
+export { RoutingChannel } from './RoutingChannel'
+export type { RoutingEndpoint, RoutingChannelOptions } from './RoutingChannel'
 export { registerRoutingIpc } from './registerRoutingIpc'
+export type { RoutingIpcDeps } from './registerRoutingIpc'

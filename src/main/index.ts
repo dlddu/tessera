@@ -2,12 +2,14 @@
  * Electron main-process entry. Boots the app, registers IPC contracts, restores
  * persisted workspaces' backends (J1-S6), and opens the renderer window.
  */
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, WebContentsView } from 'electron'
 import { createWindow } from '@main/window'
 import { fixMainProcessPath } from '@main/env/fixPath'
 import { registerIpc } from '@main/ipc/registerIpc'
 import type { BackendRegistry } from '@main/backend'
 import type { PersistenceStore } from '@main/persistence'
+import { BrowserViewRegistry, registerBrowserIpc } from '@main/surface'
+import type { ManagedView, ViewParent } from '@main/surface'
 import { initUpdater } from '@main/update'
 
 // Reflect the login-shell PATH before anything spawns a child process, so the
@@ -39,13 +41,42 @@ async function restoreBackends(store: PersistenceStore, backends: BackendRegistr
 }
 
 app.whenReady().then(async () => {
-  const { backends, store } = registerIpc()
+  const { backends, store, router } = registerIpc()
   // Re-register backends before the window loads so the renderer's first
   // `surface.create` (e.g. the active workspace's terminal) finds its backend.
   await restoreBackends(store, backends)
 
   const win = createWindow()
   initUpdater(win)
+
+  // Wire the browser router's main → renderer sink to the window, so a routed
+  // URL (guest shim or web-links) opens a new browser tab (direction A, AC3.2).
+  router.setEmitter((channel, payload) => {
+    if (!win.isDestroyed()) {
+      win.webContents.send(channel, payload)
+    }
+  })
+  app.once('before-quit', () => router.closeAll())
+
+  // Live browser views (AC3.1): each browser tab's page is a host
+  // `WebContentsView` parented to the window's content view. The renderer drives
+  // its chrome + position; the registry streams navigation state back. Untrusted
+  // web content, so the view runs isolated + sandboxed with no node integration;
+  // it uses the default session, so a host login (J3-S3) is reused.
+  const browserViews = new BrowserViewRegistry(
+    win.contentView as unknown as ViewParent,
+    () =>
+      new WebContentsView({
+        webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+      }) as unknown as ManagedView,
+    (channel, payload) => {
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, payload)
+      }
+    }
+  )
+  registerBrowserIpc(browserViews)
+  app.once('before-quit', () => browserViews.disposeAll())
 
   app.on('activate', () => {
     // macOS: re-open a window when the dock icon is clicked and none are open.

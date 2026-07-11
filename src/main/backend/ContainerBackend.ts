@@ -15,6 +15,7 @@
  */
 import { NotImplementedError } from '@shared/errors'
 import type { BackendKind, BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
+import type { RoutingEndpoint, RoutingProvider } from '@main/routing'
 import type {
   Backend,
   ProcessResult,
@@ -23,6 +24,55 @@ import type {
   RunProcessOptions
 } from './Backend'
 import type { ContainerRuntime } from './ContainerRuntime'
+
+/** `$BROWSER` target inside the guest — the canonical routing shim (AC3.2). */
+const SHIM_PATH = '/usr/local/bin/tessera-open'
+
+/**
+ * Every guest path the shim is installed to. `tessera-open` is what `$BROWSER`
+ * points at; `xdg-open`/`open` shadow the conventional launchers on PATH so a
+ * tool that calls them directly (ignoring `$BROWSER`) is intercepted too (AC3.2).
+ */
+const SHIM_INSTALL_PATHS = [SHIM_PATH, '/usr/local/bin/xdg-open', '/usr/local/bin/open']
+
+/**
+ * The guest-side browser shim (POSIX sh). It reads the injected route endpoint
+ * (`TESSERA_ROUTE_{HOST,PORT,TOKEN}`) and posts one JSON line to the host's
+ * per-workspace routing channel, so a container browser-open lands as a new host
+ * browser tab (direction A, AC3.2). The host address falls back to the guest's
+ * default gateway (which, under the `container` vmnet NAT, *is* the host) and
+ * then the vmnet default, so routing survives an unknown gateway. Transport
+ * falls back `nc` → `bash /dev/tcp`; if everything fails it prints the URL, so a
+ * terminal web-link (the backup action) can still open it. Only `\` and `"` need
+ * escaping to keep the JSON string well-formed — neither is common in an auth URL.
+ */
+const SHIM_SCRIPT = `#!/bin/sh
+# Tessera browser routing shim (PRD-3, AC3.2). Installed as xdg-open/open/
+# tessera-open and wired via $BROWSER. Best-effort: prints the URL on failure.
+url=$1
+[ -n "$url" ] || exit 0
+
+host=\${TESSERA_ROUTE_HOST}
+if [ -z "$host" ]; then
+  host=$(ip route 2>/dev/null | awk '/^default/ { print $3; exit }')
+fi
+[ -n "$host" ] || host=192.168.64.1
+port=\${TESSERA_ROUTE_PORT}
+token=\${TESSERA_ROUTE_TOKEN}
+
+if [ -n "$port" ] && [ -n "$token" ]; then
+  esc=$(printf '%s' "$url" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
+  line=$(printf '{"token":"%s","url":"%s"}' "$token" "$esc")
+  if command -v nc >/dev/null 2>&1; then
+    printf '%s\\n' "$line" | nc "$host" "$port" >/dev/null 2>&1 && exit 0
+  fi
+  if command -v bash >/dev/null 2>&1; then
+    bash -c 'exec 3<>/dev/tcp/"$1"/"$2" || exit 1; printf "%s\\n" "$3" >&3' tessera-open "$host" "$port" "$line" >/dev/null 2>&1 && exit 0
+  fi
+fi
+
+printf 'Tessera: open this URL in your browser:\\n%s\\n' "$url"
+`
 
 export interface ContainerBackendOptions {
   /** Machine name — the owning workspace's id. */
@@ -33,11 +83,22 @@ export interface ContainerBackendOptions {
   memory?: string
   /** The runtime that drives the underlying `container` machine. */
   runtime: ContainerRuntime
+  /**
+   * Guest→host URL routing (direction A, AC3.2). When present, the first
+   * terminal spawn ensures this workspace's routing channel and installs the
+   * guest shim, and every terminal is handed the route endpoint via `--env`.
+   * Absent (e.g. in unit tests) disables routing — terminals still open.
+   */
+  routing?: RoutingProvider
 }
 
 export class ContainerBackend implements Backend {
   readonly kind: BackendKind = 'container'
   private lifecycle: BackendStatus = 'stopped'
+  /** This workspace's routing endpoint, once its channel is listening. */
+  private routeEndpoint: RoutingEndpoint | null = null
+  /** Whether the guest shim has been installed this process (best-effort). */
+  private shimInstalled = false
 
   constructor(private readonly options: ContainerBackendOptions) {}
 
@@ -90,13 +151,61 @@ export class ContainerBackend implements Backend {
    * `start()` (workspace create) has already booted the machine to `running`,
    * and `machine run` also boots on demand, so there is no extra guard here.
    */
-  spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
+  async spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
+    // The guest backend marker (AC2.4) is always set. When routing is wired,
+    // ensure this workspace's channel + shim and hand the terminal the route
+    // endpoint via `--env`, so a guest `xdg-open`/`$BROWSER` reaches the host
+    // (direction A, AC3.2). All machine-side only — no host env crosses in.
+    const env: Record<string, string> = { TESSERA_BACKEND: 'container' }
+    const endpoint = await this.ensureRouting()
+    if (endpoint) {
+      env.BROWSER = SHIM_PATH
+      env.TESSERA_ROUTE_HOST = endpoint.host
+      env.TESSERA_ROUTE_PORT = String(endpoint.port)
+      env.TESSERA_ROUTE_TOKEN = endpoint.token
+    }
     return this.options.runtime.spawnExecPty(this.options.name, {
       cols: options.cols,
       rows: options.rows,
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
-      env: { TESSERA_BACKEND: 'container' }
+      env
     })
+  }
+
+  /**
+   * Bring up this workspace's guest→host routing (direction A, AC3.2), returning
+   * the endpoint terminals inject via `--env`, or `null` when routing is
+   * disabled or unavailable. Idempotent and lazy: the first terminal spawn (on
+   * create *or* boot restore, where `start` never ran) opens the channel and
+   * installs the shim; later spawns reuse both. Every step is best-effort — a
+   * channel that won't bind, or a shim that won't install, degrades to "no
+   * routing" rather than blocking the terminal (the web-links click stays a
+   * backup path).
+   */
+  private async ensureRouting(): Promise<RoutingEndpoint | null> {
+    const routing = this.options.routing
+    if (!routing) return null
+    if (!this.routeEndpoint) {
+      try {
+        this.routeEndpoint = await routing.ensureChannel(this.options.name)
+      } catch {
+        return null // channel didn't bind; retry on the next spawn
+      }
+    }
+    if (!this.shimInstalled) {
+      try {
+        await this.options.runtime.writeExecutable(
+          this.options.name,
+          SHIM_INSTALL_PATHS,
+          SHIM_SCRIPT
+        )
+        this.shimInstalled = true
+      } catch {
+        // Shim absent → a guest `xdg-open` won't route, but the env is still set
+        // and a tool that prints its URL is reachable via the terminal web-link.
+      }
+    }
+    return this.routeEndpoint
   }
 
   /**

@@ -37,7 +37,7 @@ import {
   useTabDrag
 } from '@renderer/layout'
 import type { LayoutActions } from '@renderer/layout'
-import { CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
+import { Banner, CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
 import {
   COMMANDS,
   LAYOUT_COMMANDS,
@@ -108,6 +108,16 @@ function countTabs(node: LayoutNode): number {
     : node.children.reduce((sum, child) => sum + countTabs(child), 0)
 }
 
+/** First pane id in pre-order — the fallback target for a routed browser tab. */
+function firstPaneId(node: LayoutNode): string | null {
+  if (node.type === 'pane') return node.id
+  for (const child of node.children) {
+    const id = firstPaneId(child)
+    if (id) return id
+  }
+  return null
+}
+
 /** Number of panes belonging to `areaId` (for the "+ host 영역 · N pane" segment). */
 function countAreaPanes(node: LayoutNode, areaId: string): number {
   return node.type === 'pane'
@@ -155,6 +165,10 @@ export function WorkspaceView({
   // The ⌘K command palette (default off) — a searchable, mouse-reachable twin of
   // the keymap, drawn from the same registry so the two can't drift (AC2.5).
   const [showPalette, setShowPalette] = useState(false)
+  // The URL of the most recent routed browser-open (direction A, AC3.2), shown
+  // as a self-dismissing info banner. Set only while this workspace is active so
+  // exactly one `.banner` is ever in the DOM (browser views hide behind it).
+  const [routedUrl, setRoutedUrl] = useState<string | null>(null)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
   const paneBodies = useRef(createPaneBodyRegistry()).current
@@ -341,6 +355,33 @@ export function WorkspaceView({
 
   useEffect(() => () => onHostAreaChange?.(null), [onHostAreaChange])
 
+  // Direction A (AC3.2): a container-originated URL routed to the host opens a
+  // new browser tab in this workspace's focused pane, with a self-dismissing
+  // info banner (M-J3-S1). The event carries its workspace, so each keep-alive
+  // view acts only on its own (AC3.5). Read via a ref so activation changes
+  // don't re-subscribe (and risk missing an event in the gap). The tab is added
+  // regardless of visibility — its tool's URL must open where the tool runs —
+  // but the banner is only raised while active, so exactly one `.banner` sits in
+  // the DOM at a time (each browser view hides itself behind it).
+  const activeRef = useRef(active)
+  activeRef.current = active
+  useEffect(() => {
+    return window.tessera.routing.onOpenUrl((event) => {
+      if (event.workspaceId !== workspace.id) return
+      const snapshot = engine.getSnapshot()
+      const paneId = engine.focusedPaneId ?? firstPaneId(snapshot.root)
+      if (paneId) actions.addTab(paneId, 'browser', event.url)
+      if (activeRef.current) setRoutedUrl(event.url)
+    })
+  }, [workspace.id, engine, actions])
+
+  // Drop the banner when this workspace is switched away from, so a routed open
+  // in a background workspace never leaves a stale `.banner` shadowing the
+  // visible workspace's browser views.
+  useEffect(() => {
+    if (!active) setRoutedUrl(null)
+  }, [active])
+
   // Autosave the layout skeleton (AC1.5): persist a debounced snapshot on every
   // layout change, flush synchronously on app quit so the last edit can't be
   // lost in the debounce window, and flush once on unmount (e.g. a future
@@ -432,6 +473,14 @@ export function WorkspaceView({
         actions={layoutActions}
         paneBodies={paneBodies}
       />
+      {routedUrl ? (
+        <div className="banner-slot">
+          <Banner kind="info" onDismiss={() => setRoutedUrl(null)} autoDismissMs={6000}>
+            컨테이너 내부 프로세스가 <b>브라우저 인증</b>을 요청했습니다 — Tessera가 이를 가로채
+            라우팅합니다.
+          </Banner>
+        </div>
+      ) : null}
       {showKeymap ? <KeymapOverlay /> : null}
       {showPalette ? (
         <CommandPalette

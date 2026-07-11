@@ -6,6 +6,8 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { IpcChannels } from '@shared/ipc'
 import type {
+  BrowserStateEvent,
+  OpenUrlEvent,
   PtyDataEvent,
   PtyExitEvent,
   PtyTitleEvent,
@@ -74,7 +76,16 @@ const api: TesseraApi = {
   },
   routing: {
     openUrlOnHost: (req) => ipcRenderer.invoke(IpcChannels.routing.openUrlOnHost, req),
-    forwardCallback: (req) => ipcRenderer.invoke(IpcChannels.routing.forwardCallback, req)
+    forwardCallback: (req) => ipcRenderer.invoke(IpcChannels.routing.forwardCallback, req),
+    onOpenUrl: (listener) => subscribe<OpenUrlEvent>(IpcChannels.routing.openUrl, listener)
+  },
+  browser: {
+    create: (req) => ipcRenderer.invoke(IpcChannels.browser.create, req),
+    setBounds: (req) => ipcRenderer.send(IpcChannels.browser.setBounds, req),
+    loadUrl: (req) => ipcRenderer.send(IpcChannels.browser.loadUrl, req),
+    navigate: (req) => ipcRenderer.send(IpcChannels.browser.navigate, req),
+    dispose: (req) => ipcRenderer.invoke(IpcChannels.browser.dispose, req),
+    onState: (listener) => subscribe<BrowserStateEvent>(IpcChannels.browser.state, listener)
   },
   update: {
     check: () => ipcRenderer.invoke(IpcChannels.update.check),
