@@ -220,6 +220,17 @@ describe('PersistenceStore.load', () => {
     expect(await store.load(snapshot.workspaceId)).toEqual(snapshot)
   })
 
+  it('reads back a container snapshot (image, no cwd) rather than dropping it', async () => {
+    // Regression: a container backend has an `image`, never a `cwd`. The restore
+    // validator once demanded a `cwd` unconditionally, so every container
+    // workspace was silently discarded on load and vanished on reload / restart.
+    const { snapshot } = buildWorkspace({ name: 'box', backendKind: 'container', image: 'node:22' })
+    const store = new PersistenceStore(baseDir)
+    await store.save(snapshot)
+
+    expect(await store.load(snapshot.workspaceId)).toEqual(snapshot)
+  })
+
   it('returns null when the workspace file is absent', async () => {
     const store = new PersistenceStore(baseDir)
     expect(await store.load('ws-missing')).toBeNull()
@@ -300,10 +311,10 @@ describe('PersistenceStore.load', () => {
 
   it('strips a persisted host area on load — restore reopens without it (AC2.7)', async () => {
     // The strip is layout-level (backend-agnostic); a host workspace is used
-    // only because it is restorable (container snapshots are dropped wholesale
-    // by the cwd check today). What is under test: a restorable snapshot that
-    // carries a host area has it removed on load, since a host area's backend is
-    // never re-registered on boot (full host-area restore is deferred to J4).
+    // here just to have a concrete restorable snapshot to hang a host area off.
+    // What is under test: a restorable snapshot that carries a host area has it
+    // removed on load, since a host area's backend is never re-registered on
+    // boot (full host-area restore is deferred to J4).
     const { snapshot } = buildWorkspace({ name: 'proj', cwd: '/tmp/proj', backendKind: 'host' })
     const store = new PersistenceStore(baseDir)
 
@@ -373,5 +384,17 @@ describe('PersistenceStore.list', () => {
 
     const list = await store.list()
     expect(list.map((s) => s.workspaceId)).toEqual([newer.workspaceId, older.workspaceId])
+  })
+
+  it('restores a container workspace (image, no cwd) alongside a host one', async () => {
+    const store = new PersistenceStore(baseDir)
+    const host = buildWorkspace({ name: 'host', cwd: '/tmp/host', backendKind: 'host' }).snapshot
+    const box = buildWorkspace({ name: 'box', backendKind: 'container', image: 'node:22' }).snapshot
+    await store.save(host)
+    await store.save(box)
+
+    const ids = (await store.list()).map((s) => s.workspaceId)
+    expect(ids).toContain(host.workspaceId)
+    expect(ids).toContain(box.workspaceId)
   })
 })

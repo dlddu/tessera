@@ -23,12 +23,29 @@ import type { WorkspaceStateSnapshot } from '@shared/types'
 const SNAPSHOT_EXT = '.json'
 
 /**
+ * A workspace backend is restorable when it carries the identifying field its
+ * kind needs to be rebuilt on boot: a host backend's working directory (`cwd`,
+ * AC2.2) or a container backend's image reference (`image`, AC2.1). The check is
+ * per-kind on purpose — an earlier unconditional `cwd` requirement silently
+ * dropped every *container* workspace on restore (a container backend has an
+ * `image`, never a `cwd`), so container workspaces vanished on reload / restart.
+ */
+function isRestorableBackend(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const backend = value as { kind?: unknown; cwd?: unknown; image?: unknown }
+  if (backend.kind === 'host') return typeof backend.cwd === 'string'
+  if (backend.kind === 'container') return typeof backend.image === 'string'
+  return false
+}
+
+/**
  * Accept only well-formed snapshots at the current schema version. Older files
  * are upgraded by {@link migrateWorkspaceSnapshot} before they reach here (see
  * {@link parseSnapshot}); anything still off-version, or structurally garbled,
  * is treated as absent. The check stays at the snapshot envelope (version,
- * workspace identity, a layout object) — it deliberately does not reach inside
- * `layout`, which the engine reconstructs and tolerates field-by-field.
+ * workspace identity + a restorable backend, a layout object) — it deliberately
+ * does not reach inside `layout`, which the engine reconstructs and tolerates
+ * field-by-field.
  */
 function isRestorable(value: unknown): value is WorkspaceStateSnapshot {
   if (typeof value !== 'object' || value === null) return false
@@ -38,7 +55,7 @@ function isRestorable(value: unknown): value is WorkspaceStateSnapshot {
     version?: unknown
     workspaceId?: unknown
     savedAt?: unknown
-    workspace?: { backend?: { cwd?: unknown } } | null
+    workspace?: { backend?: unknown } | null
     layout?: unknown
   }
   return (
@@ -47,7 +64,7 @@ function isRestorable(value: unknown): value is WorkspaceStateSnapshot {
     typeof snapshot.savedAt === 'number' &&
     typeof snapshot.workspace === 'object' &&
     snapshot.workspace !== null &&
-    typeof snapshot.workspace.backend?.cwd === 'string' &&
+    isRestorableBackend(snapshot.workspace.backend) &&
     typeof snapshot.layout === 'object' &&
     snapshot.layout !== null
   )

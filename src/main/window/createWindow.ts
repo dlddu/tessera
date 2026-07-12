@@ -41,6 +41,23 @@ export function createWindow(): BrowserWindow {
     window.show()
   })
 
+  // Swallow the renderer-reload accelerators (Cmd/Ctrl+R, Cmd/Ctrl+Shift+R, F5).
+  // A reload tears the whole renderer down — every live terminal PTY is killed
+  // and editor/browser state is lost, while only the layout skeleton is
+  // persisted (content restore is J4) — so an accidental reload effectively
+  // destroys the open workspaces. With no custom application menu, the default
+  // menu's `reload`/`forceReload` roles own these keys; `preventDefault` here
+  // suppresses those menu accelerators too (electron/electron#19279).
+  // Programmatic reloads (dev-server HMR) take a different path and are
+  // untouched — this only blocks the keyboard shortcut.
+  window.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return
+    const key = input.key.toLowerCase()
+    if (key === 'f5' || ((input.control || input.meta) && key === 'r')) {
+      event.preventDefault()
+    }
+  })
+
   const devServerUrl = process.env['ELECTRON_RENDERER_URL']
   if (!app.isPackaged && devServerUrl) {
     void window.loadURL(devServerUrl)
