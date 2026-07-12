@@ -57,7 +57,7 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     readFile: [] as Array<{ name: string; path: string }>,
     writeFile: [] as Array<{ name: string; path: string; data: Uint8Array }>,
     listDir: [] as Array<{ name: string; path: string }>,
-    writeExecutable: [] as Array<{ name: string; paths: string[]; contents: string }>
+    installBrowserShim: [] as Array<{ name: string; contents: string }>
   }
   const runtime: ContainerRuntime = {
     async ensureSystem() {
@@ -88,8 +88,9 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
         { name: 'a.ts', isDir: false }
       ]
     },
-    async writeExecutable(name, paths, contents) {
-      calls.writeExecutable.push({ name, paths, contents })
+    async installBrowserShim(name, contents) {
+      calls.installBrowserShim.push({ name, contents })
+      return '/home/dev/.local/bin/tessera-open'
     }
   }
   return { runtime, calls }
@@ -512,27 +513,33 @@ describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', (
     await expect(runtime.listDir('ws-9', '/gone')).rejects.toThrow(/exit 1.*No such file/s)
   })
 
-  it('writeExecutable installs a script to each path (one mkdir, base64 write, chmod, copies)', async () => {
-    const { runtime, spawned } = ptyRuntime(() => reply(''))
+  it('installBrowserShim resolves a writable guest dir, installs 3 names, and returns the path', async () => {
+    const installed = '/home/silas/.local/bin/tessera-open'
+    const { runtime, spawned } = ptyRuntime(() => reply(installed))
     const script = '#!/bin/sh\necho hi\n'
 
-    await runtime.writeExecutable(
-      'ws-9',
-      ['/usr/local/bin/tessera-open', '/usr/local/bin/xdg-open'],
-      script
-    )
+    const path = await runtime.installBrowserShim('ws-9', script)
 
+    // The guest echoes where the shim actually landed → the caller's $BROWSER.
+    expect(path).toBe(installed)
     expect(spawned).toHaveLength(1)
+    const cmd = scriptOf(spawned[0]!)
     const b64 = Buffer.from(script, 'utf8').toString('base64')
-    // Shared parent → a single mkdir; the first path is decoded, the rest copied;
-    // every path is chmod +x. One trailing shell statement (argv isn't preserved).
-    expect(scriptOf(spawned[0]!)).toBe(
-      `echo ${BEGIN}; mkdir -p '/usr/local/bin'` +
-        ` && printf %s '${b64}' | base64 -d > '/usr/local/bin/tessera-open'` +
-        ` && chmod +x '/usr/local/bin/tessera-open'` +
-        ` && cp -f '/usr/local/bin/tessera-open' '/usr/local/bin/xdg-open'` +
-        ` && chmod +x '/usr/local/bin/xdg-open'; echo ${END}$?`
-    )
+    // Install dir is probed in the guest — first absolute+writable $PATH dir,
+    // else ~/.local/bin (a non-root guest can't write /usr/local/bin).
+    expect(cmd).toContain('for p in $PATH')
+    expect(cmd).toContain('if [ -d "$p" ] && [ -w "$p" ]; then d=$p; break; fi')
+    expect(cmd).toContain('[ -n "$d" ] || { d=$HOME/.local/bin; mkdir -p "$d"; }')
+    // Decodes tessera-open, copies to xdg-open/open, +x all, echoes the path.
+    expect(cmd).toContain(`printf %s '${b64}' | base64 -d > "$d/tessera-open"`)
+    expect(cmd).toContain('cp -f "$d/tessera-open" "$d/xdg-open"')
+    expect(cmd).toContain('cp -f "$d/tessera-open" "$d/open"')
+    expect(cmd).toContain('&& printf %s "$d/tessera-open"')
+  })
+
+  it('installBrowserShim rejects when the guest produced no path', async () => {
+    const { runtime } = ptyRuntime(() => reply(''))
+    await expect(runtime.installBrowserShim('ws-9', '#!/bin/sh\n')).rejects.toThrow(/no path/)
   })
 })
 
@@ -600,27 +607,22 @@ describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
     return { backend, calls }
   }
 
-  it('installs the shim and injects the route endpoint via --env', async () => {
+  it('installs the shim and injects the resolved shim path + endpoint via --env', async () => {
     const ensureChannel = vi.fn(async () => endpoint)
     const { backend, calls } = routingBackend({ ensureChannel })
 
     await backend.spawnPty({ cols: 80, rows: 24 })
 
-    // The channel is ensured for this workspace, and the shim is installed to
-    // the conventional launcher paths (xdg-open/open) + the $BROWSER target.
+    // The channel is ensured for this workspace and the shim is installed.
     expect(ensureChannel).toHaveBeenCalledWith('ws-r')
-    expect(calls.writeExecutable).toHaveLength(1)
-    expect(calls.writeExecutable[0]!.paths).toEqual([
-      '/usr/local/bin/tessera-open',
-      '/usr/local/bin/xdg-open',
-      '/usr/local/bin/open'
-    ])
+    expect(calls.installBrowserShim).toHaveLength(1)
     // The installed shim reads the injected route env.
-    expect(calls.writeExecutable[0]!.contents).toContain('TESSERA_ROUTE_TOKEN')
-    // Every terminal gets BROWSER + the endpoint, alongside the backend marker.
+    expect(calls.installBrowserShim[0]!.contents).toContain('TESSERA_ROUTE_TOKEN')
+    // BROWSER is the shim's ACTUAL installed path (echoed back by the guest), not
+    // a fixed /usr/local/bin a non-root guest couldn't write to.
     expect(calls.spawnExecPty[0]!.options.env).toEqual({
       TESSERA_BACKEND: 'container',
-      BROWSER: '/usr/local/bin/tessera-open',
+      BROWSER: '/home/dev/.local/bin/tessera-open',
       TESSERA_ROUTE_HOST: '192.168.64.1',
       TESSERA_ROUTE_PORT: '51234',
       TESSERA_ROUTE_TOKEN: 'tok-abc'
@@ -635,7 +637,7 @@ describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
     await backend.spawnPty({ cols: 80, rows: 24 })
 
     expect(ensureChannel).toHaveBeenCalledTimes(1)
-    expect(calls.writeExecutable).toHaveLength(1)
+    expect(calls.installBrowserShim).toHaveLength(1)
     expect(calls.spawnExecPty).toHaveLength(2)
   })
 
@@ -644,7 +646,7 @@ describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
 
     await backend.spawnPty({ cols: 80, rows: 24 })
 
-    expect(calls.writeExecutable).toHaveLength(0)
+    expect(calls.installBrowserShim).toHaveLength(0)
     expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
   })
 
@@ -657,16 +659,21 @@ describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
     const proc = await backend.spawnPty({ cols: 80, rows: 24 })
 
     expect(proc.id).toBe('pty-ws-r')
-    expect(calls.writeExecutable).toHaveLength(0)
+    expect(calls.installBrowserShim).toHaveLength(0)
     expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
   })
 
-  it('injects the endpoint even if the shim install fails (web-links backup)', async () => {
+  it('does NOT set $BROWSER when the shim install fails (no dangling launcher)', async () => {
+    // Regression: a non-root guest can't write /usr/local/bin; if the install
+    // fails, $BROWSER must NOT be set (a $BROWSER pointing at a missing file
+    // breaks every browser-open — worse than none).
     const ensureChannel = vi.fn(async () => endpoint)
     const { runtime, calls } = fakeRuntime()
-    runtime.writeExecutable = vi.fn(async () => {
+    runtime.installBrowserShim = vi.fn(async () => {
       throw new Error('read-only fs')
     })
+    // The failure is logged for debuggability; silence it in the test.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const backend = new ContainerBackend({
       name: 'ws-r',
       image: 'node:22',
@@ -675,12 +682,13 @@ describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
       routing: { ensureChannel }
     })
 
-    await backend.spawnPty({ cols: 80, rows: 24 })
+    const proc = await backend.spawnPty({ cols: 80, rows: 24 })
+    errorSpy.mockRestore()
 
-    expect(calls.spawnExecPty[0]!.options.env).toMatchObject({
-      BROWSER: '/usr/local/bin/tessera-open',
-      TESSERA_ROUTE_TOKEN: 'tok-abc'
-    })
+    // Terminal still opens; no BROWSER/route env → the tool falls back to its own
+    // behavior (print the URL) and the terminal web-links click is the backup.
+    expect(proc.id).toBe('pty-ws-r')
+    expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
   })
 })
 

@@ -25,16 +25,6 @@ import type {
 } from './Backend'
 import type { ContainerRuntime } from './ContainerRuntime'
 
-/** `$BROWSER` target inside the guest — the canonical routing shim (AC3.2). */
-const SHIM_PATH = '/usr/local/bin/tessera-open'
-
-/**
- * Every guest path the shim is installed to. `tessera-open` is what `$BROWSER`
- * points at; `xdg-open`/`open` shadow the conventional launchers on PATH so a
- * tool that calls them directly (ignoring `$BROWSER`) is intercepted too (AC3.2).
- */
-const SHIM_INSTALL_PATHS = [SHIM_PATH, '/usr/local/bin/xdg-open', '/usr/local/bin/open']
-
 /**
  * The guest-side browser shim (POSIX sh). It reads the injected route endpoint
  * (`TESSERA_ROUTE_{HOST,PORT,TOKEN}`) and posts one JSON line to the host's
@@ -97,8 +87,8 @@ export class ContainerBackend implements Backend {
   private lifecycle: BackendStatus = 'stopped'
   /** This workspace's routing endpoint, once its channel is listening. */
   private routeEndpoint: RoutingEndpoint | null = null
-  /** Whether the guest shim has been installed this process (best-effort). */
-  private shimInstalled = false
+  /** Absolute guest path of the installed shim (the `$BROWSER` target), once set. */
+  private browserShimPath: string | null = null
 
   constructor(private readonly options: ContainerBackendOptions) {}
 
@@ -157,12 +147,15 @@ export class ContainerBackend implements Backend {
     // endpoint via `--env`, so a guest `xdg-open`/`$BROWSER` reaches the host
     // (direction A, AC3.2). All machine-side only — no host env crosses in.
     const env: Record<string, string> = { TESSERA_BACKEND: 'container' }
-    const endpoint = await this.ensureRouting()
-    if (endpoint) {
-      env.BROWSER = SHIM_PATH
-      env.TESSERA_ROUTE_HOST = endpoint.host
-      env.TESSERA_ROUTE_PORT = String(endpoint.port)
-      env.TESSERA_ROUTE_TOKEN = endpoint.token
+    const routing = await this.ensureRouting()
+    if (routing) {
+      // `$BROWSER` is the shim's *actual* installed path (resolved in the guest —
+      // a non-root guest can't use /usr/local/bin), so it never points at a
+      // missing file.
+      env.BROWSER = routing.browser
+      env.TESSERA_ROUTE_HOST = routing.endpoint.host
+      env.TESSERA_ROUTE_PORT = String(routing.endpoint.port)
+      env.TESSERA_ROUTE_TOKEN = routing.endpoint.token
     }
     return this.options.runtime.spawnExecPty(this.options.name, {
       cols: options.cols,
@@ -174,15 +167,18 @@ export class ContainerBackend implements Backend {
 
   /**
    * Bring up this workspace's guest→host routing (direction A, AC3.2), returning
-   * the endpoint terminals inject via `--env`, or `null` when routing is
-   * disabled or unavailable. Idempotent and lazy: the first terminal spawn (on
-   * create *or* boot restore, where `start` never ran) opens the channel and
-   * installs the shim; later spawns reuse both. Every step is best-effort — a
-   * channel that won't bind, or a shim that won't install, degrades to "no
-   * routing" rather than blocking the terminal (the web-links click stays a
-   * backup path).
+   * the route endpoint plus the installed shim's absolute path for `--env`
+   * injection, or `null` when routing is disabled or unavailable. Idempotent and
+   * lazy: the first terminal spawn (on create *or* boot restore, where `start`
+   * never ran) opens the channel and installs the shim; later spawns reuse both.
+   *
+   * Every step is best-effort, and crucially returns `null` (so NO `$BROWSER` is
+   * set) unless the shim was actually installed — a `$BROWSER` pointing at a
+   * missing file breaks every browser-open, which is worse than none. A failed
+   * channel or install is logged and retried on the next spawn; the terminal
+   * still opens and the web-links click stays a backup path.
    */
-  private async ensureRouting(): Promise<RoutingEndpoint | null> {
+  private async ensureRouting(): Promise<{ endpoint: RoutingEndpoint; browser: string } | null> {
     const routing = this.options.routing
     if (!routing) return null
     if (!this.routeEndpoint) {
@@ -192,20 +188,23 @@ export class ContainerBackend implements Backend {
         return null // channel didn't bind; retry on the next spawn
       }
     }
-    if (!this.shimInstalled) {
+    if (!this.browserShimPath) {
       try {
-        await this.options.runtime.writeExecutable(
+        this.browserShimPath = await this.options.runtime.installBrowserShim(
           this.options.name,
-          SHIM_INSTALL_PATHS,
           SHIM_SCRIPT
         )
-        this.shimInstalled = true
-      } catch {
-        // Shim absent → a guest `xdg-open` won't route, but the env is still set
-        // and a tool that prints its URL is reachable via the terminal web-link.
+      } catch (error) {
+        // Do NOT set $BROWSER without a real shim path; degrade to web-links and
+        // retry the install on the next spawn.
+        console.error(
+          `[tessera] browser routing shim install failed for ${this.options.name}:`,
+          error
+        )
+        return null
       }
     }
-    return this.routeEndpoint
+    return { endpoint: this.routeEndpoint, browser: this.browserShimPath }
   }
 
   /**
