@@ -434,10 +434,6 @@ body{
 .banner.ok{background:color-mix(in srgb,var(--ok) 12%,var(--tile-raise)); color:var(--ok)} .banner.ok .bi{color:var(--ok)}
 .banner .bmsg{color:var(--ink)} .banner.danger .bmsg, .banner.warn .bmsg{color:var(--ink)}
 .banner .bact{margin-left:auto; display:flex; gap:6px}
-/* Routing banner: pinned across the top of the surface, above the layout (PRD-3). */
-.banner-slot{position:absolute; left:0; right:0; top:0; z-index:30}
-.banner-x{cursor:pointer; opacity:.55; font-size:15px; line-height:1; padding:0 4px}
-.banner-x:hover{opacity:1}
 
 /* ============================================================ C-palette */
 .palette{width:min(520px,92%); background:var(--tile-raise); border:1px solid var(--line); border-radius:var(--r-card); box-shadow:var(--shadow-dialog); overflow:hidden}

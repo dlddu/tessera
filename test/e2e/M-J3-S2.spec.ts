@@ -68,8 +68,8 @@ test('container xdg-open routes the URL to a new host browser tab', async () => 
       /example\.com/,
       { timeout: 30_000 }
     )
-    // The routing banner announces the intercept (M-J3-S1 copy).
-    await expect(window.getByTestId('banner')).toContainText('브라우저 인증')
+    // The routing toast announces the intercept.
+    await expect(window.getByTestId('routing-toast')).toContainText('라우팅됨')
   } finally {
     await app.close()
   }

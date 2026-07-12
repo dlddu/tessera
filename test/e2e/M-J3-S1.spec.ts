@@ -3,20 +3,20 @@ import { test, expect, _electron as electron } from '@playwright/test'
 
 /**
  * M-J3-S1 (AC3.2): a routed browser-open opens a new host browser tab and raises
- * the intercept banner.
+ * the routing toast.
  *
  * This exercises the renderer reception + browser surface without a container:
  * on a host workspace we invoke `routing.openUrlOnHost` (the same entry point the
  * terminal web-links click uses — the "tool only prints a URL" path of AC3.2),
  * which round-trips renderer → main `BrowserRouter` → `routing.openUrl` back to
  * the renderer. We assert the focused pane gains a browser tab whose address bar
- * shows the URL and that the M-J3-S1 info banner appears. The full container
+ * shows the URL and that the routing toast appears. The full container
  * `xdg-open` path is covered (gated) by M-J3-S2.
  *
  * Non-gating: needs only the built app (like the other renderer e2e), no
  * `container` runtime.
  */
-test('a routed URL opens a host browser tab + intercept banner (AC3.2)', async () => {
+test('a routed URL opens a host browser tab + routing toast (AC3.2)', async () => {
   const app = await electron.launch({ args: [resolve('out/main/index.js')] })
 
   try {
@@ -57,8 +57,8 @@ test('a routed URL opens a host browser tab + intercept banner (AC3.2)', async (
     await expect(window.locator('.surface-slot:not([hidden]) .urlinput')).toHaveValue(
       /idp\.acme\.dev/
     )
-    // …and the intercept banner announces the routing (M-J3-S1 copy).
-    await expect(window.getByTestId('banner')).toContainText('브라우저 인증')
+    // …and the routing toast announces the intercept.
+    await expect(window.getByTestId('routing-toast')).toContainText('라우팅됨')
   } finally {
     await app.close()
   }

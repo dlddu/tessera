@@ -37,7 +37,7 @@ import {
   useTabDrag
 } from '@renderer/layout'
 import type { LayoutActions } from '@renderer/layout'
-import { Banner, CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
+import { CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
 import {
   COMMANDS,
   LAYOUT_COMMANDS,
@@ -61,6 +61,8 @@ const WORKSPACE_VIEW_KEYS: readonly Command[] = [...LAYOUT_COMMANDS, commandById
 const SAVE_DEBOUNCE_MS = 500
 /** How long the "saved ✓" toast lingers after a successful persist. */
 const SAVED_TOAST_MS = 1600
+/** How long the "routed to browser" toast lingers after a routed open (AC3.2). */
+const ROUTING_TOAST_MS = 3500
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
@@ -375,9 +377,16 @@ export function WorkspaceView({
     })
   }, [workspace.id, engine, actions])
 
-  // Drop the banner when this workspace is switched away from, so a routed open
-  // in a background workspace never leaves a stale `.banner` shadowing the
-  // visible workspace's browser views.
+  // Auto-dismiss the routing toast a few seconds after it appears (re-armed if
+  // another URL routes in the meantime).
+  useEffect(() => {
+    if (!routedUrl) return
+    const timer = setTimeout(() => setRoutedUrl(null), ROUTING_TOAST_MS)
+    return () => clearTimeout(timer)
+  }, [routedUrl])
+
+  // Drop the toast when this workspace is switched away from, so a routed open in
+  // a background workspace never leaves a stale toast for the visible one.
   useEffect(() => {
     if (!active) setRoutedUrl(null)
   }, [active])
@@ -474,11 +483,12 @@ export function WorkspaceView({
         paneBodies={paneBodies}
       />
       {routedUrl ? (
-        <div className="banner-slot">
-          <Banner kind="info" onDismiss={() => setRoutedUrl(null)} autoDismissMs={3500}>
-            컨테이너 내부 프로세스가 <b>브라우저 인증</b>을 요청했습니다 — Tessera가 이를 가로채
-            라우팅합니다.
-          </Banner>
+        <div className="toast route" data-testid="routing-toast">
+          <span className="ti">◆</span>
+          <div>
+            <div className="tt">브라우저로 라우팅됨</div>
+            <div className="td">컨테이너의 브라우저 요청을 호스트 탭으로 열었습니다</div>
+          </div>
         </div>
       ) : null}
       {showKeymap ? <KeymapOverlay /> : null}
