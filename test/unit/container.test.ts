@@ -616,8 +616,11 @@ describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
     // The channel is ensured for this workspace and the shim is installed.
     expect(ensureChannel).toHaveBeenCalledWith('ws-r')
     expect(calls.installBrowserShim).toHaveLength(1)
-    // The installed shim reads the injected route env.
+    // The installed shim reads the injected route env …
     expect(calls.installBrowserShim[0]!.contents).toContain('TESSERA_ROUTE_TOKEN')
+    // … and auto-detects the host from the container's default gateway
+    // (/proc/net/route, no `ip` binary) so it works whatever the subnet.
+    expect(calls.installBrowserShim[0]!.contents).toContain('/proc/net/route')
     // BROWSER is the shim's ACTUAL installed path (echoed back by the guest), not
     // a fixed /usr/local/bin a non-root guest couldn't write to.
     expect(calls.spawnExecPty[0]!.options.env).toEqual({

@@ -26,42 +26,69 @@ import type {
 import type { ContainerRuntime } from './ContainerRuntime'
 
 /**
- * The guest-side browser shim (POSIX sh). It reads the injected route endpoint
- * (`TESSERA_ROUTE_{HOST,PORT,TOKEN}`) and posts one JSON line to the host's
+ * The guest-side browser shim (POSIX sh). Reads the injected route endpoint
+ * (`TESSERA_ROUTE_{PORT,TOKEN}`) and posts one JSON line to the host's
  * per-workspace routing channel, so a container browser-open lands as a new host
- * browser tab (direction A, AC3.2). The host address falls back to the guest's
- * default gateway (which, under the `container` vmnet NAT, *is* the host) and
- * then the vmnet default, so routing survives an unknown gateway. Transport
- * falls back `nc` → `bash /dev/tcp`; if everything fails it prints the URL, so a
- * terminal web-link (the backup action) can still open it. Only `\` and `"` need
- * escaping to keep the JSON string well-formed — neither is common in an auth URL.
+ * browser tab (direction A, AC3.2).
+ *
+ * Host discovery: the container's default gateway *is* the host under NAT, so it
+ * is read straight from `/proc/net/route` (no `ip` binary needed — many images
+ * lack it) and tried first, then the injected `TESSERA_ROUTE_HOST`, then the
+ * vmnet default; whichever accepts a connection wins (subnets differ: Apple
+ * `container` 192.168.64/…, Docker 192.168.65/…). Transport is `bash /dev/tcp`
+ * or `nc`, each capped at ~3s by a background killer (no `timeout` binary
+ * needed) so a dropped SYN can't wedge the caller. On any failure it prints the
+ * URL so a terminal web-link (the backup action) can still open it.
  */
 const SHIM_SCRIPT = `#!/bin/sh
-# Tessera browser routing shim (PRD-3, AC3.2). Installed as xdg-open/open/
-# tessera-open and wired via $BROWSER. Best-effort: prints the URL on failure.
 url=$1
 [ -n "$url" ] || exit 0
-
-host=\${TESSERA_ROUTE_HOST}
-if [ -z "$host" ]; then
-  host=$(ip route 2>/dev/null | awk '/^default/ { print $3; exit }')
-fi
-[ -n "$host" ] || host=192.168.64.1
 port=\${TESSERA_ROUTE_PORT}
 token=\${TESSERA_ROUTE_TOKEN}
 
-if [ -n "$port" ] && [ -n "$token" ]; then
-  esc=$(printf '%s' "$url" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
-  line=$(printf '{"token":"%s","url":"%s"}' "$token" "$esc")
-  if command -v nc >/dev/null 2>&1; then
-    printf '%s\\n' "$line" | nc "$host" "$port" >/dev/null 2>&1 && exit 0
-  fi
-  if command -v bash >/dev/null 2>&1; then
-    bash -c 'exec 3<>/dev/tcp/"$1"/"$2" || exit 1; printf "%s\\n" "$3" >&3' tessera-open "$host" "$port" "$line" >/dev/null 2>&1 && exit 0
-  fi
+fallback() {
+  printf 'Tessera: open this URL in your browser:\\n%s\\n' "$url"
+  exit 0
+}
+[ -n "$port" ] && [ -n "$token" ] || fallback
+
+gw=
+gwhex=$(awk '$2=="00000000"{print $3;exit}' /proc/net/route 2>/dev/null)
+if [ -n "$gwhex" ] && [ "$gwhex" != 00000000 ]; then
+  t=\${gwhex#????}; o2=$(( 0x\${t%??} ))
+  t=\${gwhex#??};   o3=$(( 0x\${t%????} ))
+  gw="$(( 0x\${gwhex#??????} )).$o2.$o3.$(( 0x\${gwhex%??????} ))"
 fi
 
-printf 'Tessera: open this URL in your browser:\\n%s\\n' "$url"
+esc=$(printf '%s' "$url" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
+line=$(printf '{"token":"%s","url":"%s"}' "$token" "$esc")
+
+run() {
+  "$@" &
+  c=$!
+  ( sleep 3; kill "$c" 2>/dev/null ) 2>/dev/null &
+  g=$!
+  wait "$c" 2>/dev/null
+  s=$?
+  kill "$g" 2>/dev/null
+  return $s
+}
+
+send() {
+  if command -v bash >/dev/null 2>&1; then
+    run bash -c 'exec 2>/dev/null; exec 3<>/dev/tcp/"$1"/"$2" || exit 1; printf "%s\\n" "$3" >&3' _ "$1" "$port" "$line" && return 0
+  fi
+  if command -v nc >/dev/null 2>&1; then
+    run sh -c 'printf "%s\\n" "$3" | nc "$1" "$2" >/dev/null 2>&1' _ "$1" "$port" "$line" && return 0
+  fi
+  return 1
+}
+
+for h in "$gw" "$TESSERA_ROUTE_HOST" 192.168.64.1; do
+  [ -n "$h" ] || continue
+  send "$h" && exit 0
+done
+fallback
 `
 
 export interface ContainerBackendOptions {
