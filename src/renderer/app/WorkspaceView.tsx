@@ -475,7 +475,7 @@ export function WorkspaceView({
       />
       {routedUrl ? (
         <div className="banner-slot">
-          <Banner kind="info" onDismiss={() => setRoutedUrl(null)} autoDismissMs={6000}>
+          <Banner kind="info" onDismiss={() => setRoutedUrl(null)} autoDismissMs={3500}>
             컨테이너 내부 프로세스가 <b>브라우저 인증</b>을 요청했습니다 — Tessera가 이를 가로채
             라우팅합니다.
           </Banner>

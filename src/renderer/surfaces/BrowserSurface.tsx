@@ -92,15 +92,18 @@ export function BrowserSurface({ tab, onTitle, onUrl }: BrowserSurfaceProps) {
     // Track the native view to the `.bview` region every frame, but only emit
     // when the bounds/visibility actually change (most frames are no-ops), so a
     // steady layout costs one comparison per frame, not an IPC flood. Hidden
-    // tabs (0×0) and DOM overlays (a modal `.scrim` or the routing `.banner`,
-    // which the native view would otherwise cover) fold into `visible = false`.
+    // tabs (0×0) and a full-window modal `.scrim` (which the native view would
+    // otherwise render on top of) fold into `visible = false`. The routing
+    // `.banner` is deliberately NOT hidden-for: it's a thin strip above the
+    // `.bview` region, so it doesn't overlap the view — hiding the whole page
+    // for it would blank the freshly-opened tab while the banner shows.
     const syncBounds = (): void => {
       raf = requestAnimationFrame(syncBounds)
       const viewId = viewIdRef.current
       const el = bviewRef.current
       if (!viewId || !el) return
       const rect = el.getBoundingClientRect()
-      const overlay = document.querySelector('.scrim, .banner') !== null
+      const overlay = document.querySelector('.scrim') !== null
       const visible = rect.width > 1 && rect.height > 1 && !overlay
       const bounds = {
         x: Math.round(rect.left),
