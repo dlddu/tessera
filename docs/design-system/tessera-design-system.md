@@ -77,9 +77,9 @@
 
 ### `T-radius` / `T-elevation` / `T-motion`
 
-- 반경: 타일 `6` · 카드/다이얼로그 `10` · 칩 `6` · pill `999`
-- 그림자: `--shadow-dialog`(모달), `--shadow-toast`(토스트)
-- 모션: `--blink`(터미널 커서) · `--spin`(작업 스피너) · `--pulse`(live 점) · `--shimmer`(복원 중). 모두 `prefers-reduced-motion: reduce`에서 정지.
+- 반경: 타일 `6` · 카드/다이얼로그 `10` · 칩 `6` · pill `999`(토스트 칩 포함)
+- 그림자: `--shadow-dialog`(모달), `--shadow-toast`(부유 힌트 오버레이 — 키맵 등. 토스트 칩 자체는 그림자 없이 틴트 보더·배경으로 구분)
+- 모션: `--blink`(터미널 커서) · `--spin`(작업 스피너) · `--pulse`(live 점) · `--shimmer`(복원 중) · `toast-in`(타이틀바 토스트 칩 진입). 모두 `prefers-reduced-motion: reduce`에서 정지.
 
 ---
 
@@ -89,7 +89,7 @@
 
 | ID | 이름 | 설명 |
 |---|---|---|
-| `C-window` | 앱 윈도우 | macOS 윈도우 프레임. 좌측 신호등(빨강/노랑/초록), 타이틀바에 workspace 이름·backend 배지 |
+| `C-window` | 앱 윈도우 | macOS 윈도우 프레임. 좌측 신호등(빨강/노랑/초록), 타이틀바에 workspace 이름·상태 칩 슬롯(`.titlebar-status`, C-toast)·backend 배지 |
 | `C-statusbar` | 상태줄 | 하단 tmux 스타일 모노스페이스 바. 좌: mark+workspace / 중: backend / 우: 키맵 힌트+시계 |
 | `C-workspace-rail` | 워크스페이스 레일 | 단일 창 좌측의 workspace 목록/스위처. 각 항목: backend 점 + 이름 + ⌘N 힌트, 활성 항목 강조, 하단 "새 워크스페이스" (J1) |
 | `C-pane` | pane(타일) | 그라우트 위 타일. 상단 2px 정체성 스트라이프 + 탭바 + 콘텐츠 |
@@ -103,7 +103,7 @@
 | `C-field` | 폼 필드 | 텍스트·경로 선택·목록 입력 |
 | `C-segmented` | 분절 토글 | host ↔ container backend 선택 등 2분절 컨트롤 |
 | `C-keycap` | 키캡 | 단축키 힌트 칩 (예: `⌘` `⏎`). 키처럼 하단 그림자 |
-| `C-toast` | 토스트 | 우하단 부유 칩. 좌측 의미색 보더 + 아이콘 + 텍스트 |
+| `C-toast` | 토스트 | 타이틀바 상태 칩(pill). 배지 좌측 `.titlebar-status` 슬롯에 잠깐 표시 — 의미색 틴트 보더·배경 + 아이콘 + 짧은 제목. 긴 설명은 hover tooltip(`title`), 드래그 칩만 라이브 상세를 인라인(말줄임) 유지 |
 | `C-banner` | 배너 | pane/윈도우 내 인라인 상태 띠 (warn/danger/info) |
 | `C-badge` | 배지 | 상태 칩 — host·container·live·read-only 등 |
 | `C-palette` | 커맨드 팔레트 | 중앙 오버레이 검색 + 결과 목록 + 키맵 |
@@ -126,7 +126,7 @@
 | `P-split-v` | 수직 분할 | 두 pane이 좌우로 | J1-S3 |
 | `P-grid-2x2` | 2×2 모자이크 | 4종 컴포넌트 타일이 격자로 공존 | J1-S4, J2-S4 |
 | `P-modal-over-quiet` | 빈 표면 위 모달 | 조용한/빈 workspace 위 다이얼로그 | J1-S1, J2-S1 |
-| `P-overlay` | 라이브 위 오버레이 | 동작 중 레이아웃 위 토스트·팔레트·드롭 타깃 | J1-S5, J1-S7, J2-S5, J3-S2 |
+| `P-overlay` | 라이브 위 오버레이 | 동작 중 레이아웃 위 팔레트·키맵 힌트·드롭 타깃 (토스트는 오버레이가 아니라 타이틀바 칩 — C-toast 참조) | J1-S5, J1-S7, J2-S5, J3-S2 |
 | `P-flowmap` | 라우팅 흐름맵 | host↔container URL 전달·콜백 포워딩을 보여주는 미니 다이어그램 레이아웃 | J3-S2, J3-S4, J3-S6 |
 | `P-restore` | 복원 프레이밍 | 흐려진(read-only) 타일 + 상태 배너 | J4-S1~S4 |
 | `P-workspace-rail` | 워크스페이스 레일 | 단일 창 안에서 좌측 workspace 목록 레일과 활성 workspace 표면을 나란히 배치(목록에서 전환) | J1-S8 |
