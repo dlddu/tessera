@@ -38,6 +38,7 @@ import type {
 import type { Area } from '@shared/types'
 import { buildWorkspace, validateWorkspaceInput } from '@shared/workspace'
 import type { BackendRegistry } from '@main/backend'
+import type { BrowserRouter } from '@main/routing'
 import { PersistenceStore } from '@main/persistence'
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -52,11 +53,14 @@ async function isDirectory(path: string): Promise<boolean> {
 export interface WorkspaceIpcDeps {
   backends: BackendRegistry
   store?: PersistenceStore
+  /** Browser router — its per-workspace routing channel is closed on workspace close (PRD-3). */
+  router?: BrowserRouter
 }
 
 export function registerWorkspaceIpc({
   backends,
-  store = new PersistenceStore(app.getPath('userData'))
+  store = new PersistenceStore(app.getPath('userData')),
+  router
 }: WorkspaceIpcDeps): void {
   // cwd of the most recently created workspace this session; seeds the next
   // create dialog so consecutive workspaces reuse the same parent path.
@@ -154,6 +158,10 @@ export function registerWorkspaceIpc({
     IpcChannels.workspace.close,
     async (_event, req: CloseWorkspaceRequest): Promise<void> => {
       backends.delete(req.workspaceId)
+      // Tear down the workspace's guest→host routing channel (a no-op for host
+      // workspaces / ones that never opened one) so its listener + token don't
+      // outlive it (PRD-3).
+      router?.closeChannel(req.workspaceId)
       await store.delete(req.workspaceId)
     }
   )

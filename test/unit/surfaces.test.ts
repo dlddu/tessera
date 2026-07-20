@@ -1,33 +1,47 @@
 import { describe, expect, it } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-// Import the two static surfaces from their modules directly: the surfaces
-// barrel re-exports Terminal/Editor surfaces, which pull xterm/CodeMirror
-// (browser-only) and would crash this node test environment.
+import type { TabNode } from '@shared/types'
+// Import the surfaces from their modules directly: the surfaces barrel
+// re-exports Terminal/Editor surfaces, which pull xterm/CodeMirror (browser-
+// only) and would crash this node test environment.
 import { BrowserSurface } from '@renderer/surfaces/BrowserSurface'
 import { ClaudeSurface } from '@renderer/surfaces/ClaudeSurface'
 
-// M-J1-S4: the browser + Claude panes are static visual surfaces. They have no
-// native/IPC dependencies, so we can render them to static markup and assert
-// they reproduce the mockup's identity classes + testids.
+// The Claude pane is still a static visual surface; the browser pane is now
+// live (PRD-3) — its page is a host WebContentsView owned by main, so here we
+// render only its chrome (static markup runs no effects, so it never touches
+// the IPC bridge) and assert the address bar + nav + view region.
 
-describe('BrowserSurface', () => {
-  const html = renderToStaticMarkup(createElement(BrowserSurface))
+describe('BrowserSurface (live chrome)', () => {
+  const tab: TabNode = {
+    id: 'tab-web',
+    title: 'idp.acme.dev',
+    surface: 'browser',
+    areaId: 'area-default',
+    url: 'https://idp.acme.dev/authorize'
+  }
+  const html = renderToStaticMarkup(
+    createElement(BrowserSurface, { tab, onTitle: () => {}, onUrl: () => {} })
+  )
 
   it('exposes the browser-surface testid on the C-browser root', () => {
     expect(html).toContain('data-testid="browser-surface"')
     expect(html).toContain('class="browser"')
   })
 
-  it('renders the address bar + a skeleton page in web identity', () => {
+  it('renders an editable address bar seeded with the tab URL, nav buttons, and the view region', () => {
     expect(html).toContain('class="bchrome"')
     expect(html).toContain('class="baddr"')
-    expect(html).toContain('localhost:5173')
-    expect(html).toContain('class="bview"')
-    expect(html).toContain('class="page-bar"')
-    expect(html).toContain('skline')
-    // The page logo carries the browser identity hue.
-    expect(html).toContain('var(--id-web)')
+    // The address bar is a live input pre-filled with the tab's URL (AC3.2).
+    expect(html).toContain('urlinput')
+    expect(html).toContain('value="https://idp.acme.dev/authorize"')
+    // Nav controls are present (back/forward/reload).
+    expect(html).toContain('class="navbtn"')
+    expect(html).toContain('aria-label="새로고침"')
+    // The region the native WebContentsView is positioned over.
+    expect(html).toContain('data-testid="browser-view"')
+    expect(html).toContain('bview-live')
   })
 })
 

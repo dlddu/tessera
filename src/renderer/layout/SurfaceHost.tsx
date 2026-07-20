@@ -82,7 +82,13 @@ function TabSurface({
         />
       )
     case 'browser':
-      return <BrowserSurface />
+      return (
+        <BrowserSurface
+          tab={tab}
+          onTitle={(title) => actions.setTabTitle(tab.id, title)}
+          onUrl={(url) => actions.setTabUrl(tab.id, url)}
+        />
+      )
     case 'claude':
       return <ClaudeSurface />
     default:

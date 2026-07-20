@@ -234,6 +234,82 @@ export interface ForwardCallbackResult {
   hostPort: number
 }
 
+/**
+ * main → renderer: a container-originated URL was routed to the host and should
+ * open in a new browser tab (direction A, AC3.2). Carries the owning workspace
+ * so the renderer opens the tab in the right window's focused pane (AC3.5).
+ */
+export interface OpenUrlEvent {
+  workspaceId: string
+  url: string
+}
+
+/* ------------------------------------------------------- live browser (view) */
+
+/**
+ * renderer → main: back a browser tab with a live host `WebContentsView`
+ * (AC3.1). The renderer owns the tab's chrome (address bar, nav); the view
+ * renders the page above the pane body, positioned by {@link SetBrowserBoundsRequest}.
+ */
+export interface CreateBrowserViewRequest {
+  /** Owning browser tab id — one view per tab, stable for the tab's life. */
+  tabId: string
+  /** Initial URL to load, when the tab was opened onto one (routed open). */
+  url?: string
+}
+export interface CreateBrowserViewResult {
+  viewId: string
+}
+
+/** A view's pixel rectangle within the window content area (CSS/DIP pixels). */
+export interface BrowserViewBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/**
+ * renderer → main: track a view to its pane body. `visible: false` detaches it
+ * from view (inactive keep-alive tab, or a DOM overlay covering it) without
+ * destroying it, so its page keeps running.
+ */
+export interface SetBrowserBoundsRequest {
+  viewId: string
+  bounds: BrowserViewBounds
+  visible: boolean
+}
+
+/** renderer → main: navigate a view to `url` (address-bar submit / routed open). */
+export interface LoadBrowserUrlRequest {
+  viewId: string
+  url: string
+}
+
+/** renderer → main: a history/reload control for a view. */
+export interface NavigateBrowserRequest {
+  viewId: string
+  action: 'back' | 'forward' | 'reload' | 'stop'
+}
+
+export interface DisposeBrowserViewRequest {
+  viewId: string
+}
+
+/**
+ * main → renderer: a view's navigation state changed — its committed URL, page
+ * title, load state, and history availability. Drives the tab's address bar,
+ * title, and nav-button enabled state.
+ */
+export interface BrowserStateEvent {
+  viewId: string
+  url: string
+  title: string
+  loading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
+}
+
 /* --------------------------------------------------------------- auto-update */
 
 /** main → renderer: a newer version was found and is being downloaded. */
@@ -317,6 +393,27 @@ export interface PersistenceApi {
 export interface RoutingApi {
   openUrlOnHost(req: OpenUrlOnHostRequest): Promise<void>
   forwardCallback(req: ForwardCallbackRequest): Promise<ForwardCallbackResult>
+  /**
+   * Subscribe to routed URL opens (direction A, AC3.2) — the guest shim/`$BROWSER`
+   * channel and the renderer's own `openUrlOnHost` both surface here so a routed
+   * URL opens a new browser tab. Returns an unsubscribe function.
+   */
+  onOpenUrl(listener: (event: OpenUrlEvent) => void): () => void
+}
+
+export interface BrowserApi {
+  /** Create the live view backing a browser tab (AC3.1). */
+  create(req: CreateBrowserViewRequest): Promise<CreateBrowserViewResult>
+  /** Track a view to its pane body / show-hide it (fire-and-forget). */
+  setBounds(req: SetBrowserBoundsRequest): void
+  /** Navigate a view to a URL (fire-and-forget). */
+  loadUrl(req: LoadBrowserUrlRequest): void
+  /** Drive a view's history/reload controls (fire-and-forget). */
+  navigate(req: NavigateBrowserRequest): void
+  /** Destroy a view when its tab closes. */
+  dispose(req: DisposeBrowserViewRequest): Promise<void>
+  /** Subscribe to a view's navigation-state changes. Returns an unsubscribe function. */
+  onState(listener: (event: BrowserStateEvent) => void): () => void
 }
 
 export interface UpdateApi {
@@ -341,6 +438,7 @@ export interface TesseraApi {
   surface: SurfaceApi
   persistence: PersistenceApi
   routing: RoutingApi
+  browser: BrowserApi
   update: UpdateApi
   /** Static build/runtime info (no behavior wired yet). */
   meta: {

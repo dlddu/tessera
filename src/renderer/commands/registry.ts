@@ -338,6 +338,7 @@ const NOOP_LAYOUT: LayoutActions = {
   focusPane: () => undefined,
   focusDirection: () => undefined,
   setTabPath: () => undefined,
+  setTabUrl: () => undefined,
   setTabTitle: () => undefined,
   cycleTab: () => undefined,
   moveActiveTabToDirection: () => undefined,

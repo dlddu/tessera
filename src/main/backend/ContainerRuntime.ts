@@ -88,6 +88,18 @@ export interface ContainerRuntime {
   writeFile(name: string, path: string, data: Uint8Array): Promise<void>
   /** List a directory on the machine's filesystem (M-J2-S3, AC2.3). */
   listDir(name: string, path: string): Promise<DirEntry[]>
+  /**
+   * Install the browser-routing shim (PRD-3, AC3.2) into the machine and return
+   * the absolute guest path it was written to (the `$BROWSER` target). Installs
+   * as `tessera-open` + `xdg-open` + `open` (all `chmod +x`) into a *guest-
+   * resolved* directory — the first absolute, existing, writable dir on `$PATH`
+   * (so a bare `xdg-open` resolves), else `$HOME/.local/bin` (created; still
+   * reachable via `$BROWSER`). A fixed `/usr/local/bin` would fail for a non-root
+   * guest, so the dir is probed at runtime. The script travels as base64 (its
+   * quotes/`$`/newlines can't collide with the alphabet), exactly as
+   * {@link ContainerRuntime.writeFile} does. Rejects if nothing could be written.
+   */
+  installBrowserShim(name: string, contents: string): Promise<string>
 }
 
 /**
@@ -388,6 +400,30 @@ class CliContainerRuntime implements ContainerRuntime {
         `printf %s '${chunks[i]!}' | base64 -d ${redirect} ${partial}${finalize}`
       )
     }
+  }
+
+  async installBrowserShim(name: string, contents: string): Promise<string> {
+    // The whole script rides as one base64 literal (its quotes/`$`/newlines can't
+    // collide with the base64 alphabet). The install dir is resolved *in the
+    // guest*: the first absolute, existing, writable dir on $PATH (so `xdg-open`
+    // resolves by name), else $HOME/.local/bin (created). A non-root guest can't
+    // write /usr/local/bin, so a fixed path would silently fail — this probes
+    // instead. The trailing `printf` echoes the installed shim's absolute path
+    // (captured between the runPty markers) for the caller's `$BROWSER`.
+    const b64 = Buffer.from(contents, 'utf8').toString('base64')
+    const script =
+      'd=; oldifs=$IFS; IFS=:; ' +
+      'for p in $PATH; do case $p in /*) ;; *) continue ;; esac; ' +
+      'if [ -d "$p" ] && [ -w "$p" ]; then d=$p; break; fi; done; ' +
+      'IFS=$oldifs; [ -n "$d" ] || { d=$HOME/.local/bin; mkdir -p "$d"; }; ' +
+      `printf %s '${b64}' | base64 -d > "$d/tessera-open" && chmod +x "$d/tessera-open" && ` +
+      'cp -f "$d/tessera-open" "$d/xdg-open" && cp -f "$d/tessera-open" "$d/open" && ' +
+      'chmod +x "$d/xdg-open" "$d/open" && printf %s "$d/tessera-open"'
+    const path = (await this.runPty(name, script)).trim()
+    if (!path) {
+      throw new Error('browser shim install produced no path')
+    }
+    return path
   }
 
   async listDir(name: string, path: string): Promise<DirEntry[]> {

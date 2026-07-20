@@ -15,6 +15,7 @@
  */
 import { NotImplementedError } from '@shared/errors'
 import type { BackendKind, BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
+import type { RoutingEndpoint, RoutingProvider } from '@main/routing'
 import type {
   Backend,
   ProcessResult,
@@ -23,6 +24,72 @@ import type {
   RunProcessOptions
 } from './Backend'
 import type { ContainerRuntime } from './ContainerRuntime'
+
+/**
+ * The guest-side browser shim (POSIX sh). Reads the injected route endpoint
+ * (`TESSERA_ROUTE_{PORT,TOKEN}`) and posts one JSON line to the host's
+ * per-workspace routing channel, so a container browser-open lands as a new host
+ * browser tab (direction A, AC3.2).
+ *
+ * Host discovery: the container's default gateway *is* the host under NAT, so it
+ * is read straight from `/proc/net/route` (no `ip` binary needed — many images
+ * lack it) and tried first, then the injected `TESSERA_ROUTE_HOST`, then the
+ * vmnet default; whichever accepts a connection wins (subnets differ: Apple
+ * `container` 192.168.64/…, Docker 192.168.65/…). Transport is `bash /dev/tcp`
+ * or `nc`, each capped at ~3s by a background killer (no `timeout` binary
+ * needed) so a dropped SYN can't wedge the caller. On any failure it prints the
+ * URL so a terminal web-link (the backup action) can still open it.
+ */
+const SHIM_SCRIPT = `#!/bin/sh
+url=$1
+[ -n "$url" ] || exit 0
+port=\${TESSERA_ROUTE_PORT}
+token=\${TESSERA_ROUTE_TOKEN}
+
+fallback() {
+  printf 'Tessera: open this URL in your browser:\\n%s\\n' "$url"
+  exit 0
+}
+[ -n "$port" ] && [ -n "$token" ] || fallback
+
+gw=
+gwhex=$(awk '$2=="00000000"{print $3;exit}' /proc/net/route 2>/dev/null)
+if [ -n "$gwhex" ] && [ "$gwhex" != 00000000 ]; then
+  t=\${gwhex#????}; o2=$(( 0x\${t%??} ))
+  t=\${gwhex#??};   o3=$(( 0x\${t%????} ))
+  gw="$(( 0x\${gwhex#??????} )).$o2.$o3.$(( 0x\${gwhex%??????} ))"
+fi
+
+esc=$(printf '%s' "$url" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g')
+line=$(printf '{"token":"%s","url":"%s"}' "$token" "$esc")
+
+run() {
+  "$@" &
+  c=$!
+  ( sleep 3; kill "$c" 2>/dev/null ) 2>/dev/null &
+  g=$!
+  wait "$c" 2>/dev/null
+  s=$?
+  kill "$g" 2>/dev/null
+  return $s
+}
+
+send() {
+  if command -v bash >/dev/null 2>&1; then
+    run bash -c 'exec 2>/dev/null; exec 3<>/dev/tcp/"$1"/"$2" || exit 1; printf "%s\\n" "$3" >&3' _ "$1" "$port" "$line" && return 0
+  fi
+  if command -v nc >/dev/null 2>&1; then
+    run sh -c 'printf "%s\\n" "$3" | nc "$1" "$2" >/dev/null 2>&1' _ "$1" "$port" "$line" && return 0
+  fi
+  return 1
+}
+
+for h in "$gw" "$TESSERA_ROUTE_HOST" 192.168.64.1; do
+  [ -n "$h" ] || continue
+  send "$h" && exit 0
+done
+fallback
+`
 
 export interface ContainerBackendOptions {
   /** Machine name — the owning workspace's id. */
@@ -33,11 +100,22 @@ export interface ContainerBackendOptions {
   memory?: string
   /** The runtime that drives the underlying `container` machine. */
   runtime: ContainerRuntime
+  /**
+   * Guest→host URL routing (direction A, AC3.2). When present, the first
+   * terminal spawn ensures this workspace's routing channel and installs the
+   * guest shim, and every terminal is handed the route endpoint via `--env`.
+   * Absent (e.g. in unit tests) disables routing — terminals still open.
+   */
+  routing?: RoutingProvider
 }
 
 export class ContainerBackend implements Backend {
   readonly kind: BackendKind = 'container'
   private lifecycle: BackendStatus = 'stopped'
+  /** This workspace's routing endpoint, once its channel is listening. */
+  private routeEndpoint: RoutingEndpoint | null = null
+  /** Absolute guest path of the installed shim (the `$BROWSER` target), once set. */
+  private browserShimPath: string | null = null
 
   constructor(private readonly options: ContainerBackendOptions) {}
 
@@ -90,13 +168,70 @@ export class ContainerBackend implements Backend {
    * `start()` (workspace create) has already booted the machine to `running`,
    * and `machine run` also boots on demand, so there is no extra guard here.
    */
-  spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
+  async spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
+    // The guest backend marker (AC2.4) is always set. When routing is wired,
+    // ensure this workspace's channel + shim and hand the terminal the route
+    // endpoint via `--env`, so a guest `xdg-open`/`$BROWSER` reaches the host
+    // (direction A, AC3.2). All machine-side only — no host env crosses in.
+    const env: Record<string, string> = { TESSERA_BACKEND: 'container' }
+    const routing = await this.ensureRouting()
+    if (routing) {
+      // `$BROWSER` is the shim's *actual* installed path (resolved in the guest —
+      // a non-root guest can't use /usr/local/bin), so it never points at a
+      // missing file.
+      env.BROWSER = routing.browser
+      env.TESSERA_ROUTE_HOST = routing.endpoint.host
+      env.TESSERA_ROUTE_PORT = String(routing.endpoint.port)
+      env.TESSERA_ROUTE_TOKEN = routing.endpoint.token
+    }
     return this.options.runtime.spawnExecPty(this.options.name, {
       cols: options.cols,
       rows: options.rows,
       ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
-      env: { TESSERA_BACKEND: 'container' }
+      env
     })
+  }
+
+  /**
+   * Bring up this workspace's guest→host routing (direction A, AC3.2), returning
+   * the route endpoint plus the installed shim's absolute path for `--env`
+   * injection, or `null` when routing is disabled or unavailable. Idempotent and
+   * lazy: the first terminal spawn (on create *or* boot restore, where `start`
+   * never ran) opens the channel and installs the shim; later spawns reuse both.
+   *
+   * Every step is best-effort, and crucially returns `null` (so NO `$BROWSER` is
+   * set) unless the shim was actually installed — a `$BROWSER` pointing at a
+   * missing file breaks every browser-open, which is worse than none. A failed
+   * channel or install is logged and retried on the next spawn; the terminal
+   * still opens and the web-links click stays a backup path.
+   */
+  private async ensureRouting(): Promise<{ endpoint: RoutingEndpoint; browser: string } | null> {
+    const routing = this.options.routing
+    if (!routing) return null
+    if (!this.routeEndpoint) {
+      try {
+        this.routeEndpoint = await routing.ensureChannel(this.options.name)
+      } catch {
+        return null // channel didn't bind; retry on the next spawn
+      }
+    }
+    if (!this.browserShimPath) {
+      try {
+        this.browserShimPath = await this.options.runtime.installBrowserShim(
+          this.options.name,
+          SHIM_SCRIPT
+        )
+      } catch (error) {
+        // Do NOT set $BROWSER without a real shim path; degrade to web-links and
+        // retry the install on the next spawn.
+        console.error(
+          `[tessera] browser routing shim install failed for ${this.options.name}:`,
+          error
+        )
+        return null
+      }
+    }
+    return { endpoint: this.routeEndpoint, browser: this.browserShimPath }
   }
 
   /**

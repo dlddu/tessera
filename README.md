@@ -11,8 +11,9 @@
 > mosaic, and drive the layout by keyboard or tab drag. The remaining capabilities —
 > container backend, browser routing, state restoration/persistence load, pane zoom,
 > and workspace switching — still exist as **types, interfaces, IPC contracts, and
-> throwing stubs** (`NotImplementedError`), and the browser/Claude panes are
-> **static design-system visuals** for now.
+> throwing stubs** (`NotImplementedError`). The browser pane is **live** — a host
+> `WebContentsView` with cross-isolation routing (PRD-3 direction A, AC3.2) — while
+> the Claude pane is a **static design-system visual** for now.
 
 Product specs live in [`docs/`](./docs) — values (`tessera-values.md`), PRDs
 (`tessera-prd-*.md`), tests (`tessera-test-*.md`), journeys, and the design system
@@ -68,7 +69,7 @@ src/
     workspace/            workspace create + native dialogs (host; live)
     backend/              Backend interface + HostBackend (live) / ContainerBackend (stub) (PRD-2)
     surface/              surface (terminal PTY) lifecycle + output streaming (live)
-    routing/              cross-isolation browser routing stub (PRD-3)
+    routing/              cross-isolation browser routing — direction A live, direction B stub (PRD-3)
     persistence/          host-side state store — save live, load stub (PRD-4)
     update/               auto-update (electron-updater): periodic check + restart prompt
     ipc/                  IPC handler registration (aggregator)
@@ -76,7 +77,7 @@ src/
   renderer/             React renderer
     app/                  App shell + single-workspace view (live)
     components/           Window / StatusBar / Pane / dialogs (design-system C-*)
-    surfaces/             terminal + editor live; browser/Claude static; placeholder for the rest
+    surfaces/             terminal + editor + browser (WebContentsView) live; Claude static
     layout/               LayoutEngine — live split/resize/tab-move/keyboard (PRD-1)
     styles/               tessera.css (copied) + shell.css
   shared/               code shared across processes
@@ -97,8 +98,11 @@ Path aliases (tsconfig + build configs): `@main/*`, `@renderer/*`, `@shared/*`.
   (workspace create, terminal surface + PTY streaming, host file read/write), while
   the rest still throw `NotImplementedError` (grep `not implemented` to find what
   needs wiring).
-- **HostBackend** (PTY + host file IO) and the **LayoutEngine** are implemented;
-  **ContainerBackend**, **BrowserRouter**, and `PersistenceStore.load` still throw.
+- **HostBackend** (PTY + host file IO) and the **LayoutEngine** are implemented.
+  **BrowserRouter** routes direction A (container→host URL opens, AC3.2 — guest
+  shim + `$BROWSER` over a per-workspace channel, and terminal web-links, into a
+  live browser `WebContentsView`); `BrowserRouter.forwardCallback` (direction B,
+  AC3.3) and `PersistenceStore.load` still throw.
 
 ## Next steps (remaining feature work)
 
@@ -107,13 +111,15 @@ done. Remaining build order:
 
 1. **Container backend.** Add `dockerode` (or chosen runtime), implement
    `ContainerBackend`, lifecycle + latency (AC2.6), and the host-only area (AC2.7/8).
-2. **Remaining surfaces.** Replace the static browser/Claude visuals with a real
-   browser (`WebContentsView`) and the Claude Code GUI. (The terminal already uses
-   xterm.js and the editor uses **CodeMirror 6** — both live.)
+2. **Remaining surfaces.** Replace the static Claude visual with the Claude Code
+   GUI. (Terminal = xterm.js, editor = **CodeMirror 6**, browser = a live host
+   **`WebContentsView`** with address bar + navigation — all live.)
 3. **Pane zoom + workspace switching.** Wire the focused-pane fullscreen toggle
    (AC1.6) and the workspace list/rail + switching (AC1.7) — both are already designed
    (mockups + design-system `C/P-workspace-rail`) but not implemented.
-4. **Browser routing.** Implement directions A/B in `BrowserRouter` (PRD-3).
+4. **Browser routing.** Direction A (container→host URL opens, AC3.2) is live;
+   implement direction B — OAuth localhost callback host→container forwarding
+   (`BrowserRouter.forwardCallback`, AC3.3) — to close the auth loop (PRD-3).
 5. **Persistence.** `PersistenceStore.save` is live on workspace create; implement
    debounced `load` + restore-on-restart and reconnect conflict handling (PRD-4).
 6. **Production hardening.** Add a Content-Security-Policy (via session headers)

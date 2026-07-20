@@ -18,16 +18,24 @@ import {
 } from '@main/backend'
 import { SurfaceRegistry, registerSurfaceIpc } from '@main/surface'
 import { registerWorkspaceIpc } from '@main/workspace'
-import { registerRoutingIpc } from '@main/routing'
+import { BrowserRouter, registerRoutingIpc } from '@main/routing'
 import { PersistenceStore, registerPersistenceIpc } from '@main/persistence'
 
 export interface MainServices {
   backends: BackendRegistry
   surfaces: SurfaceRegistry
   store: PersistenceStore
+  /** Cross-isolation browser router (PRD-3); the window wires its emitter (S1). */
+  router: BrowserRouter
 }
 
 export function registerIpc(): MainServices {
+  // The cross-isolation browser router (PRD-3). It owns each container
+  // workspace's guest→host routing channel and is the single sink every routed
+  // URL passes through (guest shim + renderer web-links). Its emitter is wired
+  // to the window in `main/index.ts` once the window exists.
+  const router = new BrowserRouter()
+
   // One container runtime drives every container machine (CLI-backed; the daemon
   // is started lazily on first use via `ensureSystem`).
   const containerRuntime = createCliContainerRuntime()
@@ -40,17 +48,20 @@ export function registerIpc(): MainServices {
         homeMount: config.homeMount,
         ...(config.cpus !== undefined ? { cpus: config.cpus } : {}),
         ...(config.memory !== undefined ? { memory: config.memory } : {}),
-        runtime: containerRuntime
+        runtime: containerRuntime,
+        // The container's guest shim + `$BROWSER` post routed URLs back through
+        // this workspace's channel (direction A, AC3.2).
+        routing: router
       })
   )
   const surfaces = new SurfaceRegistry()
   const store = new PersistenceStore(app.getPath('userData'))
 
   registerBackendIpc({ backends })
-  registerWorkspaceIpc({ backends, store })
+  registerWorkspaceIpc({ backends, store, router })
   registerSurfaceIpc({ backends, surfaces })
-  registerRoutingIpc()
+  registerRoutingIpc({ router })
   registerPersistenceIpc({ store })
 
-  return { backends, surfaces, store }
+  return { backends, surfaces, store, router }
 }

@@ -25,6 +25,7 @@
 import { useEffect, useRef } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import '@xterm/xterm/css/xterm.css'
 import type { BackendKind } from '@shared/types'
 import {
@@ -106,6 +107,15 @@ export function TerminalSurface({
     })
     const fit = new FitAddon()
     term.loadAddon(fit)
+    // Make URLs printed by a tool clickable, and route a click to the host
+    // Tessera browser (direction A, AC3.2) rather than the OS browser — the
+    // in-app path for the "tool only prints a URL" case, and the same for host
+    // and container terminals so their operation stays identical (AC2.5).
+    term.loadAddon(
+      new WebLinksAddon((_event, uri) => {
+        window.tessera.routing.openUrlOnHost({ workspaceId, url: uri })
+      })
+    )
     term.open(host)
 
     function safeFit() {

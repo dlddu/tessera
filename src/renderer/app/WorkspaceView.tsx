@@ -61,6 +61,8 @@ const WORKSPACE_VIEW_KEYS: readonly Command[] = [...LAYOUT_COMMANDS, commandById
 const SAVE_DEBOUNCE_MS = 500
 /** How long the "saved ✓" toast lingers after a successful persist. */
 const SAVED_TOAST_MS = 1600
+/** How long the "routed to browser" toast lingers after a routed open (AC3.2). */
+const ROUTING_TOAST_MS = 3500
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
@@ -106,6 +108,16 @@ function countTabs(node: LayoutNode): number {
   return node.type === 'pane'
     ? node.tabs.length
     : node.children.reduce((sum, child) => sum + countTabs(child), 0)
+}
+
+/** First pane id in pre-order — the fallback target for a routed browser tab. */
+function firstPaneId(node: LayoutNode): string | null {
+  if (node.type === 'pane') return node.id
+  for (const child of node.children) {
+    const id = firstPaneId(child)
+    if (id) return id
+  }
+  return null
 }
 
 /** Number of panes belonging to `areaId` (for the "+ host 영역 · N pane" segment). */
@@ -155,6 +167,10 @@ export function WorkspaceView({
   // The ⌘K command palette (default off) — a searchable, mouse-reachable twin of
   // the keymap, drawn from the same registry so the two can't drift (AC2.5).
   const [showPalette, setShowPalette] = useState(false)
+  // The URL of the most recent routed browser-open (direction A, AC3.2), shown
+  // as a self-dismissing info banner. Set only while this workspace is active so
+  // exactly one `.banner` is ever in the DOM (browser views hide behind it).
+  const [routedUrl, setRoutedUrl] = useState<string | null>(null)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
   const paneBodies = useRef(createPaneBodyRegistry()).current
@@ -341,6 +357,40 @@ export function WorkspaceView({
 
   useEffect(() => () => onHostAreaChange?.(null), [onHostAreaChange])
 
+  // Direction A (AC3.2): a container-originated URL routed to the host opens a
+  // new browser tab in this workspace's focused pane, with a self-dismissing
+  // info banner (M-J3-S1). The event carries its workspace, so each keep-alive
+  // view acts only on its own (AC3.5). Read via a ref so activation changes
+  // don't re-subscribe (and risk missing an event in the gap). The tab is added
+  // regardless of visibility — its tool's URL must open where the tool runs —
+  // but the banner is only raised while active, so exactly one `.banner` sits in
+  // the DOM at a time (each browser view hides itself behind it).
+  const activeRef = useRef(active)
+  activeRef.current = active
+  useEffect(() => {
+    return window.tessera.routing.onOpenUrl((event) => {
+      if (event.workspaceId !== workspace.id) return
+      const snapshot = engine.getSnapshot()
+      const paneId = engine.focusedPaneId ?? firstPaneId(snapshot.root)
+      if (paneId) actions.addTab(paneId, 'browser', event.url)
+      if (activeRef.current) setRoutedUrl(event.url)
+    })
+  }, [workspace.id, engine, actions])
+
+  // Auto-dismiss the routing toast a few seconds after it appears (re-armed if
+  // another URL routes in the meantime).
+  useEffect(() => {
+    if (!routedUrl) return
+    const timer = setTimeout(() => setRoutedUrl(null), ROUTING_TOAST_MS)
+    return () => clearTimeout(timer)
+  }, [routedUrl])
+
+  // Drop the toast when this workspace is switched away from, so a routed open in
+  // a background workspace never leaves a stale toast for the visible one.
+  useEffect(() => {
+    if (!active) setRoutedUrl(null)
+  }, [active])
+
   // Autosave the layout skeleton (AC1.5): persist a debounced snapshot on every
   // layout change, flush synchronously on app quit so the last edit can't be
   // lost in the debounce window, and flush once on unmount (e.g. a future
@@ -432,6 +482,15 @@ export function WorkspaceView({
         actions={layoutActions}
         paneBodies={paneBodies}
       />
+      {routedUrl ? (
+        <div className="toast route" data-testid="routing-toast">
+          <span className="ti">◆</span>
+          <div>
+            <div className="tt">브라우저로 라우팅됨</div>
+            <div className="td">컨테이너의 브라우저 요청을 호스트 탭으로 열었습니다</div>
+          </div>
+        </div>
+      ) : null}
       {showKeymap ? <KeymapOverlay /> : null}
       {showPalette ? (
         <CommandPalette

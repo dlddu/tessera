@@ -56,7 +56,8 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     spawnExecPty: [] as Array<{ name: string; options: ExecPtyOptions }>,
     readFile: [] as Array<{ name: string; path: string }>,
     writeFile: [] as Array<{ name: string; path: string; data: Uint8Array }>,
-    listDir: [] as Array<{ name: string; path: string }>
+    listDir: [] as Array<{ name: string; path: string }>,
+    installBrowserShim: [] as Array<{ name: string; contents: string }>
   }
   const runtime: ContainerRuntime = {
     async ensureSystem() {
@@ -86,6 +87,10 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
         { name: 'src', isDir: true },
         { name: 'a.ts', isDir: false }
       ]
+    },
+    async installBrowserShim(name, contents) {
+      calls.installBrowserShim.push({ name, contents })
+      return '/home/dev/.local/bin/tessera-open'
     }
   }
   return { runtime, calls }
@@ -507,6 +512,35 @@ describe('createCliContainerRuntime — file I/O over the exec PTY (M-J2-S3)', (
 
     await expect(runtime.listDir('ws-9', '/gone')).rejects.toThrow(/exit 1.*No such file/s)
   })
+
+  it('installBrowserShim resolves a writable guest dir, installs 3 names, and returns the path', async () => {
+    const installed = '/home/silas/.local/bin/tessera-open'
+    const { runtime, spawned } = ptyRuntime(() => reply(installed))
+    const script = '#!/bin/sh\necho hi\n'
+
+    const path = await runtime.installBrowserShim('ws-9', script)
+
+    // The guest echoes where the shim actually landed → the caller's $BROWSER.
+    expect(path).toBe(installed)
+    expect(spawned).toHaveLength(1)
+    const cmd = scriptOf(spawned[0]!)
+    const b64 = Buffer.from(script, 'utf8').toString('base64')
+    // Install dir is probed in the guest — first absolute+writable $PATH dir,
+    // else ~/.local/bin (a non-root guest can't write /usr/local/bin).
+    expect(cmd).toContain('for p in $PATH')
+    expect(cmd).toContain('if [ -d "$p" ] && [ -w "$p" ]; then d=$p; break; fi')
+    expect(cmd).toContain('[ -n "$d" ] || { d=$HOME/.local/bin; mkdir -p "$d"; }')
+    // Decodes tessera-open, copies to xdg-open/open, +x all, echoes the path.
+    expect(cmd).toContain(`printf %s '${b64}' | base64 -d > "$d/tessera-open"`)
+    expect(cmd).toContain('cp -f "$d/tessera-open" "$d/xdg-open"')
+    expect(cmd).toContain('cp -f "$d/tessera-open" "$d/open"')
+    expect(cmd).toContain('&& printf %s "$d/tessera-open"')
+  })
+
+  it('installBrowserShim rejects when the guest produced no path', async () => {
+    const { runtime } = ptyRuntime(() => reply(''))
+    await expect(runtime.installBrowserShim('ws-9', '#!/bin/sh\n')).rejects.toThrow(/no path/)
+  })
 })
 
 describe('ContainerBackend.spawnPty', () => {
@@ -555,6 +589,109 @@ describe('ContainerBackend.spawnPty', () => {
       { name: 'ws-1', options: { cols: 80, rows: 24, env: { TESSERA_BACKEND: 'container' } } }
     ])
     expect(calls.spawnExecPty[0]!.options).not.toHaveProperty('cwd')
+  })
+})
+
+describe('ContainerBackend.spawnPty — routing (direction A, AC3.2)', () => {
+  const endpoint = { host: '192.168.64.1', port: 51234, token: 'tok-abc' }
+
+  function routingBackend(routing?: { ensureChannel: (id: string) => Promise<typeof endpoint> }) {
+    const { runtime, calls } = fakeRuntime()
+    const backend = new ContainerBackend({
+      name: 'ws-r',
+      image: 'node:22',
+      homeMount: 'rw',
+      runtime,
+      ...(routing ? { routing } : {})
+    })
+    return { backend, calls }
+  }
+
+  it('installs the shim and injects the resolved shim path + endpoint via --env', async () => {
+    const ensureChannel = vi.fn(async () => endpoint)
+    const { backend, calls } = routingBackend({ ensureChannel })
+
+    await backend.spawnPty({ cols: 80, rows: 24 })
+
+    // The channel is ensured for this workspace and the shim is installed.
+    expect(ensureChannel).toHaveBeenCalledWith('ws-r')
+    expect(calls.installBrowserShim).toHaveLength(1)
+    // The installed shim reads the injected route env …
+    expect(calls.installBrowserShim[0]!.contents).toContain('TESSERA_ROUTE_TOKEN')
+    // … and auto-detects the host from the container's default gateway
+    // (/proc/net/route, no `ip` binary) so it works whatever the subnet.
+    expect(calls.installBrowserShim[0]!.contents).toContain('/proc/net/route')
+    // BROWSER is the shim's ACTUAL installed path (echoed back by the guest), not
+    // a fixed /usr/local/bin a non-root guest couldn't write to.
+    expect(calls.spawnExecPty[0]!.options.env).toEqual({
+      TESSERA_BACKEND: 'container',
+      BROWSER: '/home/dev/.local/bin/tessera-open',
+      TESSERA_ROUTE_HOST: '192.168.64.1',
+      TESSERA_ROUTE_PORT: '51234',
+      TESSERA_ROUTE_TOKEN: 'tok-abc'
+    })
+  })
+
+  it('ensures the channel + shim once across terminals', async () => {
+    const ensureChannel = vi.fn(async () => endpoint)
+    const { backend, calls } = routingBackend({ ensureChannel })
+
+    await backend.spawnPty({ cols: 80, rows: 24 })
+    await backend.spawnPty({ cols: 80, rows: 24 })
+
+    expect(ensureChannel).toHaveBeenCalledTimes(1)
+    expect(calls.installBrowserShim).toHaveLength(1)
+    expect(calls.spawnExecPty).toHaveLength(2)
+  })
+
+  it('without a routing provider, only the backend marker is set (no route env)', async () => {
+    const { backend, calls } = routingBackend()
+
+    await backend.spawnPty({ cols: 80, rows: 24 })
+
+    expect(calls.installBrowserShim).toHaveLength(0)
+    expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
+  })
+
+  it('degrades gracefully when the channel cannot be opened (terminal still spawns)', async () => {
+    const ensureChannel = vi.fn(async () => {
+      throw new Error('bind failed')
+    })
+    const { backend, calls } = routingBackend({ ensureChannel })
+
+    const proc = await backend.spawnPty({ cols: 80, rows: 24 })
+
+    expect(proc.id).toBe('pty-ws-r')
+    expect(calls.installBrowserShim).toHaveLength(0)
+    expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
+  })
+
+  it('does NOT set $BROWSER when the shim install fails (no dangling launcher)', async () => {
+    // Regression: a non-root guest can't write /usr/local/bin; if the install
+    // fails, $BROWSER must NOT be set (a $BROWSER pointing at a missing file
+    // breaks every browser-open — worse than none).
+    const ensureChannel = vi.fn(async () => endpoint)
+    const { runtime, calls } = fakeRuntime()
+    runtime.installBrowserShim = vi.fn(async () => {
+      throw new Error('read-only fs')
+    })
+    // The failure is logged for debuggability; silence it in the test.
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const backend = new ContainerBackend({
+      name: 'ws-r',
+      image: 'node:22',
+      homeMount: 'rw',
+      runtime,
+      routing: { ensureChannel }
+    })
+
+    const proc = await backend.spawnPty({ cols: 80, rows: 24 })
+    errorSpy.mockRestore()
+
+    // Terminal still opens; no BROWSER/route env → the tool falls back to its own
+    // behavior (print the URL) and the terminal web-links click is the backup.
+    expect(proc.id).toBe('pty-ws-r')
+    expect(calls.spawnExecPty[0]!.options.env).toEqual({ TESSERA_BACKEND: 'container' })
   })
 })
 
