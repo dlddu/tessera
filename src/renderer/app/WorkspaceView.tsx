@@ -29,6 +29,7 @@
  * edit is flushed on quit).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   LayoutView,
   SurfaceHost,
@@ -95,6 +96,14 @@ interface WorkspaceViewProps {
    * `null` when no host area is open (AC2.7/AC2.8).
    */
   onHostAreaChange?: (state: { paneCount: number } | null) => void
+  /**
+   * The Window's title-bar status slot this view portals its toasts into
+   * (saved ✓ / routed / tab-drag), so notices appear in the header instead of
+   * over the panes. Only the active view portals — a hidden keep-alive
+   * workspace (e.g. its terminal exiting → autosave) must not raise a toast in
+   * the shared title bar. `null` until the slot mounts.
+   */
+  toastHost?: HTMLElement | null
 }
 
 const PICKER_TITLE: Record<PendingPick['action'], string> = {
@@ -154,7 +163,8 @@ export function WorkspaceView({
   onNewWorkspace,
   onSwitchNext,
   onZoomChange,
-  onHostAreaChange
+  onHostAreaChange,
+  toastHost = null
 }: WorkspaceViewProps) {
   const { workspace, layout } = created
   const { snapshot, engine, actions } = useLayout(layout)
@@ -168,8 +178,8 @@ export function WorkspaceView({
   // the keymap, drawn from the same registry so the two can't drift (AC2.5).
   const [showPalette, setShowPalette] = useState(false)
   // The URL of the most recent routed browser-open (direction A, AC3.2), shown
-  // as a self-dismissing toast in the title-bar corner. Set only while this
-  // workspace is active so only the visible workspace ever raises it.
+  // as a self-dismissing chip in the title bar. Set only while this workspace
+  // is active so only the visible workspace ever raises it.
   const [routedUrl, setRoutedUrl] = useState<string | null>(null)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
@@ -482,15 +492,6 @@ export function WorkspaceView({
         actions={layoutActions}
         paneBodies={paneBodies}
       />
-      {routedUrl ? (
-        <div className="toast route" data-testid="routing-toast">
-          <span className="ti">◆</span>
-          <div>
-            <div className="tt">브라우저로 라우팅됨</div>
-            <div className="td">컨테이너의 브라우저 요청을 호스트 탭으로 열었습니다</div>
-          </div>
-        </div>
-      ) : null}
       {showKeymap ? <KeymapOverlay /> : null}
       {showPalette ? (
         <CommandPalette
@@ -499,29 +500,51 @@ export function WorkspaceView({
           onCancel={() => setShowPalette(false)}
         />
       ) : null}
-      {saved ? (
-        <div className="toast ok" data-testid="layout-saved-toast">
-          <span className="ti">✓</span>
-          <div>
-            <div className="tt">레이아웃 저장됨</div>
-            <div className="td">창·패널·탭 골격이 저장되었습니다</div>
-          </div>
-        </div>
-      ) : null}
-      {drag ? (
-        <div className="toast" data-testid="tab-drag-toast">
-          <span className="ti">⤷</span>
-          <div>
-            <div className="tt">탭 이동 중</div>
-            <div className="td">
-              <span className="mono">{drag.title}</span> → {paneLabel(snapshot, drag.overPaneId)}
-            </div>
-          </div>
-        </div>
-      ) : null}
       {pending ? (
         <SurfacePicker title={PICKER_TITLE[pending.action]} onPick={pick} onCancel={cancelPick} />
       ) : null}
+      {/* Toasts surface as chips in the window title bar (portal into the
+          Window's `.titlebar-status` slot, left of the badges). Gated on
+          `active` so a hidden keep-alive workspace never raises a notice in
+          the shared header. The long copy moves to a hover tooltip; the drag
+          chip keeps its live "tab → target pane" detail inline. */}
+      {active && toastHost
+        ? createPortal(
+            <>
+              {routedUrl ? (
+                <div
+                  className="toast route"
+                  data-testid="routing-toast"
+                  title="컨테이너의 브라우저 요청을 호스트 탭으로 열었습니다"
+                >
+                  <span className="ti">◆</span>
+                  <span className="tt">브라우저로 라우팅됨</span>
+                </div>
+              ) : null}
+              {saved ? (
+                <div
+                  className="toast ok"
+                  data-testid="layout-saved-toast"
+                  title="창·패널·탭 골격이 저장되었습니다"
+                >
+                  <span className="ti">✓</span>
+                  <span className="tt">레이아웃 저장됨</span>
+                </div>
+              ) : null}
+              {drag ? (
+                <div className="toast" data-testid="tab-drag-toast">
+                  <span className="ti">⤷</span>
+                  <span className="tt">탭 이동 중</span>
+                  <span className="td">
+                    <span className="mono">{drag.title}</span> →{' '}
+                    {paneLabel(snapshot, drag.overPaneId)}
+                  </span>
+                </div>
+              ) : null}
+            </>,
+            toastHost
+          )
+        : null}
     </>
   )
 }

@@ -38,6 +38,12 @@ interface WindowProps {
   /** Whether a pane is zoomed to fill the window — shows the title-bar badge (AC1.6). */
   zoomed?: boolean
   /**
+   * Receives the title-bar status slot (`.titlebar-status`) the active
+   * workspace portals its toasts into, so notices surface in the header —
+   * left of the badges — instead of over the pane content.
+   */
+  statusSlotRef?: (el: HTMLDivElement | null) => void
+  /**
    * Pane count of the open host-only area, or `null` when none is open (AC2.7).
    * Adds a "host 영역" title-bar badge and a "+ host 영역 · N pane" status segment.
    */
@@ -56,6 +62,7 @@ export function Window({
   updateReadyVersion = null,
   onUpdateRestart,
   zoomed = false,
+  statusSlotRef,
   hostAreaPaneCount = null
 }: WindowProps) {
   const empty = workspace === null
@@ -73,6 +80,7 @@ export function Window({
           )}
         </div>
         <div className="right">
+          <div className="titlebar-status" ref={statusSlotRef} />
           {zoomed ? (
             <span className="badge zoom" data-testid="zoom-badge">
               <span className="led" />⤢ 전체화면

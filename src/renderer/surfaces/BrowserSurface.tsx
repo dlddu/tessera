@@ -93,11 +93,9 @@ export function BrowserSurface({ tab, onTitle, onUrl }: BrowserSurfaceProps) {
     // when the bounds/visibility actually change (most frames are no-ops), so a
     // steady layout costs one comparison per frame, not an IPC flood. Hidden
     // tabs (0×0) and a full-window modal `.scrim` (which the native view would
-    // otherwise render on top of) fold into `visible = false`. The title-bar
-    // corner `.toast` is deliberately NOT hidden-for: it sits in the tab-bar/
-    // address-chrome strip above the `.bview` region, so it doesn't overlap the
-    // view — hiding the whole page for it would blank the freshly-opened tab
-    // while the routing toast shows.
+    // otherwise render on top of) fold into `visible = false`. The `.toast`
+    // needs no hiding: it lives in the window title bar, fully outside the
+    // `.bview` region, so it can never overlap the view.
     const syncBounds = (): void => {
       raf = requestAnimationFrame(syncBounds)
       const viewId = viewIdRef.current
