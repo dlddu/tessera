@@ -67,7 +67,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 | Mockup | 단계 | 화면 | 가치 | AC | 패턴 · 주요 DS 컴포넌트 |
 |--------|------|------|------|-----|--------------------------|
-| [M-J3-S1](./M-J3-S1.html) | 1 | 컨테이너 터미널에서 OAuth 시작 | V3·V2 | AC3.2 | `P-single` · C-terminal, C-banner(info) |
+| [M-J3-S1](./M-J3-S1.html) | 1 | 컨테이너 터미널에서 OAuth 시작 | V3·V2 | AC3.2 | `P-single` · C-terminal, C-toast(route) |
 | [M-J3-S2](./M-J3-S2.html) | 2 | auth URL을 호스트 브라우저로 라우팅 (방향 A) | V3 | AC3.1·AC3.2 | `P-flowmap` · C-flowmap, C-browser(idp) |
 | [M-J3-S3](./M-J3-S3.html) | 3 | 호스트 브라우저 IdP 로그인 — 기존 세션 재사용 | V3 | AC3.4 | `P-overlay` · C-browser, C-banner |
 | [M-J3-S4](./M-J3-S4.html) | 4 | 콜백 포트를 호스트→컨테이너 포워딩 (방향 B) | V3 | AC3.3 | `P-flowmap` · C-flowmap |

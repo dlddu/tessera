@@ -413,16 +413,28 @@ body{
    tuned for the Claude accent). */
 .btn .spinner{border-color:color-mix(in srgb,currentColor 32%,transparent); border-top-color:currentColor}
 
-/* ============================================================ C-toast */
-.toast{position:absolute; right:14px; bottom:38px; z-index:40; max-width:330px;
-  background:var(--tile-raise); border:1px solid var(--line); border-left:3px solid var(--brand);
-  border-radius:9px; box-shadow:var(--shadow-toast); padding:11px 13px; display:flex; gap:10px; align-items:flex-start}
-.toast.route{border-left-color:var(--route)} .toast.ok{border-left-color:var(--ok)}
-.toast.warn{border-left-color:var(--warn)} .toast.danger{border-left-color:var(--danger)}
-.toast .ti{flex:0 0 16px; margin-top:1px; color:var(--brand)}
+/* ============================================================ C-toast
+   Title-bar status chip: pops briefly into the title bar's right cluster, left
+   of the badges (the active WorkspaceView portals into `.titlebar-status`).
+   Living in the header keeps it out of the pane grid entirely — a browser
+   pane's native WebContentsView paints over any DOM it overlaps, but never
+   over the title bar. `:empty` keeps the idle slot from adding a flex gap. */
+.titlebar-status{display:flex; align-items:center; gap:8px; min-width:0}
+.titlebar-status:empty{display:none}
+.toast{display:inline-flex; align-items:center; gap:7px; height:24px; padding:0 11px;
+  max-width:420px; min-width:0; border-radius:999px; white-space:nowrap; overflow:hidden;
+  border:1px solid color-mix(in srgb,var(--brand) 42%,transparent);
+  background:color-mix(in srgb,var(--brand) 14%,transparent);
+  animation:toast-in .18s ease-out}
+.toast.route{border-color:color-mix(in srgb,var(--route) 42%,transparent); background:color-mix(in srgb,var(--route) 14%,transparent)}
+.toast.ok{border-color:color-mix(in srgb,var(--ok) 42%,transparent); background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.toast.warn{border-color:color-mix(in srgb,var(--warn) 42%,transparent); background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.toast.danger{border-color:color-mix(in srgb,var(--danger) 42%,transparent); background:color-mix(in srgb,var(--danger) 14%,transparent)}
+.toast .ti{flex:0 0 auto; font-size:11px; color:var(--brand)}
 .toast.route .ti{color:var(--route)} .toast.ok .ti{color:var(--ok)} .toast.warn .ti{color:var(--warn)} .toast.danger .ti{color:var(--danger)}
-.toast .tt{font-size:12.5px; font-weight:600; margin-bottom:2px}
-.toast .td{font-size:11.5px; color:var(--muted)} .toast .td .mono{font-family:var(--font-mono); font-size:11px}
+.toast .tt{font-size:11.5px; font-weight:600; color:var(--ink)}
+.toast .td{font-size:11px; color:var(--muted); min-width:0; overflow:hidden; text-overflow:ellipsis}
+.toast .td .mono{font-family:var(--font-mono); font-size:10.5px}
 
 /* ============================================================ C-banner */
 .banner{display:flex; align-items:center; gap:10px; padding:8px 12px; font-size:12px;
@@ -508,6 +520,7 @@ body{
 
 /* ---------------------------------------------------------------- keyframes */
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes toast-in{from{opacity:0; transform:translateY(-8px)}to{opacity:1; transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
 @keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}

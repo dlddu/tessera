@@ -9,8 +9,8 @@
  * tab was opened onto a routed URL, AC3.2), then:
  *   - a rAF loop measures the `.bview` region and pushes its bounds + visibility
  *     to the view, so it tracks splits/resizes/zoom and hides (without being
- *     destroyed — the page keeps running) when the tab is inactive or a DOM
- *     overlay (`.scrim` modal / routing `.banner`) would otherwise sit behind it;
+ *     destroyed — the page keeps running) when the tab is inactive or a modal
+ *     `.scrim` would otherwise sit behind it;
  *   - `browser.onState` drives the address bar, tab title (`onTitle`), persisted
  *     URL (`onUrl`, so a restored tab reopens where it was — AC4.4), and the
  *     nav-button enabled state.
@@ -93,10 +93,9 @@ export function BrowserSurface({ tab, onTitle, onUrl }: BrowserSurfaceProps) {
     // when the bounds/visibility actually change (most frames are no-ops), so a
     // steady layout costs one comparison per frame, not an IPC flood. Hidden
     // tabs (0×0) and a full-window modal `.scrim` (which the native view would
-    // otherwise render on top of) fold into `visible = false`. The routing
-    // `.banner` is deliberately NOT hidden-for: it's a thin strip above the
-    // `.bview` region, so it doesn't overlap the view — hiding the whole page
-    // for it would blank the freshly-opened tab while the banner shows.
+    // otherwise render on top of) fold into `visible = false`. The `.toast`
+    // needs no hiding: it lives in the window title bar, fully outside the
+    // `.bview` region, so it can never overlap the view.
     const syncBounds = (): void => {
       raf = requestAnimationFrame(syncBounds)
       const viewId = viewIdRef.current

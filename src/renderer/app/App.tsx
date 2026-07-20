@@ -48,6 +48,9 @@ export function App() {
   // Drives the title-bar "host 영역" badge + status-bar "+ host 영역 · N pane"
   // segment; the active WorkspaceView reports it up via onHostAreaChange.
   const [hostArea, setHostArea] = useState<{ paneCount: number } | null>(null)
+  // The title-bar status slot the active WorkspaceView portals its toasts into
+  // (saved ✓ / routed / tab-drag), so notices surface in the window header.
+  const [toastSlot, setToastSlot] = useState<HTMLDivElement | null>(null)
 
   // Boot restore: pull every persisted workspace and activate the most recently
   // saved one. An empty list keeps the quiet empty state.
@@ -175,6 +178,7 @@ export function App() {
         updateReadyVersion={updateReady}
         onUpdateRestart={handleRestart}
         zoomed={zoomed}
+        statusSlotRef={setToastSlot}
         hostAreaPaneCount={hostArea?.paneCount ?? null}
         rail={
           <WorkspaceRail
@@ -206,6 +210,7 @@ export function App() {
                 onSwitchNext={switchNext}
                 onZoomChange={setZoomed}
                 onHostAreaChange={setHostArea}
+                toastHost={toastSlot}
               />
             </div>
           )
