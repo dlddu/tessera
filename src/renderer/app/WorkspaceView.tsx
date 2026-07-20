@@ -168,8 +168,8 @@ export function WorkspaceView({
   // the keymap, drawn from the same registry so the two can't drift (AC2.5).
   const [showPalette, setShowPalette] = useState(false)
   // The URL of the most recent routed browser-open (direction A, AC3.2), shown
-  // as a self-dismissing info banner. Set only while this workspace is active so
-  // exactly one `.banner` is ever in the DOM (browser views hide behind it).
+  // as a self-dismissing toast in the title-bar corner. Set only while this
+  // workspace is active so only the visible workspace ever raises it.
   const [routedUrl, setRoutedUrl] = useState<string | null>(null)
   // Stable registry the panes register their bodies in and SurfaceHost portals
   // surfaces into — created once for this workspace.
@@ -359,12 +359,12 @@ export function WorkspaceView({
 
   // Direction A (AC3.2): a container-originated URL routed to the host opens a
   // new browser tab in this workspace's focused pane, with a self-dismissing
-  // info banner (M-J3-S1). The event carries its workspace, so each keep-alive
+  // toast (M-J3-S1). The event carries its workspace, so each keep-alive
   // view acts only on its own (AC3.5). Read via a ref so activation changes
   // don't re-subscribe (and risk missing an event in the gap). The tab is added
   // regardless of visibility — its tool's URL must open where the tool runs —
-  // but the banner is only raised while active, so exactly one `.banner` sits in
-  // the DOM at a time (each browser view hides itself behind it).
+  // but the toast is only raised while active, so a routed open in a background
+  // workspace never flashes a notice over the visible one.
   const activeRef = useRef(active)
   activeRef.current = active
   useEffect(() => {

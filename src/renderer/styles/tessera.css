@@ -413,10 +413,15 @@ body{
    tuned for the Claude accent). */
 .btn .spinner{border-color:color-mix(in srgb,currentColor 32%,transparent); border-top-color:currentColor}
 
-/* ============================================================ C-toast */
-.toast{position:absolute; right:14px; bottom:38px; z-index:40; max-width:330px;
+/* ============================================================ C-toast
+   Slides out briefly from under the title bar into the surface's top-right
+   corner. max-width is sized so the routing copy stays on one line: the card
+   must stay within the tab-bar/address-chrome strip, because a browser pane's
+   native WebContentsView (below that strip) paints over any DOM it overlaps. */
+.toast{position:absolute; right:14px; top:8px; z-index:40; max-width:360px;
   background:var(--tile-raise); border:1px solid var(--line); border-left:3px solid var(--brand);
-  border-radius:9px; box-shadow:var(--shadow-toast); padding:11px 13px; display:flex; gap:10px; align-items:flex-start}
+  border-radius:9px; box-shadow:var(--shadow-toast); padding:11px 13px; display:flex; gap:10px; align-items:flex-start;
+  animation:toast-in .18s ease-out}
 .toast.route{border-left-color:var(--route)} .toast.ok{border-left-color:var(--ok)}
 .toast.warn{border-left-color:var(--warn)} .toast.danger{border-left-color:var(--danger)}
 .toast .ti{flex:0 0 16px; margin-top:1px; color:var(--brand)}
@@ -508,6 +513,7 @@ body{
 
 /* ---------------------------------------------------------------- keyframes */
 @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes toast-in{from{opacity:0; transform:translateY(-10px)}to{opacity:1; transform:translateY(0)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.82)}}
 @keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
