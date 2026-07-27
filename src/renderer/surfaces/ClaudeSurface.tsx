@@ -3,8 +3,9 @@
  * (M-J1-S4). Presentational only — it mirrors the `.claude` DOM from the
  * M-J1-S4 mockup (a short conversation transcript + a composer) using the
  * existing design-system classes, with no Claude session backend behind it.
- * The live agent session is later feature work (PRD-5 / J3); until then this
- * gives the 2×2 layout a faithful Claude pane to compose with.
+ * The live agent session — Claude Code running on the host/container backend
+ * (AC2.2/AC2.3, tessera-prd-backend.md) — is later feature work; until then
+ * this gives the 2×2 layout a faithful Claude pane to compose with.
  */
 export function ClaudeSurface() {
   return (
