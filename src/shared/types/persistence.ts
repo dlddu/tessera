@@ -53,20 +53,27 @@ export interface WorkspaceStateSnapshot {
  * Build a persistable snapshot for a workspace's current skeleton, stamping the
  * schema version. Pure (no clock, no IO) so it is shared by the main-process
  * create path and the renderer's autosave without dragging Electron or
- * `node:crypto` into the renderer bundle. Content restore is out of scope here,
- * so `surfaces` is always empty (J4 owns it).
+ * `node:crypto` into the renderer bundle.
+ *
+ * `surfaces` carries per-surface restorable content (AC4.1: editor open file +
+ * unsaved buffer + cursor/selection). Callers with nothing to persist yet — the
+ * create path — omit it and get an empty list; the renderer autosave passes the
+ * live editors' captured state. The field has always been present (previously
+ * always empty), so populating it needs no schema version bump: older snapshots
+ * simply carry an empty list and restore no extra content.
  */
 export function buildWorkspaceSnapshot(
   workspace: Workspace,
   layout: LayoutSnapshot,
-  savedAt: number
+  savedAt: number,
+  surfaces: SurfaceStateEntry[] = []
 ): WorkspaceStateSnapshot {
   return {
     version: WORKSPACE_SNAPSHOT_VERSION,
     workspaceId: workspace.id,
     workspace,
     layout,
-    surfaces: [],
+    surfaces,
     savedAt
   }
 }

@@ -49,6 +49,7 @@ import {
   type PendingPick
 } from '@renderer/commands'
 import { SURFACE_META } from '@renderer/surfaces'
+import { captureEditorStates, subscribeEditorChanges } from '@renderer/surfaces/editorStateRegistry'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { buildWorkspaceSnapshot } from '@shared/types'
 import type { LayoutNode, LayoutSnapshot, SurfaceKind } from '@shared/types'
@@ -401,16 +402,22 @@ export function WorkspaceView({
     if (!active) setRoutedUrl(null)
   }, [active])
 
-  // Autosave the layout skeleton (AC1.5): persist a debounced snapshot on every
-  // layout change, flush synchronously on app quit so the last edit can't be
-  // lost in the debounce window, and flush once on unmount (e.g. a future
-  // workspace switch). Content is out of scope here — `buildWorkspaceSnapshot`
-  // carries an empty surfaces list.
+  // Autosave (AC1.5 layout skeleton + AC4.1 editor content): persist a debounced
+  // snapshot whenever the layout changes *or* an editor's buffer changes, flush
+  // synchronously on app quit so the last edit can't be lost in the debounce
+  // window, and flush once on unmount (e.g. a future workspace switch). Editor
+  // content rides `surfaces`, captured live from every editor at persist time.
   useEffect(() => {
     let debounce: ReturnType<typeof setTimeout> | null = null
     let toastTimer: ReturnType<typeof setTimeout> | null = null
 
-    const snapshotNow = () => buildWorkspaceSnapshot(workspace, engine.serialize(), Date.now())
+    const snapshotNow = () =>
+      buildWorkspaceSnapshot(
+        workspace,
+        engine.serialize(),
+        Date.now(),
+        captureEditorStates(workspace.id)
+      )
 
     const save = (withToast: boolean) => {
       void window.tessera.persistence.save(snapshotNow()).then(() => {
@@ -421,10 +428,15 @@ export function WorkspaceView({
       })
     }
 
-    const unsubscribe = engine.subscribe(() => {
+    const scheduleSave = () => {
       if (debounce) clearTimeout(debounce)
       debounce = setTimeout(() => save(true), SAVE_DEBOUNCE_MS)
-    })
+    }
+
+    // Layout mutations (split / add / close / move / zoom) and editor buffer
+    // edits both debounce into a single persist.
+    const unsubscribeLayout = engine.subscribe(scheduleSave)
+    const unsubscribeEditors = subscribeEditorChanges(workspace.id, scheduleSave)
 
     // App quit / window close: persist synchronously (a promise can't be awaited
     // in `beforeunload`) so an edit made moments before quitting still restores.
@@ -438,7 +450,8 @@ export function WorkspaceView({
     window.addEventListener('beforeunload', onBeforeUnload)
 
     return () => {
-      unsubscribe()
+      unsubscribeLayout()
+      unsubscribeEditors()
       window.removeEventListener('beforeunload', onBeforeUnload)
       if (toastTimer) clearTimeout(toastTimer)
       if (debounce) {

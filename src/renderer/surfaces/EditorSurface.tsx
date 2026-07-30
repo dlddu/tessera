@@ -40,6 +40,13 @@ import type { BackendKind, TabNode } from '@shared/types'
 import { ContainerFileBrowser, type FileBrowserMode } from './ContainerFileBrowser'
 import { parentContainerPath } from './containerPath'
 import { lastFocusedContainerCwd } from './terminalCwdRegistry'
+import {
+  clampOffset,
+  forgetEditorState,
+  notifyEditorChanged,
+  registerEditorState,
+  takeEditorRestore
+} from './editorStateRegistry'
 
 interface EditorSurfaceProps {
   tab: TabNode
@@ -148,6 +155,7 @@ export function EditorSurface({ tab, workspaceId, backendKind, onSetTabPath }: E
   useEffect(() => {
     const host = hostRef.current
     if (!host) return
+    const tabId = tabIdRef.current
 
     function save(view: EditorView): boolean {
       const content = view.state.doc.toString()
@@ -191,10 +199,24 @@ export function EditorSurface({ tab, workspaceId, backendKind, onSetTabPath }: E
       return true
     }
 
+    // Restore a persisted unsaved buffer + cursor if this tab was serialized
+    // with one (AC4.1). Absent for a fresh tab or a snapshot that predates
+    // content restore — then the buffer opens empty and the path-load effect
+    // reads the bound file as before.
+    const restored = takeEditorRestore(workspaceId, tabId)
+
     const view = new EditorView({
       parent: host,
       state: EditorState.create({
-        doc: '',
+        doc: restored ? restored.text : '',
+        ...(restored
+          ? {
+              selection: {
+                anchor: clampOffset(restored.anchor, restored.text.length),
+                head: clampOffset(restored.head, restored.text.length)
+              }
+            }
+          : {}),
         extensions: [
           lineNumbers(),
           highlightActiveLineGutter(),
@@ -222,6 +244,10 @@ export function EditorSurface({ tab, workspaceId, backendKind, onSetTabPath }: E
           EditorView.updateListener.of((u) => {
             if (u.docChanged) {
               setScratchEmpty(pathRef.current === undefined && u.state.doc.length === 0)
+              // Editing doesn't touch the layout, so nudge the workspace autosave
+              // to persist this buffer (AC4.1) — otherwise a backend death between
+              // layout changes would drop the unsaved edit.
+              notifyEditorChanged(workspaceId)
             }
           }),
           editorTheme
@@ -229,9 +255,24 @@ export function EditorSurface({ tab, workspaceId, backendKind, onSetTabPath }: E
       })
     })
     viewRef.current = view
+    if (restored) {
+      // The restored buffer is authoritative (it may hold unsaved edits ahead of
+      // the on-disk file), so mark the bound path as already-loaded to keep the
+      // file-read effect below from clobbering it, and drop the scratch hint.
+      loadedPathRef.current = pathRef.current
+      if (restored.text.length > 0 || pathRef.current !== undefined) setScratchEmpty(false)
+    }
+    // Publish this editor's live buffer + cursor so the workspace autosave can
+    // capture it at persist time (AC4.1).
+    registerEditorState(workspaceId, tabId, () => ({
+      text: view.state.doc.toString(),
+      anchor: view.state.selection.main.anchor,
+      head: view.state.selection.main.head
+    }))
     // Focus so a fresh scratch buffer is ready to type into immediately.
     view.focus()
     return () => {
+      forgetEditorState(workspaceId, tabId)
       view.destroy()
       viewRef.current = null
     }

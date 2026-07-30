@@ -11,9 +11,10 @@
  * flips it by position. On boot we pull every persisted workspace (J1-S6) and
  * activate the most recently saved one, seeding each engine from its restored
  * layout skeleton. Creation still runs in the main process (`workspace.create`);
- * its result is added to the collection and activated. Component *content*
- * restore is out of scope here (J4/PRD-4) — only the window/pane/tab skeleton is
- * rebuilt, but keep-alive means a switched-away workspace keeps its live tree.
+ * its result is added to the collection and activated. An editor's unsaved
+ * buffer + cursor is restored too (AC4.1): the loaded snapshot's `surfaces` are
+ * seeded into the editor registry before the views mount. Keep-alive means a
+ * switched-away workspace also keeps its live pane/tab tree.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Window, WorkspaceDialog, WorkspaceRail } from '@renderer/components'
@@ -23,6 +24,7 @@ import {
   workspaceContext,
   type WorkspaceCommandHandlers
 } from '@renderer/commands'
+import { seedEditorRestore } from '@renderer/surfaces/editorStateRegistry'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { WorkspaceView } from './WorkspaceView'
 
@@ -58,6 +60,9 @@ export function App() {
     let cancelled = false
     window.tessera.persistence.list().then((snapshots) => {
       if (cancelled || snapshots.length === 0) return
+      // Seed each editor's restorable content (AC4.1) before the views mount, so
+      // an EditorSurface finds its buffer/cursor payload on first render.
+      for (const s of snapshots) seedEditorRestore(s.workspace.id, s.surfaces ?? [])
       setWorkspaces(snapshots.map((s) => ({ workspace: s.workspace, layout: s.layout })))
       setActiveId(snapshots[0]!.workspace.id) // list is newest-first
     })
