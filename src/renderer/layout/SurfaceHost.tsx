@@ -66,6 +66,7 @@ function TabSurface({
       return (
         <TerminalSurface
           workspaceId={workspaceId}
+          tabId={tab.id}
           areaId={tab.areaId}
           backendKind={backendKind}
           onExit={() => actions.closeTab(tab.id)}
