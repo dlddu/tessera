@@ -12,6 +12,13 @@
  * terminal and its tab share a lifetime. Absent that handler it falls back to
  * printing a "process exited" notice and leaving the (dead) terminal in place.
  *
+ * The screen and scrollback are also the workspace's restorable content (AC4.3):
+ * this surface registers a getter into {@link terminalScrollbackRegistry} so the
+ * autosave can persist them host-side (AC4.5), nudges that autosave as output
+ * arrives, and on mount replays any preserved history above the freshly spawned
+ * PTY — the J4-S3 rehydrate shape (a working shell with the dead session's
+ * output readable above it).
+ *
  * On a container workspace the PTY execs *inside* the machine (AC2.3), so it has
  * no persistent cwd. To open a new container terminal where the last one was,
  * this surface tracks its live cwd via OSC 7 and reports focus into a shared
@@ -35,9 +42,34 @@ import {
   recordContainerCwd,
   recordContainerFocus
 } from './terminalCwdRegistry'
+import {
+  forgetTerminalState,
+  formatRestoredScrollback,
+  notifyTerminalChanged,
+  registerTerminalState,
+  takeTerminalRestore,
+  trimScrollbackLines
+} from './terminalScrollbackRegistry'
+
+/**
+ * Read a terminal's scrollback + current screen as plain-text lines. `baseY` is
+ * the scrollback height, so `baseY + rows` walks the whole buffer top to bottom;
+ * `translateToString(true)` right-trims each row's padding.
+ */
+function readScrollbackLines(term: Terminal): string[] {
+  const buffer = term.buffer.active
+  const lines: string[] = []
+  const end = buffer.baseY + term.rows
+  for (let y = 0; y < end; y += 1) {
+    lines.push(buffer.getLine(y)?.translateToString(true) ?? '')
+  }
+  return trimScrollbackLines(lines)
+}
 
 interface TerminalSurfaceProps {
   workspaceId: string
+  /** The owning tab — the key this terminal's restorable scrollback is stored under (AC4.3). */
+  tabId: string
   areaId: string
   /** The owning workspace's backend kind — container terminals exec into the machine. */
   backendKind: BackendKind
@@ -75,6 +107,7 @@ const TERMINAL_THEME = {
 
 export function TerminalSurface({
   workspaceId,
+  tabId,
   areaId,
   backendKind,
   onExit,
@@ -117,6 +150,14 @@ export function TerminalSurface({
       })
     )
     term.open(host)
+
+    // Replay the previous session's screen + scrollback as history, before the
+    // new PTY starts writing into the buffer (AC4.3, J4-S3). Absent for a fresh
+    // tab or a snapshot that predates terminal restore.
+    const restored = takeTerminalRestore(workspaceId, tabId)
+    if (restored) {
+      term.write(formatRestoredScrollback(restored.lines))
+    }
 
     function safeFit() {
       try {
@@ -166,6 +207,10 @@ export function TerminalSurface({
     const offData = window.tessera.surface.onPtyData((event) => {
       if (event.surfaceId === surfaceId) {
         term.write(event.chunk)
+        // Output doesn't touch the layout, so nudge the workspace autosave to
+        // persist this scrollback (AC4.3). Throttled inside the registry — a
+        // build log firehose would otherwise re-arm the debounce forever.
+        notifyTerminalChanged(workspaceId, Date.now())
       }
     })
     const offExit = window.tessera.surface.onPtyExit((event) => {
@@ -208,6 +253,11 @@ export function TerminalSurface({
     })
     resizeObserver.observe(host)
 
+    // Publish this terminal's live screen + scrollback so the workspace autosave
+    // can capture it at persist time (AC4.3), the same way an editor publishes
+    // its buffer.
+    registerTerminalState(workspaceId, tabId, () => ({ lines: readScrollbackLines(term) }))
+
     // Seed a new container terminal with the most-recently-focused sibling's cwd
     // (undefined for host terminals, or when no sibling has reported one yet).
     const inheritedCwd = isContainer ? lastFocusedContainerCwd(workspaceId) : undefined
@@ -236,6 +286,7 @@ export function TerminalSurface({
 
     return () => {
       unmounted = true
+      forgetTerminalState(workspaceId, tabId)
       offData()
       offExit()
       offTitle()
@@ -253,7 +304,7 @@ export function TerminalSurface({
       }
       term.dispose()
     }
-  }, [workspaceId, areaId, backendKind])
+  }, [workspaceId, tabId, areaId, backendKind])
 
   return <div className="term-surface" ref={hostRef} data-testid="terminal-surface" />
 }

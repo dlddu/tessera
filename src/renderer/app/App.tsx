@@ -11,9 +11,10 @@
  * flips it by position. On boot we pull every persisted workspace (J1-S6) and
  * activate the most recently saved one, seeding each engine from its restored
  * layout skeleton. Creation still runs in the main process (`workspace.create`);
- * its result is added to the collection and activated. An editor's unsaved
- * buffer + cursor is restored too (AC4.1): the loaded snapshot's `surfaces` are
- * seeded into the editor registry before the views mount. Keep-alive means a
+ * its result is added to the collection and activated. Surface content is
+ * restored too — an editor's unsaved buffer + cursor (AC4.1) and a terminal's
+ * preserved scrollback (AC4.3): the loaded snapshot's `surfaces` are seeded into
+ * the two surface registries before the views mount. Keep-alive means a
  * switched-away workspace also keeps its live pane/tab tree.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -25,6 +26,7 @@ import {
   type WorkspaceCommandHandlers
 } from '@renderer/commands'
 import { seedEditorRestore } from '@renderer/surfaces/editorStateRegistry'
+import { seedTerminalRestore } from '@renderer/surfaces/terminalScrollbackRegistry'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { WorkspaceView } from './WorkspaceView'
 
@@ -60,9 +62,13 @@ export function App() {
     let cancelled = false
     window.tessera.persistence.list().then((snapshots) => {
       if (cancelled || snapshots.length === 0) return
-      // Seed each editor's restorable content (AC4.1) before the views mount, so
-      // an EditorSurface finds its buffer/cursor payload on first render.
-      for (const s of snapshots) seedEditorRestore(s.workspace.id, s.surfaces ?? [])
+      // Seed each surface's restorable content before the views mount, so an
+      // EditorSurface finds its buffer/cursor payload (AC4.1) and a
+      // TerminalSurface its scrollback (AC4.3) on first render.
+      for (const s of snapshots) {
+        seedEditorRestore(s.workspace.id, s.surfaces ?? [])
+        seedTerminalRestore(s.workspace.id, s.surfaces ?? [])
+      }
       setWorkspaces(snapshots.map((s) => ({ workspace: s.workspace, layout: s.layout })))
       setActiveId(snapshots[0]!.workspace.id) // list is newest-first
     })
