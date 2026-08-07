@@ -100,12 +100,18 @@ export function registerSurfaceIpc({
         }, PROCESS_POLL_INTERVAL_MS)
       }
 
-      pty.onExit((code) => {
+      pty.onExit((code, signal) => {
         if (titlePoll) {
           clearInterval(titlePoll)
         }
         if (!sender.isDestroyed()) {
-          sender.send(IpcChannels.surface.ptyExit, { surfaceId, code })
+          // Carry the signal through when there is one: the renderer needs it to
+          // tell a force-killed backend from a clean `exit` (AC4.3).
+          sender.send(IpcChannels.surface.ptyExit, {
+            surfaceId,
+            code,
+            ...(signal !== undefined ? { signal } : {})
+          })
         }
         surfaces.delete(surfaceId)
       })

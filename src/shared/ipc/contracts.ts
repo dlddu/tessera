@@ -184,6 +184,14 @@ export interface PtyExitEvent {
   surfaceId: string
   /** Process exit code, or null when terminated by a signal. */
   code: number | null
+  /**
+   * Signal number when the process was *terminated* rather than exiting on its
+   * own; omitted for an ordinary exit. A force-killed backend reports exit code
+   * 0 plus a signal on unix, so this is what separates "the shell exited" from
+   * "the backend died" — the terminal freezes and offers a reconnect only for
+   * the latter (AC4.3).
+   */
+  signal?: number
 }
 
 /**

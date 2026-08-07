@@ -7,10 +7,18 @@
  * (`ResizeObserver` → fit → `surface.resize`). On unmount it disposes both the
  * surface (killing the PTY) and the xterm instance.
  *
- * When the PTY exits on its own (the shell's `exit`/EOF, or the process dying)
- * it reports upward via `onExit`, so the shell can close the owning tab — a live
- * terminal and its tab share a lifetime. Absent that handler it falls back to
- * printing a "process exited" notice and leaving the (dead) terminal in place.
+ * When the PTY exits *cleanly* (the shell's `exit`/EOF) it reports upward via
+ * `onExit`, so the shell can close the owning tab — a live terminal and its tab
+ * share a lifetime. Absent that handler it falls back to printing a "process
+ * exited" notice and leaving the (dead) terminal in place.
+ *
+ * An *abnormal* exit is the opposite case (AC4.3, J4-S1): the backend died under
+ * the terminal, so closing the tab would delete the very screen the user needs.
+ * The surface instead **freezes** — it keeps the preserved screen and scrollback
+ * on display, stops forwarding keystrokes (there is no PTY to send them to), and
+ * offers a reconnect that spawns a fresh PTY under the same xterm, leaving the
+ * dead session's output above it as history (the J4-S3 rehydrate shape, produced
+ * live rather than from a snapshot).
  *
  * The screen and scrollback are also the workspace's restorable content (AC4.3):
  * this surface registers a getter into {@link terminalScrollbackRegistry} so the
@@ -29,7 +37,7 @@
  * Visuals follow the C-terminal contract (mono font, block cursor, dark grout)
  * via the design-system tokens.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { WebLinksAddon } from '@xterm/addon-web-links'
@@ -44,7 +52,10 @@ import {
 } from './terminalCwdRegistry'
 import {
   forgetTerminalState,
+  formatFrozenNotice,
+  formatReconnectedHeader,
   formatRestoredScrollback,
+  isAbnormalPtyExit,
   notifyTerminalChanged,
   registerTerminalState,
   takeTerminalRestore,
@@ -114,6 +125,13 @@ export function TerminalSurface({
   onTitle
 }: TerminalSurfaceProps) {
   const hostRef = useRef<HTMLDivElement>(null)
+  // Whether the backing PTY died abnormally and this terminal is now a read-only
+  // preserved screen (AC4.3). Drives the M-J4-S1 overlay below; the read-only
+  // half is enforced inside the effect by dropping the surface id.
+  const [frozen, setFrozen] = useState(false)
+  // Set by the mount effect to a "spawn a fresh PTY under this xterm" closure,
+  // so the overlay's button can reach into the effect's scope.
+  const reconnectRef = useRef<(() => void) | null>(null)
   // Hold the latest `onExit`/`onTitle` in refs so the mount effect can call them
   // without listing them as dependencies — a changed callback identity must NOT
   // re-run the effect, which would dispose the PTY and respawn a fresh shell on
@@ -214,13 +232,35 @@ export function TerminalSurface({
       }
     })
     const offExit = window.tessera.surface.onPtyExit((event) => {
-      if (event.surfaceId === surfaceId) {
-        // Close the owning tab if the owner wired a handler; otherwise leave the
-        // dead terminal with a notice. The notice is written first so it still
-        // shows in that fallback (it's moot once the tab unmounts).
+      if (event.surfaceId !== surfaceId) {
+        return
+      }
+      if (!isAbnormalPtyExit(event)) {
+        // Clean `exit`/EOF. Close the owning tab if the owner wired a handler;
+        // otherwise leave the dead terminal with a notice. The notice is written
+        // first so it still shows in that fallback (it's moot once the tab
+        // unmounts).
         term.write('\r\n\x1b[2m[프로세스가 종료되었습니다]\x1b[0m\r\n')
         onExitRef.current?.()
+        return
       }
+      // The backend died under us (non-zero code, or killed by a signal — a
+      // force-kill reports code 0 plus a signal). Freeze instead of closing the
+      // tab: the screen and scrollback stay on display, read-only, until the
+      // user reconnects (AC4.3, M-J4-S1).
+      if (isContainer) {
+        forgetContainerTerminal(surfaceId)
+      }
+      // Dropping the id is what makes the terminal read-only — `term.onData`
+      // and the resize observer both no-op without it.
+      surfaceId = null
+      term.write(formatFrozenNotice())
+      // Best-effort persist of the final screen. Throttled inside the registry,
+      // so a terminal that died mid-firehose may miss this nudge — harmless,
+      // because the tab stays open and its getter stays registered, so the next
+      // autosave still captures the frozen content (AC4.5).
+      notifyTerminalChanged(workspaceId, Date.now())
+      setFrozen(true)
     })
     // Live tab title: main polls the PTY's foreground-process name and pushes it
     // here on change, so the tab reads what's actually running (M-J1-S2).
@@ -258,34 +298,58 @@ export function TerminalSurface({
     // its buffer.
     registerTerminalState(workspaceId, tabId, () => ({ lines: readScrollbackLines(term) }))
 
-    // Seed a new container terminal with the most-recently-focused sibling's cwd
-    // (undefined for host terminals, or when no sibling has reported one yet).
-    const inheritedCwd = isContainer ? lastFocusedContainerCwd(workspaceId) : undefined
-    window.tessera.surface
-      .create({
-        workspaceId,
-        areaId,
-        surface: 'terminal',
-        ...(inheritedCwd !== undefined ? { cwd: inheritedCwd } : {})
-      })
-      .then(({ surfaceId: id }) => {
-        if (unmounted) {
-          // Unmounted before the PTY was ready — tear it down immediately.
-          void window.tessera.surface.dispose({ surfaceId: id })
-          return
-        }
-        surfaceId = id
-        // Push the measured geometry to the freshly spawned PTY.
-        window.tessera.surface.resize({ surfaceId: id, cols: term.cols, rows: term.rows })
-        term.focus()
-      })
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err)
-        term.write(`\r\n\x1b[31m터미널을 시작하지 못했습니다: ${message}\x1b[0m\r\n`)
-      })
+    /**
+     * Spawn a PTY and bind this surface to it. Runs once on mount, and again for
+     * each reconnect after a freeze — the same call either way, so a reconnected
+     * terminal is an ordinary live terminal that happens to have the dead
+     * session's output above it (AC4.3).
+     */
+    function spawn(): void {
+      // Seed a new container terminal with the most-recently-focused sibling's
+      // cwd (undefined for host terminals, or when no sibling has reported one).
+      const inheritedCwd = isContainer ? lastFocusedContainerCwd(workspaceId) : undefined
+      window.tessera.surface
+        .create({
+          workspaceId,
+          areaId,
+          surface: 'terminal',
+          ...(inheritedCwd !== undefined ? { cwd: inheritedCwd } : {})
+        })
+        .then(({ surfaceId: id }) => {
+          if (unmounted) {
+            // Unmounted before the PTY was ready — tear it down immediately.
+            void window.tessera.surface.dispose({ surfaceId: id })
+            return
+          }
+          surfaceId = id
+          // Push the measured geometry to the freshly spawned PTY.
+          window.tessera.surface.resize({ surfaceId: id, cols: term.cols, rows: term.rows })
+          term.focus()
+        })
+        .catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err)
+          term.write(`\r\n\x1b[31m터미널을 시작하지 못했습니다: ${message}\x1b[0m\r\n`)
+          // Keep (or raise) the frozen overlay so the failure is recoverable: a
+          // container whose machine is gone needs its backend restarted first
+          // (AC2.6), and the user can retry once it is.
+          setFrozen(true)
+        })
+    }
+
+    reconnectRef.current = () => {
+      // Ignore a stray click once a PTY is already bound.
+      if (surfaceId) {
+        return
+      }
+      setFrozen(false)
+      term.write(formatReconnectedHeader())
+      spawn()
+    }
+    spawn()
 
     return () => {
       unmounted = true
+      reconnectRef.current = null
       forgetTerminalState(workspaceId, tabId)
       offData()
       offExit()
@@ -306,5 +370,38 @@ export function TerminalSurface({
     }
   }, [workspaceId, tabId, areaId, backendKind])
 
-  return <div className="term-surface" ref={hostRef} data-testid="terminal-surface" />
+  return (
+    <div
+      className={frozen ? 'term-surface term-surface--frozen' : 'term-surface'}
+      data-testid="terminal-surface"
+    >
+      <div className="term-surface__view" ref={hostRef} />
+      {frozen ? (
+        // The M-J4-S1 read-only treatment, drawn entirely from design-system
+        // classes (C-banner danger, C-badge ro, C-button) over the dimmed screen.
+        <div className="term-surface__frozen" data-testid="terminal-frozen">
+          <div className="banner danger">
+            <span className="bi">⚠</span>
+            <span className="bmsg">
+              백엔드 연결 끊김 — 위는 <b>읽기 전용 보존 화면</b>입니다. 맥락은 유지되지만 아직
+              동작하는 복원이 아닙니다.
+            </span>
+          </div>
+          <div className="term-surface__frozen-actions">
+            <button
+              type="button"
+              className="btn primary sm"
+              onClick={() => reconnectRef.current?.()}
+            >
+              재연결
+            </button>
+            <span className="badge ro">
+              <span className="led" />
+              읽기 전용
+            </span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
 }
