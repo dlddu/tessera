@@ -93,6 +93,9 @@ describe('ContainerBackend file IO delegates to the machine runtime', () => {
       spawnExecPty() {
         throw new Error('not used in this test')
       },
+      async stopMachine() {},
+      async bootMachine() {},
+      async removeMachine() {},
       async readFile(name, path) {
         calls.readFile.push({ name, path })
         return new TextEncoder().encode('guest bytes')

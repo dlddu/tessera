@@ -50,6 +50,7 @@ import {
   recordContainerCwd,
   recordContainerFocus
 } from './terminalCwdRegistry'
+import { recordTerminalInput, recordTerminalOutput } from './terminalLatencyRegistry'
 import {
   forgetTerminalState,
   formatFrozenNotice,
@@ -225,6 +226,10 @@ export function TerminalSurface({
     const offData = window.tessera.surface.onPtyData((event) => {
       if (event.surfaceId === surfaceId) {
         term.write(event.chunk)
+        // Close the input→output round trip this chunk answers, if any, so the
+        // backend panel can report the workspace's terminal latency (AC2.6).
+        // Unsolicited output (a background process printing) records nothing.
+        recordTerminalOutput(workspaceId, Date.now())
         // Output doesn't touch the layout, so nudge the workspace autosave to
         // persist this scrollback (AC4.3). Throttled inside the registry — a
         // build log firehose would otherwise re-arm the debounce forever.
@@ -272,6 +277,8 @@ export function TerminalSurface({
 
     const inputSub = term.onData((data) => {
       if (surfaceId) {
+        // Start (or keep) the round trip the next output chunk closes (AC2.6).
+        recordTerminalInput(workspaceId, Date.now())
         window.tessera.surface.sendInput({ surfaceId, data })
       }
     })

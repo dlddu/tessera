@@ -11,7 +11,11 @@
  * still stubs and land with their journeys:
  *   - runProcess → machine exec
  *   - getEnv     → machine env
- * Stop/restart (AC2.6) land in S6.
+ *
+ * {@link ContainerBackend.stop} / {@link ContainerBackend.restart} /
+ * {@link ContainerBackend.remove} manage the machine's lifecycle (S6 / AC2.6),
+ * driving `status` through the same starting → running / stopped / error
+ * transitions `start` uses, so the backend panel always shows the live state.
  */
 import { NotImplementedError } from '@shared/errors'
 import type { BackendKind, BackendStatus, ContainerHomeMount, DirEntry } from '@shared/types'
@@ -145,6 +149,68 @@ export class ContainerBackend implements Backend {
         ...(this.options.memory !== undefined ? { memory: this.options.memory } : {})
       })
       this.lifecycle = 'running'
+    } catch (error) {
+      this.lifecycle = 'error'
+      throw error
+    }
+  }
+
+  /**
+   * Shut the machine down (AC2.6), keeping it and its storage so
+   * {@link ContainerBackend.restart} can bring the same machine back. Idempotent
+   * once stopped. A failure leaves `status` at `error` and rethrows.
+   *
+   * The routing channel/shim handles are dropped: the next spawn after a boot
+   * re-ensures both against the machine that is actually running, rather than
+   * handing terminals a shim path from a machine generation that is gone.
+   */
+  async stop(): Promise<void> {
+    if (this.lifecycle === 'stopped') return
+    try {
+      await this.options.runtime.stopMachine(this.options.name)
+      this.lifecycle = 'stopped'
+      this.browserShimPath = null
+    } catch (error) {
+      this.lifecycle = 'error'
+      throw error
+    }
+  }
+
+  /**
+   * Stop then boot the machine back to `running` (AC2.6). There is no single
+   * `restart` verb in the CLI, and a stop-then-boot is also what the surviving
+   * terminals need: their PTYs die with the machine (which the frozen,
+   * read-only terminal view of AC4.3 already covers) and reconnect onto the
+   * booted machine.
+   */
+  async restart(): Promise<void> {
+    // An already-stopped machine is booted straight away: `machine stop` on a
+    // machine that isn't running is an error, not a no-op, so restarting a
+    // stopped backend must not go through it.
+    const wasStopped = this.lifecycle === 'stopped'
+    this.lifecycle = 'starting'
+    try {
+      if (!wasStopped) await this.options.runtime.stopMachine(this.options.name)
+      await this.options.runtime.bootMachine(this.options.name)
+      this.lifecycle = 'running'
+      this.browserShimPath = null
+    } catch (error) {
+      this.lifecycle = 'error'
+      throw error
+    }
+  }
+
+  /**
+   * Delete the machine and its persistent storage (AC2.6). Irreversible on the
+   * container side; the workspace's restore state is on the host and survives
+   * (AC4.5), which is exactly what T-4 scenario 5 exercises.
+   */
+  async remove(): Promise<void> {
+    try {
+      await this.options.runtime.removeMachine(this.options.name)
+      this.lifecycle = 'stopped'
+      this.browserShimPath = null
+      this.routeEndpoint = null
     } catch (error) {
       this.lifecycle = 'error'
       throw error

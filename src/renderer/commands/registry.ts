@@ -60,6 +60,8 @@ export interface CommandContext {
   workspace: WorkspaceCommandHandlers
   /** Host-only area open/close (⌃⌘H / ⇧⌃⌘H). AC2.7. */
   hostArea: HostAreaCommandHandlers
+  /** Container backend panel — lifecycle + responsiveness (⌃⌘B). AC2.6. */
+  backend: BackendCommandHandlers
 }
 
 /** The workspace-scope effects, supplied by the App shell. */
@@ -80,6 +82,15 @@ export interface HostAreaCommandHandlers {
   open: () => void
   /** Close the host-only area (⇧⌃⌘H / band ×). No-op if none is open. */
   close: () => void
+}
+
+/** The backend-panel effects, supplied by the workspace view. AC2.6. */
+export interface BackendCommandHandlers {
+  /**
+   * Show/hide the container backend panel (⌃⌘B, M-J2-S6). No-op on a host
+   * workspace — the host has no machine lifecycle to manage.
+   */
+  togglePanel: () => void
 }
 
 /** A keycap cluster: a modifier glyph run + the key glyph(s) it combines with. */
@@ -121,6 +132,7 @@ export type CommandId =
   | 'overlay'
   | 'open-host-area'
   | 'close-host-area'
+  | 'backend-panel'
   | 'new-workspace'
   | 'switch-workspace'
   | 'close-workspace'
@@ -280,6 +292,19 @@ export const COMMANDS: readonly Command[] = [
     run: (ctx) => ctx.hostArea.close()
   },
   {
+    id: 'backend-panel',
+    label: '컨테이너 백엔드 패널',
+    keycap: { mods: '⌃⌘', keys: ['B'] },
+    scope: 'layout',
+    identityVar: '--route',
+    // ⌃⌘B — show/hide the container backend panel: machine status, terminal
+    // latency, 정지/재시작 (AC2.6, M-J2-S6). Like every other command this does
+    // not branch on the backend kind — the workspace view simply has nothing to
+    // show for a host workspace (AC2.5 parity is structural).
+    match: (e) => e.metaKey && e.ctrlKey && !e.altKey && !e.shiftKey && isKey(e, 'b'),
+    run: (ctx) => ctx.backend.togglePanel()
+  },
+  {
     id: 'new-workspace',
     label: '새 워크스페이스',
     keycap: { mods: '⌘', keys: ['N'] },
@@ -361,7 +386,9 @@ export function workspaceContext(workspace: WorkspaceCommandHandlers): CommandCo
     workspace,
     // The App shell owns no layout, so host-area commands (⌃⌘H) are inert here —
     // they're dispatched only by the workspace view, which supplies live handlers.
-    hostArea: { open: () => undefined, close: () => undefined }
+    hostArea: { open: () => undefined, close: () => undefined },
+    // Same reasoning: the backend panel belongs to a workspace view.
+    backend: { togglePanel: () => undefined }
   }
 }
 

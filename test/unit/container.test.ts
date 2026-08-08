@@ -49,7 +49,7 @@ function stubPtyProcess(id: string): PtyProcess {
 }
 
 /** A container runtime that records calls and can be made to fail. */
-function fakeRuntime(opts: { failCreate?: boolean } = {}) {
+function fakeRuntime(opts: { failCreate?: boolean; failStop?: boolean; failBoot?: boolean } = {}) {
   const calls = {
     ensureSystem: 0,
     createMachine: [] as CreateMachineSpec[],
@@ -57,7 +57,10 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     readFile: [] as Array<{ name: string; path: string }>,
     writeFile: [] as Array<{ name: string; path: string; data: Uint8Array }>,
     listDir: [] as Array<{ name: string; path: string }>,
-    installBrowserShim: [] as Array<{ name: string; contents: string }>
+    installBrowserShim: [] as Array<{ name: string; contents: string }>,
+    stopMachine: [] as string[],
+    bootMachine: [] as string[],
+    removeMachine: [] as string[]
   }
   const runtime: ContainerRuntime = {
     async ensureSystem() {
@@ -91,6 +94,17 @@ function fakeRuntime(opts: { failCreate?: boolean } = {}) {
     async installBrowserShim(name, contents) {
       calls.installBrowserShim.push({ name, contents })
       return '/home/dev/.local/bin/tessera-open'
+    },
+    async stopMachine(name) {
+      calls.stopMachine.push(name)
+      if (opts.failStop) throw new ContainerRuntimeUnavailableError('stop failed')
+    },
+    async bootMachine(name) {
+      calls.bootMachine.push(name)
+      if (opts.failBoot) throw new ContainerRuntimeUnavailableError('boot failed')
+    },
+    async removeMachine(name) {
+      calls.removeMachine.push(name)
     }
   }
   return { runtime, calls }
