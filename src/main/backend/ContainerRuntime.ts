@@ -12,6 +12,13 @@
  *     which both creates AND boots the machine to `running`.
  *   - {@link ContainerRuntime.status} → `container machine inspect`, mapped to a
  *     {@link BackendStatus}.
+ *   - {@link ContainerRuntime.stopMachine} → `container machine stop <name>` and
+ *     {@link ContainerRuntime.removeMachine} → `container machine rm <name>`
+ *     (delete including persistent storage) — the lifecycle verbs behind AC2.6.
+ *   - {@link ContainerRuntime.bootMachine} → boots a stopped machine back to
+ *     `running`. There is no `machine start` subcommand; `machine run` boots the
+ *     machine first when it is stopped, so a no-op one-shot over the exec PTY is
+ *     the boot. Restart is therefore stop-then-boot (see ContainerBackend).
  *   - {@link ContainerRuntime.spawnExecPty} → `container machine run -n …`, an
  *     interactive login shell *inside* the machine over a PTY (AC2.3).
  *   - {@link ContainerRuntime.readFile} / {@link ContainerRuntime.writeFile} /
@@ -76,6 +83,25 @@ export interface ContainerRuntime {
   createMachine(spec: CreateMachineSpec): Promise<void>
   /** Best-effort current status of a machine by name. */
   status(name: string): Promise<BackendStatus>
+  /**
+   * Stop a running machine (AC2.6): `container machine stop <name>`. The machine
+   * and its persistent storage survive — only the VM is shut down, so a later
+   * {@link ContainerRuntime.bootMachine} brings the same machine back.
+   */
+  stopMachine(name: string): Promise<void>
+  /**
+   * Boot a stopped machine back to `running` (AC2.6). The CLI has no `machine
+   * start`; `machine run` boots the machine when it is stopped, so this rides a
+   * no-op one-shot (`:`) over the same exec-PTY transport the file I/O uses and
+   * returns once the guest actually ran — i.e. once the machine is up.
+   */
+  bootMachine(name: string): Promise<void>
+  /**
+   * Delete a machine and its persistent storage (AC2.6):
+   * `container machine rm <name>`. Irreversible on the container side — the
+   * workspace's restore state lives on the host and is untouched (AC4.5).
+   */
+  removeMachine(name: string): Promise<void>
   /**
    * Open an interactive login shell inside the machine over a PTY (AC2.3):
    * `container machine run -n <name>`. The shell sees the container's hostname,
@@ -316,6 +342,34 @@ class CliContainerRuntime implements ContainerRuntime {
       return /running/i.test(stdout) ? 'running' : 'stopped'
     } catch {
       return 'error'
+    }
+  }
+
+  async stopMachine(name: string): Promise<void> {
+    try {
+      await this.run(['machine', 'stop', name])
+    } catch (error) {
+      throw this.toUnavailable(error, '컨테이너 머신을 정지하지 못했습니다.')
+    }
+  }
+
+  async bootMachine(name: string): Promise<void> {
+    // No `machine start` exists: `machine run` boots a stopped machine before
+    // running its command, so the cheapest possible guest command (`:`) is the
+    // boot. It goes through `runPty` for the same reason the file one-shots do —
+    // `machine run` insists on a real terminal.
+    try {
+      await this.runPty(name, ':')
+    } catch (error) {
+      throw this.toUnavailable(error, '컨테이너 머신을 시작하지 못했습니다.')
+    }
+  }
+
+  async removeMachine(name: string): Promise<void> {
+    try {
+      await this.run(['machine', 'rm', name])
+    } catch (error) {
+      throw this.toUnavailable(error, '컨테이너 머신을 제거하지 못했습니다.')
     }
   }
 

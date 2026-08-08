@@ -38,7 +38,7 @@ import {
   useTabDrag
 } from '@renderer/layout'
 import type { LayoutActions } from '@renderer/layout'
-import { CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
+import { BackendPanel, CommandPalette, KeymapOverlay, SurfacePicker } from '@renderer/components'
 import {
   COMMANDS,
   LAYOUT_COMMANDS,
@@ -54,10 +54,11 @@ import {
   captureTerminalStates,
   subscribeTerminalChanges
 } from '@renderer/surfaces/terminalScrollbackRegistry'
+import { terminalLatencyMs } from '@renderer/surfaces/terminalLatencyRegistry'
 import { createLog } from '@renderer/diagnostics/log'
-import type { CreateWorkspaceResult } from '@shared/ipc'
+import type { BackendLifecycleAction, CreateWorkspaceResult } from '@shared/ipc'
 import { buildWorkspaceSnapshot, describeLayout } from '@shared/types'
-import type { LayoutNode, LayoutSnapshot, SurfaceKind } from '@shared/types'
+import type { BackendLifecycleState, LayoutNode, LayoutSnapshot, SurfaceKind } from '@shared/types'
 
 /** Autosave / restore traces (AC1.5). Relayed into the main log file. */
 const log = createLog('persist')
@@ -73,6 +74,8 @@ const SAVE_DEBOUNCE_MS = 500
 const SAVED_TOAST_MS = 1600
 /** How long the "routed to browser" toast lingers after a routed open (AC3.2). */
 const ROUTING_TOAST_MS = 3500
+/** How often the open backend panel re-reads its terminal latency (AC2.6). */
+const BACKEND_LATENCY_POLL_MS = 1000
 
 interface WorkspaceViewProps {
   created: CreateWorkspaceResult
@@ -241,6 +244,62 @@ export function WorkspaceView({
     if (host) engine.closeHostArea(host.id)
   }, [engine])
 
+  // Container backend panel (AC2.6, M-J2-S6). ⌃⌘B toggles it; opening reads the
+  // machine's current status so the badge is never stale. A host workspace has
+  // no machine lifecycle, so the toggle is inert there — the same "no backend
+  // branching in commands" shape the rest of the registry follows (AC2.5).
+  const isContainerWorkspace = workspace.backend.kind === 'container'
+  const [backendPanel, setBackendPanel] = useState(false)
+  const [backendState, setBackendState] = useState<BackendLifecycleState>({ status: 'running' })
+  const [backendBusy, setBackendBusy] = useState(false)
+  const [backendLatencyMs, setBackendLatencyMs] = useState<number | null>(null)
+
+  /**
+   * Run one lifecycle action and adopt the state it reports. The handler never
+   * rejects — a failed stop/restart comes back as a `message` — so the panel
+   * shows what happened instead of the click silently doing nothing. The
+   * renderer's own latency measurement is composed on here, since only this side
+   * sees the full input→output round trip (AC2.6).
+   */
+  const runLifecycle = useCallback(
+    (action: BackendLifecycleAction) => {
+      setBackendBusy(true)
+      void window.tessera.backend
+        .lifecycle({ workspaceId: workspace.id, action })
+        .then((state) => setBackendState(state))
+        .catch((error: unknown) =>
+          setBackendState({
+            status: 'error',
+            message: error instanceof Error ? error.message : String(error)
+          })
+        )
+        .finally(() => setBackendBusy(false))
+    },
+    [workspace.id]
+  )
+
+  // While the panel is open, refresh the measured latency on a light interval.
+  // Only the latency polls: it is a local read of samples this renderer already
+  // collected, whereas a status read spawns a `container machine inspect`, so
+  // status is refreshed on open and after each action instead of on a timer.
+  useEffect(() => {
+    if (!backendPanel || !active || !isContainerWorkspace) return
+    setBackendLatencyMs(terminalLatencyMs(workspace.id))
+    const timer = setInterval(
+      () => setBackendLatencyMs(terminalLatencyMs(workspace.id)),
+      BACKEND_LATENCY_POLL_MS
+    )
+    return () => clearInterval(timer)
+  }, [backendPanel, active, isContainerWorkspace, workspace.id])
+
+  const toggleBackendPanel = useCallback(() => {
+    if (!isContainerWorkspace) return
+    setBackendPanel((open) => {
+      if (!open) runLifecycle('status')
+      return !open
+    })
+  }, [isContainerWorkspace, runLifecycle])
+
   // The context every command runs against — shared by the keymap dispatcher and
   // the ⌘K palette so a shortcut and its palette twin do exactly the same thing.
   // Built on demand (not memoized as a value) so `focusedPaneId` is read live at
@@ -260,7 +319,8 @@ export function WorkspaceView({
         switchTo: () => undefined,
         switchNext: onSwitchNext
       },
-      hostArea: { open: openHostArea, close: closeHostArea }
+      hostArea: { open: openHostArea, close: closeHostArea },
+      backend: { togglePanel: toggleBackendPanel }
     }),
     [
       layoutActions,
@@ -269,7 +329,8 @@ export function WorkspaceView({
       closeWorkspace,
       onSwitchNext,
       openHostArea,
-      closeHostArea
+      closeHostArea,
+      toggleBackendPanel
     ]
   )
 
@@ -574,6 +635,23 @@ export function WorkspaceView({
       ) : null}
       {pending ? (
         <SurfacePicker title={PICKER_TITLE[pending.action]} onPick={pick} onCancel={cancelPick} />
+      ) : null}
+      {/* Container backend panel (AC2.6). Only a container workspace has a
+          machine to report on, and only the active view may draw it — a hidden
+          keep-alive workspace must not overlay the shared window. */}
+      {backendPanel && active && isContainerWorkspace ? (
+        <BackendPanel
+          machine={workspace.id}
+          image={workspace.backend.kind === 'container' ? workspace.backend.image : ''}
+          state={{
+            ...backendState,
+            ...(backendLatencyMs !== null ? { latencyMs: backendLatencyMs } : {})
+          }}
+          busy={backendBusy}
+          onStop={() => runLifecycle('stop')}
+          onRestart={() => runLifecycle('restart')}
+          onClose={() => setBackendPanel(false)}
+        />
       ) : null}
       {/* Toasts surface as chips in the window title bar (portal into the
           Window's `.titlebar-status` slot, left of the badges). Gated on

@@ -71,15 +71,17 @@ function mockCtx(focusedPaneId: string | null = 'P0') {
     switchNext: vi.fn()
   }
   const hostArea = { open: vi.fn(), close: vi.fn() }
+  const backend = { togglePanel: vi.fn() }
   const ctx: CommandContext = {
     layout,
     setPending,
     focusedPaneId,
     toggleKeymap,
     workspace,
-    hostArea
+    hostArea,
+    backend
   }
-  return { ctx, layout, setPending, toggleKeymap, workspace, hostArea }
+  return { ctx, layout, setPending, toggleKeymap, workspace, hostArea, backend }
 }
 
 describe('registry shape', () => {
