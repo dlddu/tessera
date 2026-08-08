@@ -67,6 +67,61 @@ export const RESTORED_HEADER = '[이전 세션 기록 복원됨]'
 /** Dim footer marking where the freshly spawned PTY takes over. */
 export const RESTORED_FOOTER = '[여기서부터 새 세션]'
 
+/**
+ * Line written into a terminal whose PTY died abnormally, marking the preserved
+ * screen as read-only — the M-J4-S1 wording, in the terminal itself.
+ */
+export const FROZEN_NOTICE = '░ 백엔드 끊김 · 입력 불가'
+
+/** Divider written above the fresh PTY when a frozen terminal reconnects. */
+export const RECONNECTED_HEADER = '[재연결됨 · 여기서부터 새 세션]'
+
+/** A PTY's exit report as it reaches the renderer (the `PtyExitEvent` fields). */
+export interface PtyExitOutcome {
+  /** Process exit code, or null when terminated by a signal. */
+  code: number | null
+  /** Signal number when terminated rather than exited; omitted otherwise. */
+  signal?: number | undefined
+}
+
+/**
+ * Whether a PTY exit should *freeze* its terminal instead of closing the tab
+ * (AC4.3). Only a clean exit — code 0 with no signal, i.e. the shell's own
+ * `exit`/EOF — closes the tab, which is the long-standing "a live terminal and
+ * its tab share a lifetime" rule. Everything else (non-zero code, a null code,
+ * or termination by signal) is treated as the backend dying under the terminal.
+ *
+ * A deliberate `exit 3` therefore freezes too. That is the intended bias: the
+ * cost of freezing when the user meant to quit is one click on the reconnect
+ * affordance, while the cost of *not* freezing when the backend actually died
+ * is the permanent loss of the screen and scrollback AC4.3 exists to preserve.
+ *
+ * Note a force-kill reports code 0 *and* a signal on unix, so checking the code
+ * alone would misread the very case AC4.3's verification method prescribes
+ * ("backend를 강제 종료한 뒤").
+ */
+export function isAbnormalPtyExit({ code, signal }: PtyExitOutcome): boolean {
+  if (signal !== undefined && signal !== 0) return true
+  return code !== 0
+}
+
+/**
+ * The frozen-terminal notice as a writable xterm payload, in the same dim
+ * `\x1b[2m…\x1b[0m` idiom as the restore header/footer.
+ */
+export function formatFrozenNotice(): string {
+  return `\r\n\x1b[2m${FROZEN_NOTICE}\x1b[0m\r\n`
+}
+
+/**
+ * The divider a reconnecting terminal writes before its fresh PTY starts, so
+ * the preserved screen above it reads as history — the same J4-S3 shape as a
+ * restart restore, produced live instead of from a snapshot.
+ */
+export function formatReconnectedHeader(): string {
+  return `\x1b[2m${RECONNECTED_HEADER}\x1b[0m\r\n`
+}
+
 /** `(workspaceId, tabId)` → live-content getter, for capture at persist time. */
 const getters = new Map<string, GetterEntry>()
 /** `(workspaceId, tabId)` → content seeded from a loaded snapshot, awaiting mount. */

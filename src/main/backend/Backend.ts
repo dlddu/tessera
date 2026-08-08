@@ -31,7 +31,13 @@ export interface PtyProcess {
   write(data: string): void
   resize(cols: number, rows: number): void
   onData(listener: (chunk: string) => void): void
-  onExit(listener: (code: number | null) => void): void
+  /**
+   * Fires once the PTY exits. `signal` is set when the process was *terminated*
+   * (SIGKILL/SIGTERM) rather than exiting on its own — the discriminator a
+   * terminal needs to tell a shell's own `exit` from a backend death (AC4.3),
+   * because a signalled process still reports exit code 0 on unix.
+   */
+  onExit(listener: (code: number | null, signal?: number) => void): void
   kill(): void
 }
 

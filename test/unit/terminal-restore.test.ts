@@ -5,14 +5,19 @@ import type { LayoutSnapshot, SurfaceStateEntry, Workspace } from '@shared/types
 // surfaces barrel re-exports xterm-backed surfaces, which are browser-only and
 // would crash this node test environment. The registry itself pulls no xterm.
 import {
+  FROZEN_NOTICE,
   MAX_SCROLLBACK_LINES,
   NOTIFY_INTERVAL_MS,
+  RECONNECTED_HEADER,
   RESTORED_FOOTER,
   RESTORED_HEADER,
   __resetTerminalScrollbackRegistry,
   captureTerminalStates,
   forgetTerminalState,
+  formatFrozenNotice,
+  formatReconnectedHeader,
   formatRestoredScrollback,
+  isAbnormalPtyExit,
   notifyTerminalChanged,
   registerTerminalState,
   seedTerminalRestore,
@@ -202,5 +207,68 @@ describe('terminalScrollbackRegistry — throttled change notification', () => {
     notifyTerminalChanged('ws-a', NOTIFY_INTERVAL_MS)
     expect(calls).toBe(1)
     expect(notifyTerminalChanged('ws-none', 0)).toBe(false)
+  })
+})
+
+describe('isAbnormalPtyExit — freeze vs close the tab (AC4.3)', () => {
+  it('treats a clean exit as normal so the tab still closes with its shell', () => {
+    expect(isAbnormalPtyExit({ code: 0 })).toBe(false)
+    expect(isAbnormalPtyExit({ code: 0, signal: undefined })).toBe(false)
+  })
+
+  it('treats a signalled exit as abnormal even though the code is 0', () => {
+    // A force-killed backend — exactly AC4.3's verification method — reports
+    // exit code 0 plus a signal on unix, so the code alone would misread it.
+    expect(isAbnormalPtyExit({ code: 0, signal: 9 })).toBe(true)
+    expect(isAbnormalPtyExit({ code: 0, signal: 15 })).toBe(true)
+  })
+
+  it('treats a non-zero or missing code as abnormal', () => {
+    expect(isAbnormalPtyExit({ code: 1 })).toBe(true)
+    expect(isAbnormalPtyExit({ code: 137 })).toBe(true)
+    expect(isAbnormalPtyExit({ code: null })).toBe(true)
+  })
+
+  it('ignores a zero signal, which means "not signalled"', () => {
+    expect(isAbnormalPtyExit({ code: 0, signal: 0 })).toBe(false)
+    expect(isAbnormalPtyExit({ code: 2, signal: 0 })).toBe(true)
+  })
+})
+
+describe('frozen + reconnect payloads', () => {
+  it('writes the freeze notice on its own lines, dimmed', () => {
+    const payload = formatFrozenNotice()
+    expect(payload).toBe(`\r\n\x1b[2m${FROZEN_NOTICE}\x1b[0m\r\n`)
+    expect(payload).toContain('입력 불가')
+  })
+
+  it('writes a reconnect divider so the preserved screen above reads as history', () => {
+    const payload = formatReconnectedHeader()
+    expect(payload).toBe(`\x1b[2m${RECONNECTED_HEADER}\x1b[0m\r\n`)
+    // Same dim idiom as the restart-path header/footer.
+    expect(payload.startsWith('\x1b[2m')).toBe(true)
+    expect(payload.endsWith('\x1b[0m\r\n')).toBe(true)
+  })
+})
+
+describe('a frozen terminal stays capturable (AC4.3 → AC4.5)', () => {
+  it('keeps persisting its preserved screen while the tab stays open', () => {
+    // Freezing only drops the PTY, not the content getter: the tab is still
+    // mounted, so the autosave must keep snapshotting the preserved screen.
+    let lines = ['$ npm test', '  ✓ 12 passed']
+    registerTerminalState('ws-a', 'T1', () => ({ lines }))
+
+    expect(captureTerminalStates('ws-a')).toEqual([
+      { tabId: 'T1', surface: 'terminal', content: { lines } }
+    ])
+
+    lines = [...lines, FROZEN_NOTICE]
+    expect(captureTerminalStates('ws-a')).toEqual([
+      { tabId: 'T1', surface: 'terminal', content: { lines } }
+    ])
+
+    // Only unmounting the tab stops the capture.
+    forgetTerminalState('ws-a', 'T1')
+    expect(captureTerminalStates('ws-a')).toEqual([])
   })
 })

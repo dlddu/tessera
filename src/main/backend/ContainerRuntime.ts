@@ -360,7 +360,7 @@ class CliContainerRuntime implements ContainerRuntime {
       write: (data) => pty.write(data),
       resize: (cols, rows) => pty.resize(cols, rows),
       onData: (listener) => pty.onData(listener),
-      onExit: (listener) => pty.onExit((event) => listener(event.exitCode)),
+      onExit: (listener) => pty.onExit((event) => listener(event.exitCode, event.signal)),
       kill: () => pty.kill()
     }
   }

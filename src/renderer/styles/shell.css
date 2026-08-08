@@ -94,13 +94,50 @@ body {
 }
 
 /* Live terminal surface (TerminalSurface.tsx) — fills the pane body and hosts
-   the xterm canvas/DOM. Matches the C-terminal grout from the design system. */
+   the xterm canvas/DOM. Matches the C-terminal grout from the design system.
+   `__view` is the xterm host; the surface itself is the positioning context for
+   the frozen overlay below. */
 .term-surface {
+  position: relative;
   height: 100%;
   width: 100%;
   background: #0b0d12;
+  overflow: hidden;
+}
+.term-surface__view {
+  height: 100%;
+  width: 100%;
   padding: 6px 8px;
   overflow: hidden;
+}
+
+/* Read-only freeze after an abnormal PTY exit (AC4.3, M-J4-S1). The preserved
+   screen dims to the same value the mockup's `.pane.dim` uses, and the danger
+   banner + reconnect affordance layer over it. The overlay itself is
+   click-through so the frozen text stays selectable; only its controls take
+   pointer events. All visuals come from design-system classes (C-banner,
+   C-badge, C-button) — this rule set is placement only. */
+.term-surface--frozen .term-surface__view {
+  filter: saturate(0.5) brightness(0.72);
+}
+.term-surface__frozen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.term-surface__frozen > .banner {
+  pointer-events: auto;
+}
+.term-surface__frozen-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  pointer-events: auto;
 }
 .term-surface .xterm,
 .term-surface .xterm-viewport,
