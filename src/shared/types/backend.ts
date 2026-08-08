@@ -59,7 +59,15 @@ export type BackendStatus = 'starting' | 'running' | 'stopped' | 'error'
 
 export interface BackendLifecycleState {
   status: BackendStatus
-  /** Measured terminal input→output latency in ms, when known. AC2.6. */
+  /**
+   * Measured terminal input→output latency in ms, when known. AC2.6.
+   *
+   * Filled in the renderer, not the main process: the round trip the AC means
+   * ("터미널 입력→출력 지연") starts at a keystroke leaving the terminal surface
+   * and ends at the resulting output reaching it, and only the renderer sees
+   * both ends. The lifecycle IPC reports `status`/`message` and the panel
+   * composes this field onto it from its own samples.
+   */
   latencyMs?: number
   message?: string
 }
