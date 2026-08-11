@@ -11,11 +11,22 @@ import type { PersistenceStore } from '@main/persistence'
 import { BrowserViewRegistry, registerBrowserIpc } from '@main/surface'
 import type { ManagedView, ViewParent } from '@main/surface'
 import { initUpdater } from '@main/update'
+import {
+  attachWindowDiagnostics,
+  installDiagnostics,
+  log,
+  logResolvedPath
+} from '@main/diagnostics'
+
+// First thing in the process: install the log file + crash handlers, so a
+// failure anywhere below this line leaves a trace in a packaged build.
+installDiagnostics()
 
 // Reflect the login-shell PATH before anything spawns a child process, so the
 // `container` CLI + node-pty shells resolve even when macOS launched us from
 // Finder or an auto-update relaunch with a stripped PATH (see fixPath.ts).
 fixMainProcessPath()
+logResolvedPath()
 
 /**
  * Re-register each persisted workspace's backend so its surfaces can spawn on
@@ -33,9 +44,16 @@ async function restoreBackends(store: PersistenceStore, backends: BackendRegistr
     const { id, backend } = snapshot.workspace
     try {
       backends.create(id, backend)
-    } catch {
+    } catch (error) {
       // A bad entry (e.g. a missing host cwd) shouldn't abort startup; its
-      // surfaces will report the failure on demand.
+      // surfaces will report the failure on demand. But swallowing it silently
+      // is how "that workspace just doesn't work" becomes untraceable — the
+      // user sees a dead workspace and the app knows why, so say so.
+      log.scope('restore').warn('backend restore failed; workspace will be inert', {
+        workspaceId: id,
+        backendKind: backend.kind,
+        error: String(error)
+      })
     }
   }
 }
@@ -47,6 +65,9 @@ app.whenReady().then(async () => {
   await restoreBackends(store, backends)
 
   const win = createWindow()
+  // Before the renderer loads, so a first-load failure (bad bundle path, throwing
+  // preload) is still captured rather than showing a silent blank window.
+  attachWindowDiagnostics(win)
   initUpdater(win)
 
   // Wire the browser router's main → renderer sink to the window, so a routed
