@@ -19,6 +19,11 @@ Product specs live in [`docs/`](./docs) — values (`tessera-values.md`), PRDs
 (`tessera-prd-*.md`), tests (`tessera-test-*.md`), journeys, and the design system
 (`docs/design-system/`).
 
+The 27-screen mockup gallery is published at
+**[dlddu.github.io/tessera](https://dlddu.github.io/tessera/)**. GitHub Pages
+serves the static files in `docs/` from the `main` branch, so merged mockup
+changes are reflected without a separate application build.
+
 > Note: app **auto-update** (`src/main/update/`, electron-updater — periodic check,
 > background download, restart prompt) is platform infrastructure outside the four
 > product values (V1–V4). It is wired and unit-tested in code, but intentionally not
