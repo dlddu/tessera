@@ -3,6 +3,7 @@ import {
   consoleLevelToLogLevel,
   formatLine,
   isLevelEnabled,
+  isRevealLogsChord,
   parseLevel,
   serializeError,
   shortenSource,
@@ -138,5 +139,34 @@ describe('shortenSource', () => {
 
   it('labels a missing source', () => {
     expect(shortenSource('')).toBe('<unknown>')
+  })
+})
+
+/**
+ * The reveal-logs chord. Regression guard for a shipped bug: the first version
+ * matched on `input.key`, which on macOS is the Option-composed character (`¬`
+ * for Option+L), so the shortcut was dead on the only platform this app targets.
+ */
+describe('isRevealLogsChord', () => {
+  const chord = { type: 'keyDown', code: 'KeyL', alt: true, meta: true }
+
+  it('matches Cmd+Alt+L', () => {
+    expect(isRevealLogsChord(chord)).toBe(true)
+  })
+
+  it('matches on the physical key, so macOS Option composition is irrelevant', () => {
+    // What Electron actually reports for Option+L on macOS: key is `¬`, code is
+    // `KeyL`. Matching `key` here is what broke it.
+    expect(isRevealLogsChord({ ...chord, code: 'KeyL' })).toBe(true)
+    expect(isRevealLogsChord({ ...chord, code: 'Digit1' })).toBe(false)
+  })
+
+  it('requires both modifiers', () => {
+    expect(isRevealLogsChord({ ...chord, alt: false })).toBe(false)
+    expect(isRevealLogsChord({ ...chord, meta: false })).toBe(false)
+  })
+
+  it('ignores keyUp so the action fires once per press', () => {
+    expect(isRevealLogsChord({ ...chord, type: 'keyUp' })).toBe(false)
   })
 })

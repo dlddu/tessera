@@ -113,8 +113,11 @@ A `.dmg` launched from Finder discards stdout/stderr, keeps DevTools closed, and
 gives the renderer console nowhere to go — so a shipped build needs its own way to
 talk. `src/main/diagnostics/` is that channel.
 
-**Log file.** `~/Library/Logs/tessera/main.log`, rotated at 2 MB (`main.1.log` …
-`main.3.log`). Writes are synchronous so the last line before a crash survives.
+**Log file.** `~/Library/Logs/Tessera/main.log`, rotated at 2 MB (`main.1.log` …
+`main.3.log`). Writes are synchronous so the last line before a crash survives. The
+folder is named from `productName`, now set in **both** `package.json` and
+`electron-builder.yml` so `app.getName()` agrees between a dev run and a packaged one
+— they disagreed before, and a case-insensitive APFS volume was all that hid it.
 
 ```bash
 npm run logs                       # tail -f the active log
@@ -137,14 +140,21 @@ nothing leaves the machine.
 
 **Escape hatch.** In a packaged build:
 
-| Chord       | Effect                             |
-| ----------- | ---------------------------------- |
-| `Cmd+Alt+I` | Toggle DevTools                    |
-| `Cmd+Alt+L` | Reveal the log directory in Finder |
+| Chord       | Effect                                             |
+| ----------- | -------------------------------------------------- |
+| `Cmd+Alt+I` | Toggle DevTools — Electron's default **View** menu |
+| `Cmd+Alt+L` | Reveal the log folder — **Debug** menu             |
 
-`TESSERA_DEBUG=1` opens DevTools automatically on launch. The chords are bound per
-window (`before-input-event`), not via `globalShortcut`, so they aren't stolen from
-other apps while Tessera runs.
+`TESSERA_DEBUG=1` opens DevTools automatically on launch. The Debug menu also copies
+the log file path to the clipboard.
+
+The log shortcut is a menu accelerator, not `globalShortcut` (which would steal the
+chord from every other app) and not `before-input-event` alone. Two reasons, both
+learned the hard way: on macOS the Option key _composes_, so `KeyboardEvent.key` for
+Option+L is `¬` and never `l`; and `before-input-event` only reaches the focused
+webContents, so a chord pressed while a browser surface's `WebContentsView` has focus
+never arrives. `isRevealLogsChord` in `logFormat.ts` matches on `code` for that
+reason, and is unit-tested against the regression.
 
 **Adding a log line.** Scope it to the module and let the transport handle the rest:
 

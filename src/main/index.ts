@@ -14,6 +14,7 @@ import { initUpdater } from '@main/update'
 import {
   attachWindowDiagnostics,
   installDiagnostics,
+  installDiagnosticsMenu,
   log,
   logResolvedPath
 } from '@main/diagnostics'
@@ -63,6 +64,10 @@ app.whenReady().then(async () => {
   // Re-register backends before the window loads so the renderer's first
   // `surface.create` (e.g. the active workspace's terminal) finds its backend.
   await restoreBackends(store, backends)
+
+  // After ready: Electron has installed its default menu by now, and the Debug
+  // menu is appended to it.
+  installDiagnosticsMenu()
 
   const win = createWindow()
   // Before the renderer loads, so a first-load failure (bad bundle path, throwing

@@ -16,13 +16,21 @@
  *   Dev never hits this; it's a bundling/packaging-only failure.
  * - `render-process-gone` — the renderer died, taking its console with it.
  *
- * The escape hatch is deliberate: `Cmd+Alt+I` toggles DevTools even in a
- * packaged build, and `Cmd+Alt+L` reveals the log directory in Finder. Bound per
- * window via `before-input-event` rather than `globalShortcut`, which would
- * steal the chord from every other app while Tessera runs.
+ * DevTools needs no wiring here: the app never calls `Menu.setApplicationMenu`,
+ * so Electron's default menu is installed, and its View submenu already binds
+ * `toggleDevTools` to `Cmd+Alt+I` in packaged builds too.
+ *
+ * `Cmd+Alt+L` (reveal the log folder) is owned by the menu item in
+ * `installDiagnosticsMenu.ts` — the approach Electron documents for local
+ * shortcuts, and the only one that survives focus sitting in a browser surface's
+ * `WebContentsView`, where this window's `before-input-event` never fires. The
+ * handler below is a redundant second path for the common case where focus is in
+ * the main renderer. Firing both is harmless: revealing a folder twice just
+ * brings the same Finder window forward, unlike a DevTools *toggle*, which is
+ * why that one is not duplicated here.
  */
 import { shell, type BrowserWindow, type WebContents } from 'electron'
-import { consoleLevelToLogLevel, shortenSource } from './logFormat'
+import { consoleLevelToLogLevel, isRevealLogsChord, shortenSource } from './logFormat'
 import { log, logDirectoryPath } from './logger'
 
 const renderer = log.scope('renderer')
@@ -86,26 +94,14 @@ export function attachWindowDiagnostics(win: BrowserWindow): void {
 }
 
 /**
- * Window-scoped debug chords, live in packaged builds too (Electron's built-in
- * DevTools accelerator is dev-only). Handled on `keyDown` so a chord fires once.
+ * Backstop for the reveal-logs chord while the main renderer has focus. See the
+ * module header for why this coexists with the menu item, and
+ * `isRevealLogsChord` for why matching is on `code` rather than `key`.
  */
 function installDebugShortcuts(win: BrowserWindow): void {
   win.webContents.on('before-input-event', (_event, input) => {
-    if (input.type !== 'keyDown' || !input.meta || !input.alt) {
-      return
-    }
-    const key = input.key.toLowerCase()
-    if (key === 'i') {
-      const contents = win.webContents
-      if (contents.isDevToolsOpened()) {
-        contents.closeDevTools()
-      } else {
-        contents.openDevTools({ mode: 'detach' })
-      }
-      return
-    }
-    if (key === 'l') {
-      window.info('revealing log directory')
+    if (isRevealLogsChord(input)) {
+      window.info('revealing log directory (chord)')
       void shell.openPath(logDirectoryPath())
     }
   })

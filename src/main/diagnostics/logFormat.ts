@@ -120,3 +120,24 @@ export function shortenSource(sourceId: string): string {
   const lastSlash = sourceId.lastIndexOf('/')
   return lastSlash === -1 ? sourceId : sourceId.slice(lastSlash + 1)
 }
+
+/** The fields of Electron's `before-input-event` input this module reasons about. */
+export interface ChordInput {
+  type: string
+  /** `KeyboardEvent.code` — the physical key, e.g. `KeyL`. */
+  code: string
+  alt: boolean
+  meta: boolean
+}
+
+/**
+ * Whether an input event is the reveal-logs chord (`Cmd+Alt+L`).
+ *
+ * Matches on `code`, never `key`. On macOS the Option key acts as a compose
+ * modifier, so `KeyboardEvent.key` for Option+L is `¬` — not `l`. A `key === 'l'`
+ * comparison is therefore never true on the very platform this app ships to,
+ * which is exactly the bug this function exists to prevent regressing.
+ */
+export function isRevealLogsChord(input: ChordInput): boolean {
+  return input.type === 'keyDown' && input.meta && input.alt && input.code === 'KeyL'
+}
