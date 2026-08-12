@@ -90,6 +90,53 @@ export interface LayoutSnapshot {
   zoomedPaneId: string | null
 }
 
+/* ------------------------------------------------------- skeleton summary */
+
+/** How much structure a layout skeleton carries. Diagnostics only (AC1.5). */
+export interface LayoutShape {
+  panes: number
+  tabs: number
+  splits: number
+  areas: number
+  /** Whether a pane is zoomed (AC1.6) — part of the persisted skeleton. */
+  zoomed: boolean
+}
+
+/**
+ * Summarize a layout skeleton for a log line.
+ *
+ * Counts only. A raw snapshot dump is both unreadable and *unsafe to log*: tab
+ * nodes carry `path` (an open file) and `url` (a visited page), which is user
+ * content, not diagnostics. Shape is what actually answers the questions this
+ * logging exists for — "did the save carry the layout I was looking at?" and
+ * "did restore rebuild the same one?".
+ *
+ * Defensive: this runs on untrusted on-disk data in the load path, so a garbled
+ * tree yields zeros rather than throwing.
+ */
+export function describeLayout(layout: LayoutSnapshot | null | undefined): LayoutShape {
+  const shape: LayoutShape = { panes: 0, tabs: 0, splits: 0, areas: 0, zoomed: false }
+  if (layout == null || typeof layout !== 'object') return shape
+
+  shape.areas = Array.isArray(layout.areas) ? layout.areas.length : 0
+  shape.zoomed = layout.zoomedPaneId != null
+
+  const stack: unknown[] = [layout.root]
+  while (stack.length > 0) {
+    const node = stack.pop()
+    if (node == null || typeof node !== 'object') continue
+    const candidate = node as Partial<PaneNode> & Partial<SplitNode>
+    if (candidate.type === 'pane') {
+      shape.panes += 1
+      shape.tabs += Array.isArray(candidate.tabs) ? candidate.tabs.length : 0
+    } else if (candidate.type === 'split') {
+      shape.splits += 1
+      if (Array.isArray(candidate.children)) stack.push(...candidate.children)
+    }
+  }
+  return shape
+}
+
 /* ---------------------------------------------------- host area restore strip */
 
 /** The area a pane belongs to — its tabs are uniform within an area (AC2.4). */

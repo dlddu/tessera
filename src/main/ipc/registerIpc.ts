@@ -20,6 +20,7 @@ import { SurfaceRegistry, registerSurfaceIpc } from '@main/surface'
 import { registerWorkspaceIpc } from '@main/workspace'
 import { BrowserRouter, registerRoutingIpc } from '@main/routing'
 import { PersistenceStore, registerPersistenceIpc } from '@main/persistence'
+import { log } from '@main/diagnostics'
 
 export interface MainServices {
   backends: BackendRegistry
@@ -55,7 +56,10 @@ export function registerIpc(): MainServices {
       })
   )
   const surfaces = new SurfaceRegistry()
-  const store = new PersistenceStore(app.getPath('userData'))
+  // The store logs through the shared file logger (`[main:persist]`), so save /
+  // restore of the layout skeleton (AC1.5) leaves a trace in a packaged build
+  // where there is no console to print to.
+  const store = new PersistenceStore(app.getPath('userData'), log.scope('persist'))
 
   registerBackendIpc({ backends })
   registerWorkspaceIpc({ backends, store, router })
