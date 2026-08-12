@@ -1,5 +1,6 @@
 {
   "name": "tessera",
+  "productName": "Tessera",
   "version": "0.1.0",
   "private": true,
   "description": "macOS Electron window multiplexer — terminals, browser, editor, and Claude Code GUI in one window/pane/tab surface (bootstrap skeleton)",
@@ -18,6 +19,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "logs": "tail -f \"$HOME/Library/Logs/Tessera/main.log\"",
     "rebuild": "electron-rebuild -f -w node-pty",
     "postinstall": "electron-rebuild -f -w node-pty",
     "dist": "npm run build && electron-builder --mac dmg --publish never",

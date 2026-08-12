@@ -25,9 +25,11 @@ serves the static files in `docs/` from the `main` branch, so merged mockup
 changes are reflected without a separate application build.
 
 > Note: app **auto-update** (`src/main/update/`, electron-updater — periodic check,
-> background download, restart prompt) is platform infrastructure outside the four
-> product values (V1–V4). It is wired and unit-tested in code, but intentionally not
-> part of the `docs/` product specs.
+> background download, restart prompt) and **diagnostics**
+> (`src/main/diagnostics/`, see [Debugging a packaged build](#debugging-a-packaged-build))
+> are platform infrastructure outside the four product values (V1–V4). Both are
+> wired and unit-tested in code, but intentionally not part of the `docs/` product
+> specs.
 
 ## Requirements
 
@@ -77,6 +79,7 @@ src/
     routing/              cross-isolation browser routing — direction A live, direction B stub (PRD-3)
     persistence/          host-side state store — save live, load stub (PRD-4)
     update/               auto-update (electron-updater): periodic check + restart prompt
+    diagnostics/          production logging: file log, crash handlers, DevTools escape hatch
     ipc/                  IPC handler registration (aggregator)
   preload/              contextBridge → typed window.tessera
   renderer/             React renderer
@@ -108,6 +111,68 @@ Path aliases (tsconfig + build configs): `@main/*`, `@renderer/*`, `@shared/*`.
   shim + `$BROWSER` over a per-workspace channel, and terminal web-links, into a
   live browser `WebContentsView`); `BrowserRouter.forwardCallback` (direction B,
   AC3.3) and `PersistenceStore.load` still throw.
+
+## Debugging a packaged build
+
+A `.dmg` launched from Finder discards stdout/stderr, keeps DevTools closed, and
+gives the renderer console nowhere to go — so a shipped build needs its own way to
+talk. `src/main/diagnostics/` is that channel.
+
+**Log file.** `~/Library/Logs/Tessera/main.log`, rotated at 2 MB (`main.1.log` …
+`main.3.log`). Writes are synchronous so the last line before a crash survives. The
+folder is named from `productName`, now set in **both** `package.json` and
+`electron-builder.yml` so `app.getName()` agrees between a dev run and a packaged one
+— they disagreed before, and a case-insensitive APFS volume was all that hid it.
+
+```bash
+npm run logs                       # tail -f the active log
+TESSERA_LOG_LEVEL=debug npm run dev # or on a packaged launch, to lower the floor
+```
+
+Default level is `info` when packaged, `debug` when not. Unpackaged runs also mirror
+each line to stdout, so `npm run dev` stays readable.
+
+**What lands there without any extra code.** The renderer's `console.*` is relayed
+into the file via `console-message`, so `console.warn` in a component leaves a
+durable trace — no import, no new IPC contract. On top of that, each launch logs its
+version/Electron/platform and the **resolved PATH** (the `env/fixPath.ts` fix is
+invisible when it misses, and the symptom is an unrelated-looking `ENOENT` from the
+`container` CLI), plus `uncaughtException`, `unhandledRejection`,
+`render-process-gone`, `child-process-gone`, `preload-error`, `did-fail-load`, and
+window unresponsiveness. Native `node-pty` crashes leave a minidump under
+`app.getPath('crashDumps')` — `crashReporter` runs with `uploadToServer: false`, so
+nothing leaves the machine.
+
+**Escape hatch.** In a packaged build:
+
+| Chord       | Effect                                             |
+| ----------- | -------------------------------------------------- |
+| `Cmd+Alt+I` | Toggle DevTools — Electron's default **View** menu |
+| `Cmd+Alt+L` | Reveal the log folder — **Debug** menu             |
+
+`TESSERA_DEBUG=1` opens DevTools automatically on launch. The Debug menu also copies
+the log file path to the clipboard.
+
+The log shortcut is a menu accelerator, not `globalShortcut` (which would steal the
+chord from every other app) and not `before-input-event` alone. Two reasons, both
+learned the hard way: on macOS the Option key _composes_, so `KeyboardEvent.key` for
+Option+L is `¬` and never `l`; and `before-input-event` only reaches the focused
+webContents, so a chord pressed while a browser surface's `WebContentsView` has focus
+never arrives. `isRevealLogsChord` in `logFormat.ts` matches on `code` for that
+reason, and is unit-tested against the regression.
+
+**Adding a log line.** Scope it to the module and let the transport handle the rest:
+
+```ts
+import { log } from '@main/diagnostics'
+
+const backendLog = log.scope('backend')
+backendLog.warn('pty spawn failed', { workspaceId, error: serializeError(error) })
+```
+
+Decisions (levels, line layout, error serialization, rotation threshold) live in
+`diagnostics/logFormat.ts`, which is Electron-free and unit-tested; `logger.ts` is
+the IO around it. Same split as `env/fixPath.ts` and `update/periodicCheck.ts`.
 
 ## Next steps (remaining feature work)
 

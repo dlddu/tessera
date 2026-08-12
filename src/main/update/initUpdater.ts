@@ -20,7 +20,10 @@ import type {
   UpdateErrorEvent,
   UpdateProgressEvent
 } from '@shared/ipc'
+import { log } from '@main/diagnostics'
 import { startPeriodicUpdateCheck } from './periodicCheck'
+
+const updateLog = log.scope('update')
 
 export function initUpdater(win: BrowserWindow): void {
   // Accessed lazily (not at module load): the `autoUpdater` getter instantiates
@@ -60,6 +63,7 @@ export function initUpdater(win: BrowserWindow): void {
     send(IpcChannels.update.downloaded, { version: info.version } satisfies UpdateDownloadedEvent)
   })
   autoUpdater.on('error', (err) => {
+    updateLog.error('updater error', { error: String(err instanceof Error ? err.stack : err) })
     send(IpcChannels.update.error, {
       message: err instanceof Error ? err.message : String(err)
     } satisfies UpdateErrorEvent)
@@ -68,6 +72,10 @@ export function initUpdater(win: BrowserWindow): void {
   // Check once on launch, then keep polling on an interval so a long-running
   // session still picks up releases cut after startup.
   void autoUpdater.checkForUpdates()
-  const stopPeriodicCheck = startPeriodicUpdateCheck(() => autoUpdater.checkForUpdates())
+  const stopPeriodicCheck = startPeriodicUpdateCheck(
+    () => autoUpdater.checkForUpdates(),
+    undefined,
+    (error) => updateLog.warn('periodic update check failed', { error: String(error) })
+  )
   app.once('before-quit', stopPeriodicCheck)
 }
