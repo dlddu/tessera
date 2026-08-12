@@ -25,6 +25,7 @@
     "test/unit/host-area-registry.test.ts",
     "test/unit/routing.test.ts",
     "test/unit/browser-view.test.ts",
-    "test/unit/diagnostics.test.ts"
+    "test/unit/diagnostics.test.ts",
+    "test/unit/persistence-logging.test.ts"
   ]
 }

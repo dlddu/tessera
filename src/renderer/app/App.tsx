@@ -27,8 +27,12 @@ import {
 } from '@renderer/commands'
 import { seedEditorRestore } from '@renderer/surfaces/editorStateRegistry'
 import { seedTerminalRestore } from '@renderer/surfaces/terminalScrollbackRegistry'
+import { createLog } from '@renderer/diagnostics/log'
 import type { CreateWorkspaceResult } from '@shared/ipc'
 import { WorkspaceView } from './WorkspaceView'
+
+/** Boot-restore traces (AC1.5 / J1-S6). Relayed into the main log file. */
+const log = createLog('restore')
 
 // The two workspace-scope shortcuts the App shell owns. ⌘N opens the creation
 // dialog; ⌘1–9 switches by rail position. Dispatched through the shared registry
@@ -60,18 +64,35 @@ export function App() {
   // saved one. An empty list keeps the quiet empty state.
   useEffect(() => {
     let cancelled = false
-    window.tessera.persistence.list().then((snapshots) => {
-      if (cancelled || snapshots.length === 0) return
-      // Seed each surface's restorable content before the views mount, so an
-      // EditorSurface finds its buffer/cursor payload (AC4.1) and a
-      // TerminalSurface its scrollback (AC4.3) on first render.
-      for (const s of snapshots) {
-        seedEditorRestore(s.workspace.id, s.surfaces ?? [])
-        seedTerminalRestore(s.workspace.id, s.surfaces ?? [])
-      }
-      setWorkspaces(snapshots.map((s) => ({ workspace: s.workspace, layout: s.layout })))
-      setActiveId(snapshots[0]!.workspace.id) // list is newest-first
-    })
+    window.tessera.persistence
+      .list()
+      .then((snapshots) => {
+        if (cancelled) return
+        if (snapshots.length === 0) {
+          // Indistinguishable on screen from "every snapshot was rejected" — the
+          // store logs which of the two happened; this records what the shell did.
+          log.info('boot restore: nothing to restore, showing empty state')
+          return
+        }
+        // Seed each surface's restorable content before the views mount, so an
+        // EditorSurface finds its buffer/cursor payload (AC4.1) and a
+        // TerminalSurface its scrollback (AC4.3) on first render.
+        for (const s of snapshots) {
+          seedEditorRestore(s.workspace.id, s.surfaces ?? [])
+          seedTerminalRestore(s.workspace.id, s.surfaces ?? [])
+        }
+        setWorkspaces(snapshots.map((s) => ({ workspace: s.workspace, layout: s.layout })))
+        setActiveId(snapshots[0]!.workspace.id) // list is newest-first
+        log.info('boot restore: workspaces seeded', {
+          workspaces: snapshots.length,
+          activated: snapshots[0]!.workspace.id
+        })
+      })
+      .catch((error: unknown) => {
+        // Previously unhandled: a rejected `list` left the app in the empty
+        // state, which looks exactly like a wiped store. Now it says so.
+        log.warn('boot restore failed; starting with no workspaces', { error: String(error) })
+      })
     return () => {
       cancelled = true
     }

@@ -54,9 +54,13 @@ import {
   captureTerminalStates,
   subscribeTerminalChanges
 } from '@renderer/surfaces/terminalScrollbackRegistry'
+import { createLog } from '@renderer/diagnostics/log'
 import type { CreateWorkspaceResult } from '@shared/ipc'
-import { buildWorkspaceSnapshot } from '@shared/types'
+import { buildWorkspaceSnapshot, describeLayout } from '@shared/types'
 import type { LayoutNode, LayoutSnapshot, SurfaceKind } from '@shared/types'
+
+/** Autosave / restore traces (AC1.5). Relayed into the main log file. */
+const log = createLog('persist')
 
 // The chords the layout view dispatches: every layout shortcut plus ⇧⌘W (close
 // workspace). ⌘N / ⌘1–9 stay with the App shell; ⌘K + Esc are handled inline
@@ -406,6 +410,21 @@ export function WorkspaceView({
     if (!active) setRoutedUrl(null)
   }, [active])
 
+  // Reconstruction (AC1.5): one line per mount recording the skeleton the engine
+  // was actually seeded with. Closes the loop the store's "layout snapshot
+  // restored" line opens — if the two disagree, the loss happened between the
+  // load and the mount (a stripped host area, a dropped boot seed), not on disk.
+  useEffect(() => {
+    log.info('layout skeleton reconstructed', {
+      workspaceId: workspace.id,
+      backend: workspace.backend.kind,
+      ...describeLayout(layout)
+    })
+    // Mount-only: `useLayout` seeds the engine once and later edits are the
+    // autosave effect's business, not a reconstruction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace.id])
+
   // Autosave (AC1.5 layout skeleton + AC4.1 editor content + AC4.3 terminal
   // scrollback): persist a debounced snapshot whenever the layout changes *or* a
   // surface's content changes, flush synchronously on app quit so the last edit
@@ -422,18 +441,43 @@ export function WorkspaceView({
         ...captureTerminalStates(workspace.id)
       ])
 
-    const save = (withToast: boolean) => {
-      void window.tessera.persistence.save(snapshotNow()).then(() => {
-        if (!withToast) return
-        setSaved(true)
-        if (toastTimer) clearTimeout(toastTimer)
-        toastTimer = setTimeout(() => setSaved(false), SAVED_TOAST_MS)
-      })
+    /**
+     * Which of the three persist paths fired. The main-process log records what
+     * reached disk; only the renderer knows *why* it was written — and a missing
+     * `quit` line after a crash is itself the finding.
+     */
+    const save = (trigger: 'debounce' | 'unmount', withToast: boolean) => {
+      const snapshot = snapshotNow()
+      void window.tessera.persistence
+        .save(snapshot)
+        .then(() => {
+          log.debug('layout persisted', {
+            workspaceId: workspace.id,
+            trigger,
+            ...describeLayout(snapshot.layout),
+            surfaces: snapshot.surfaces.length
+          })
+          if (!withToast) return
+          setSaved(true)
+          if (toastTimer) clearTimeout(toastTimer)
+          toastTimer = setTimeout(() => setSaved(false), SAVED_TOAST_MS)
+        })
+        .catch((error: unknown) => {
+          // Previously unhandled: a rejected save showed no toast and said
+          // nothing, so the layout was silently not on disk until the next boot
+          // revealed it. The toast is deliberately still withheld — "저장됨 ✓"
+          // on a failed write would be a lie — but the failure is now traceable.
+          log.warn('layout persist failed', {
+            workspaceId: workspace.id,
+            trigger,
+            error: String(error)
+          })
+        })
     }
 
     const scheduleSave = () => {
       if (debounce) clearTimeout(debounce)
-      debounce = setTimeout(() => save(true), SAVE_DEBOUNCE_MS)
+      debounce = setTimeout(() => save('debounce', true), SAVE_DEBOUNCE_MS)
     }
 
     // Layout mutations (split / add / close / move / zoom), editor buffer edits
@@ -449,7 +493,17 @@ export function WorkspaceView({
         clearTimeout(debounce)
         debounce = null
       }
-      window.tessera.persistence.saveSync(snapshotNow())
+      const snapshot = snapshotNow()
+      // Logged *before* the call: `saveSync` blocks the renderer and the window
+      // is being torn down, so a line written after it may never be relayed. If
+      // the main log shows this without the store's matching "flushed on quit",
+      // the quit path itself is where the state was lost.
+      log.info('layout quit-flush requested', {
+        workspaceId: workspace.id,
+        ...describeLayout(snapshot.layout),
+        surfaces: snapshot.surfaces.length
+      })
+      window.tessera.persistence.saveSync(snapshot)
     }
     window.addEventListener('beforeunload', onBeforeUnload)
 
@@ -462,7 +516,7 @@ export function WorkspaceView({
       if (debounce) {
         // A change is still pending — flush it (without a toast on the way out).
         clearTimeout(debounce)
-        save(false)
+        save('unmount', false)
       }
     }
   }, [engine, workspace])
