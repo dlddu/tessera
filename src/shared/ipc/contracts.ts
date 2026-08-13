@@ -74,8 +74,18 @@ export interface GetEnvRequest {
   areaId: string
 }
 
+/**
+ * What a lifecycle call should do to the workspace's backend (AC2.6). `status`
+ * only reports (the panel's poll); the rest act on the container machine.
+ * `remove` deletes the machine *and its storage* — the workspace's restore
+ * state lives on the host and survives (AC4.5).
+ */
+export type BackendLifecycleAction = 'status' | 'stop' | 'restart' | 'remove'
+
 export interface BackendLifecycleRequest {
   workspaceId: string
+  /** Omitted → `status`, so an existing status-only caller keeps working. */
+  action?: BackendLifecycleAction
 }
 
 /* ---------------------------------------------------------------- workspace */

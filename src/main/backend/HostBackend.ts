@@ -56,6 +56,25 @@ export class HostBackend implements Backend {
   /** No-op: the host backend is `running` from construction. */
   async start(): Promise<void> {}
 
+  /**
+   * The host has no lifecycle to manage (AC2.6 is about the *container*
+   * backend), so these reject with a clear message instead of silently
+   * succeeding — the same "explicit error, not a quiet fallback" rule the
+   * backend registry follows. The backend panel only offers them for container
+   * workspaces, so this is a guard, not a normal path.
+   */
+  async stop(): Promise<void> {
+    throw new Error('호스트 백엔드는 정지할 수 없습니다.')
+  }
+
+  async restart(): Promise<void> {
+    throw new Error('호스트 백엔드는 재시작할 수 없습니다.')
+  }
+
+  async remove(): Promise<void> {
+    throw new Error('호스트 백엔드는 제거할 수 없습니다.')
+  }
+
   async spawnPty(options: PtySpawnOptions): Promise<PtyProcess> {
     const spawn = this.options.spawn ?? (await getNodePtySpawn())
     const shell = options.shell ?? process.env['SHELL'] ?? DEFAULT_SHELL

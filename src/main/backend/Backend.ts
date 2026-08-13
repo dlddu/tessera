@@ -102,6 +102,27 @@ export interface Backend {
    */
   start(): Promise<void>
 
+  /**
+   * Stop the backend (AC2.6). A container shuts its machine down, keeping the
+   * machine and its storage so {@link Backend.restart} can bring it back. The
+   * host has nothing to stop and rejects rather than pretending to succeed — a
+   * silent no-op would report "stopped" for a backend that is still running.
+   */
+  stop(): Promise<void>
+
+  /**
+   * Stop then boot the backend back to `running` (AC2.6). Host rejects, as with
+   * {@link Backend.stop}.
+   */
+  restart(): Promise<void>
+
+  /**
+   * Delete the backend's machine and its persistent storage (AC2.6). The
+   * workspace's restore state lives on the host, so it survives (AC4.5). Host
+   * rejects, as with {@link Backend.stop}.
+   */
+  remove(): Promise<void>
+
   spawnPty(options: PtySpawnOptions): Promise<PtyProcess>
   readFile(path: string): Promise<Uint8Array>
   writeFile(path: string, data: Uint8Array): Promise<void>
