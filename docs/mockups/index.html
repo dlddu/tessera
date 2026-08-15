@@ -2,7 +2,7 @@
 <html lang="ko"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tessera — Mockup 갤러리 (27)</title>
+<title>Tessera — Mockup 갤러리 (27단계 · 20파일)</title>
 <link rel="stylesheet" href="../design-system/tessera.css">
 <style>
   body{display:block; padding:34px 24px 60px; overflow:auto; align-items:initial}
@@ -18,6 +18,8 @@
     border:1px solid color-mix(in srgb,var(--brand) 40%,transparent); border-radius:6px; padding:2px 9px}
   .jhead h2{font-size:15px; font-weight:600}
   .jhead .jmeta{margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--faint)}
+  .jnote{color:var(--faint); font-size:11.5px; line-height:1.6; margin:-6px 0 12px; max-width:820px}
+  .jnote a{color:var(--brand); text-decoration:none}
   .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
   @media (max-width:880px){ .grid{grid-template-columns:repeat(2,1fr)} }
   @media (max-width:560px){ .grid{grid-template-columns:1fr} }
@@ -42,52 +44,55 @@
     <span class="mark lg"><i></i><i></i><i></i><i></i></span>
     <h1>Tessera — Mockup 갤러리</h1>
   </div>
-  <p class="lede">4개 사용자 여정 = <b style="color:var(--ink)">27개 mockup</b> (J1 8단계, J2 7단계, J3·J4 각 6단계).
-    각 카드를 클릭하면 전체 화면으로 열린다. 매핑 표는
+  <p class="lede">4개 사용자 여정 = <b style="color:var(--ink)">27개 단계</b> (J1 8단계, J2 7단계, J3·J4 각 6단계).
+    <b style="color:var(--ink)">J1은 여정 단위 페이지 1개</b>(<a href="./journeys/JRN-layout.html">journeys/JRN-layout.html</a>)로 이관됐고,
+    J2~J4는 아직 화면 단위 파일 19개다 — mockup 파일 합계 20개. 각 카드를 클릭하면 해당 단계가 전체 화면으로 열린다. 매핑 표는
     <a href="./tessera-mockup-index.md">tessera-mockup-index.md</a>,
     디자인 시스템은 <a href="../design-system/tessera-design-system.md">tessera-design-system.md</a> 참조.</p>
     <section class="jsec">
       <div class="jhead"><span class="jid">J1</span><h2>통합된 단일 작업 표면</h2>
-        <span class="jmeta">V1 · host backend · 레이아웃 구성</span></div>
+        <span class="jmeta">V1 · host backend · <a href="./journeys/JRN-layout.html">여정 단위 페이지 1개</a> · 8단계</span></div>
+      <p class="jnote">이 여정은 <b>여정 단위 페이지</b>로 이관됐다 — 아래 카드는 각 단계로 들어가는 딥링크이고,
+        페이지는 <a href="./journeys/JRN-layout.html">JRN-layout.html</a> 하나다. J2~J4는 아직 화면 단위 파일이다.</p>
       <div class="grid">
-      <a class="card" href="./M-J1-S1.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S1.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S1</span><span class="ctitle">새 워크스페이스 생성 (host)</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-workspace-create" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-workspace-create" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-workspace-create</span><span class="ctitle">새 워크스페이스 생성 (host)</span>
           <span class="pills"><span>V1·V2</span><span>AC2.1</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S2.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S2.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S2</span><span class="ctitle">호스트 셸 터미널 (단일 pane)</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-terminal-tab" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-terminal-tab" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-terminal-tab</span><span class="ctitle">호스트 셸 터미널 (단일 pane)</span>
           <span class="pills"><span>V1·V2</span><span>AC1.1·2.2</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S3.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S3.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S3</span><span class="ctitle">수직 분할 → 편집기</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-split-editor" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-split-editor" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-split-editor</span><span class="ctitle">수직 분할 → 편집기</span>
           <span class="pills"><span>V1</span><span>AC1.2</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S4.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S4.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S4</span><span class="ctitle">2×2 — 4종 컴포넌트 공존</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-quad-layout" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-quad-layout" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-quad-layout</span><span class="ctitle">2×2 — 4종 컴포넌트 공존</span>
           <span class="pills"><span>V1</span><span>AC1.1·1.2</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S5.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S5.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S5</span><span class="ctitle">탭 드래그 · 단축키</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-tab-move-focus" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-tab-move-focus" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-tab-move-focus</span><span class="ctitle">탭 드래그 · 단축키</span>
           <span class="pills"><span>V1</span><span>AC1.3·1.4</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S6.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S6.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S6</span><span class="ctitle">레이아웃 골격 직렬화</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-layout-persist" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-layout-persist" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-layout-persist</span><span class="ctitle">레이아웃 골격 직렬화</span>
           <span class="pills"><span>V1</span><span>AC1.5</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S7.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S7.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S7</span><span class="ctitle">pane 전체화면 (zoom, 영속)</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-pane-zoom" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-pane-zoom" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-pane-zoom</span><span class="ctitle">pane 전체화면 (zoom, 영속)</span>
           <span class="pills"><span>V1</span><span>AC1.6</span></span></div>
       </a>
-      <a class="card" href="./M-J1-S8.html" target="_blank">
-        <div class="thumb"><iframe src="./M-J1-S8.html" scrolling="no" tabindex="-1"></iframe></div>
-        <div class="cap"><span class="cid">M-J1-S8</span><span class="ctitle">워크스페이스 목록에서 전환</span>
+      <a class="card" href="./journeys/JRN-layout.html#STP-workspace-switch" target="_blank">
+        <div class="thumb"><iframe src="./journeys/JRN-layout.html#STP-workspace-switch" scrolling="no" tabindex="-1"></iframe></div>
+        <div class="cap"><span class="cid">STP-workspace-switch</span><span class="ctitle">워크스페이스 목록에서 전환</span>
           <span class="pills"><span>V1</span><span>AC1.7</span></span></div>
       </a>
       </div>
