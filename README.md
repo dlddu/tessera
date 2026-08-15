@@ -15,9 +15,11 @@
 > `WebContentsView` with cross-isolation routing (PRD-3 direction A, AC3.2) — while
 > the Claude pane is a **static design-system visual** for now.
 
-Product specs live in [`docs/`](./docs) — values (`tessera-values.md`), PRDs
-(`tessera-prd-*.md`), tests (`tessera-test-*.md`), journeys, and the design system
-(`docs/design-system/`).
+Product specs live in [`docs/`](./docs), one directory per document kind —
+`docs/values/`, `docs/prd/` (PRDs + acceptance criteria), `docs/tests/`,
+`docs/journeys/`, `docs/mockups/`, and `docs/design-system/`.
+[`docs/README.md`](./docs/README.md) is the map: it holds the placement rules,
+the full document index, and the link policy.
 
 The 27-screen mockup gallery is published at
 **[dlddu.github.io/tessera](https://dlddu.github.io/tessera/)**. GitHub Pages
@@ -27,9 +29,10 @@ changes are reflected without a separate application build.
 > Note: app **auto-update** (`src/main/update/`, electron-updater — periodic check,
 > background download, restart prompt) and **diagnostics**
 > (`src/main/diagnostics/`, see [Debugging a packaged build](#debugging-a-packaged-build))
-> are platform infrastructure outside the four product values (V1–V4). Both are
-> wired and unit-tested in code, but intentionally not part of the `docs/` product
-> specs.
+> are platform infrastructure outside the four product values (V1–V4). They carry
+> no acceptance criteria, journeys, or mockups; their user-facing surfaces are
+> registered in
+> [`docs/platform/tessera-platform-infrastructure.md`](./docs/platform/tessera-platform-infrastructure.md).
 
 ## Requirements
 
