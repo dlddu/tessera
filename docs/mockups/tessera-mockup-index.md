@@ -5,8 +5,8 @@
 
 - **갤러리**: [`index.html`](./index.html) — 27개 미리보기 한 페이지
 - **디자인 시스템**: [`../design-system/tessera-design-system.md`](../design-system/tessera-design-system.md) · 스타일 구현 [`../design-system/tessera.css`](../design-system/tessera.css)
-- **여정 인덱스**: [`../tessera-user-journeys.md`](../tessera-user-journeys.md)
-- **가치 문서**: [`../tessera-values.md`](../tessera-values.md)
+- **여정 인덱스**: [`../journeys/tessera-user-journeys.md`](../journeys/tessera-user-journeys.md)
+- **가치 문서**: [`../values/tessera-values.md`](../values/tessera-values.md)
 
 각 mockup HTML은 빌드 없이 그대로 열리는 자체 완결 정적 파일이며, 공유 `tessera.css` 한 장을
 `<link>`로 참조한다(디자인 시스템 변경이 전체 mockup에 전파됨). 상단 캡션 바(화면 ID·단계·가치·AC·패턴)는
@@ -34,7 +34,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ## J1 — 통합된 단일 작업 표면 (host backend)
 
-가치: **V1**(주) · V2(부) · 여정 문서 [`../tessera-journey-layout.md`](../tessera-journey-layout.md)
+가치: **V1**(주) · V2(부) · 여정 문서 [`../journeys/tessera-journey-layout.md`](../journeys/tessera-journey-layout.md)
 
 | Mockup | 단계 | 화면 | 가치 | AC | 패턴 · 주요 DS 컴포넌트 |
 |--------|------|------|------|-----|--------------------------|
@@ -49,7 +49,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ## J2 — 환경 선택의 자유 (container backend)
 
-가치: **V2**(주) · V1(부) · 여정 문서 [`../tessera-journey-backend.md`](../tessera-journey-backend.md)
+가치: **V2**(주) · V1(부) · 여정 문서 [`../journeys/tessera-journey-backend.md`](../journeys/tessera-journey-backend.md)
 
 | Mockup | 단계 | 화면 | 가치 | AC | 패턴 · 주요 DS 컴포넌트 |
 |--------|------|------|------|-----|--------------------------|
@@ -63,7 +63,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ## J3 — 격리를 깨지 않는 인증 경험 (OAuth 라우팅)
 
-가치: **V3**(주) · V2(부) · 여정 문서 [`../tessera-journey-browser-routing.md`](../tessera-journey-browser-routing.md)
+가치: **V3**(주) · V2(부) · 여정 문서 [`../journeys/tessera-journey-browser-routing.md`](../journeys/tessera-journey-browser-routing.md)
 
 | Mockup | 단계 | 화면 | 가치 | AC | 패턴 · 주요 DS 컴포넌트 |
 |--------|------|------|------|-----|--------------------------|
@@ -76,7 +76,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ## J4 — 작업 손실 없는 복원력 (크래시 복원)
 
-가치: **V4**(주) · V1(부) · 여정 문서 [`../tessera-journey-state-restoration.md`](../tessera-journey-state-restoration.md)
+가치: **V4**(주) · V1(부) · 여정 문서 [`../journeys/tessera-journey-state-restoration.md`](../journeys/tessera-journey-state-restoration.md)
 
 > 핵심 구분: **읽기 전용 중간 보존 뷰(S1)** 와 **백엔드 재기동 후 상태 재적용으로 완료되는 사용 가능 복원(S3)** 은 다르다.
 

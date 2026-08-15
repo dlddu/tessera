@@ -3,8 +3,8 @@
 > 이 문서는 Tessera 화면을 그리는 **시각 언어**의 정의다. 모든 mockup은 이 문서가 정의한 토큰·컴포넌트·패턴만 사용해야 하며,
 > 임의 값을 쓰면 `tessera-doc-tracker.md`의 "임의 스타일 mockup" 위험으로 잡힌다.
 >
-> - 최상위 판단 기준(참조 전용): `../tessera-values.md`
-> - 시각화 대상 흐름: `../tessera-user-journeys.md` (J1~J4)
+> - 최상위 판단 기준(참조 전용): `../values/tessera-values.md`
+> - 시각화 대상 흐름: `../journeys/tessera-user-journeys.md` (J1~J4)
 > - 이 시스템의 코드 구현(모든 mockup이 import): `tessera.css`
 > - mockup ↔ 가치/여정/디자인시스템 연결의 단일 소스: `../mockups/tessera-mockup-index.md`
 
