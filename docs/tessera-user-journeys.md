@@ -6,7 +6,9 @@
 
 > **문서 체계 상 위치**: 가치 → PRD → AC → 테스트의 백엔드 사슬과,
 > 사용자 여정 → mockup ↔ 디자인 시스템의 프론트엔드 사슬이 모두 갖춰졌다.
-> 디자인 시스템과 27개 mockup이 작성·연결되어, 모든 여정의 시각화 칸이 **완료(✅)** 상태다(J1은 워크스페이스 전환 8단계, J2는 host 전용 영역 7단계 포함).
+> 디자인 시스템과 27개 단계의 mockup이 작성·연결되어, 모든 여정의 시각화 칸이 **완료(✅)** 상태다(J1은 워크스페이스 전환 8단계, J2는 host 전용 영역 7단계 포함).
+> **mockup 단위는 여정 단위로 이관 중이다** — J1은 여정 하나를 한 페이지에서 걸어보는
+> [`mockups/journeys/JRN-layout.html`](./mockups/journeys/JRN-layout.html) 1개로 통합됐고, J2~J4는 아직 화면 단위 파일이다.
 > 전체 mockup은 [갤러리](./mockups/index.html)와 [mockup 인덱스](./mockups/tessera-mockup-index.md)에서 볼 수 있다.
 
 ---
@@ -47,6 +49,7 @@
 프론트엔드 사슬의 구조적 공백이 모두 해소되었다.
 
 - **시각화 누락 단계(unvisualized step)**: 없음. J1~J4의 전 단계(27/27)가 대응 mockup을 가리킨다.
+  J1의 8단계는 여정 페이지의 `#STP-<슬러그>` 앵커로, J2~J4의 19단계는 아직 화면 단위 파일로 연결된다.
 - **디자인 시스템**: UI 시각 언어(토큰/컴포넌트/패턴)가 [디자인 시스템 문서](./design-system/tessera-design-system.md)와 공유 [`tessera.css`](./design-system/tessera.css)로 정의됨.
 - **mockup 인덱스**: mockup ↔ 가치/여정/디자인 시스템 연결의 단일 소스가 [mockup 인덱스](./mockups/tessera-mockup-index.md)로 존재.
 - **시각화 없는 가치(unvisualized value)**: 없음. V1~V4 모두 하나 이상의 mockup으로 시각화됨.
@@ -54,7 +57,9 @@
 진행 결과(`design-doc-structure-validator`의 협업 가이드 기준, 4단계 모두 완료):
 
 1. ✅ **디자인 시스템 셋업** — 토큰/컴포넌트/패턴을 `docs/design-system/`에 정의(문서 + `tessera.css`).
-2. ✅ **mockup 작성** — 각 여정 단계의 `M-Jx-Sn`에 대응하는 27개 화면을 `docs/mockups/`에 제작(공유 CSS 링크).
+2. ✅ **mockup 작성** — 각 여정 단계에 대응하는 27개 화면을 `docs/mockups/`에 제작(공유 CSS 링크).
+   ◐ **여정 단위 이관** — 화면 단위 파일을 여정 단위 페이지로 통합하는 중(1/4: J1 완료, J2~J4 대기).
+   규약은 [mockup 인덱스의 「여정 단위 페이지 규약」](./mockups/tessera-mockup-index.md).
 3. ✅ **mockup 인덱스 작성** — 각 mockup의 여정 단계/가치/AC/디자인 시스템 항목 매핑을 기록.
 4. ✅ **여정 파일 갱신** — 각 단계의 시각화 칸을 ⬜ → ✅ 로 연결하고 인덱스를 재검증.
 
@@ -66,6 +71,6 @@
 - 사용자 여정 인덱스(이 문서): `tessera-user-journeys.md`
 - 사용자 여정(여정별): `tessera-journey-layout.md`, `tessera-journey-backend.md`, `tessera-journey-browser-routing.md`, `tessera-journey-state-restoration.md`
 - 디자인 시스템: `design-system/tessera-design-system.md`, `design-system/tessera.css`
-- mockup: `mockups/` (27개 `M-Jx-Sn.html`), 갤러리 `mockups/index.html`
+- mockup: `mockups/` — 여정 단위 페이지 `mockups/journeys/JRN-<영역>.html` 1개(J1) + 화면 단위 `M-Jx-Sn.html` 19개(J2~J4), 갤러리 `mockups/index.html`
 - mockup 인덱스: `mockups/tessera-mockup-index.md`
 - 상태 추적: `tessera-doc-tracker.md`

@@ -15,7 +15,9 @@
 ### 프론트엔드 사슬 (사용자 여정 → mockup ↔ 디자인 시스템)
 - 사용자 여정: **4개** (J1~J4, 여정별 파일 분리 + 인덱스 1개) — 가치 연결됨: 4개 / 미연결: 0개. V1~V4 전부 달성, AC1.1~AC4.6(26개) 전부 경유.
 - 디자인 시스템: **있음** (`docs/design-system/tessera-design-system.md` + 공유 `tessera.css`) — 토큰/컴포넌트(C-*)/패턴(P-*) 정의됨. 워크스페이스 레일 `C-workspace-rail`·`P-workspace-rail` 포함.
-- mockup: **27개** (`docs/mockups/M-Jx-Sn.html`) / mockup 인덱스: **있음** (`docs/mockups/tessera-mockup-index.md`) + 갤러리(`index.html`)
+- mockup: **20개 파일 / 27단계** — 여정 단위 페이지 **1개**(`docs/mockups/journeys/JRN-layout.html`, J1 8단계) + 화면 단위 **19개**(`docs/mockups/M-J{2,3,4}-Sn.html`).
+  화면 단위 → 여정 단위 이관이 진행 중이다(1/4). 이관 규약은 mockup 인덱스의 「여정 단위 페이지 규약」 절.
+  / mockup 인덱스: **있음** (`docs/mockups/tessera-mockup-index.md`) + 갤러리(`index.html`)
 - 여정 단계 시각화: **27 / 27단계** (J1 워크스페이스 전환 = `M-J1-S8`, J1 전체화면 토글 = `M-J1-S7`, J2 host 전용 영역 7단계 = `M-J2-S7` 포함)
 
 - **건강 상태**: ⚠️ **위험 있음** — 🔴 제품 소유자 미확정 1건 · ⚠️ **구현 gap**: 확정 26개 AC 중 구현 19 · 부분 3 · 스텁 4(정의 to-be 미달, 아래 '구현·검증 상태' 참조). 문서 사슬(가치→PRD→AC→테스트→목업)은 완전하나 실제 구현·자동화 검증은 부분이다.
@@ -111,7 +113,7 @@
 - (없음) — 4개 테스트 문서 모두 대상 AC 명시.
 
 ### 🟢 [프론트엔드] 시각화 누락 단계 (mockup 없는 여정 단계)
-- (없음) — J1~J4 전 단계(27/27)가 대응 mockup(`M-Jx-Sn.html`)을 가리킨다. **해소됨** (J1-S8 = `M-J1-S8`).
+- (없음) — J1~J4 전 단계(27/27)가 대응 mockup을 가리킨다. **해소됨**. J1 8단계는 여정 페이지의 `#STP-<슬러그>` 앵커(옛 `M-J1-Sn`은 `data-legacy-id`로 보존), J2~J4 19단계는 화면 단위 `M-Jx-Sn.html`.
 
 ### 🟢 [프론트엔드] 시각화 없는 가치 (mockup 없는 가치)
 - (없음) — V1~V4 모두 하나 이상의 mockup으로 시각화됨. **해소됨**.
@@ -149,7 +151,8 @@
 | 사용자 여정 J4 (상태 복원) | `tessera-journey-state-restoration.md` |
 | 디자인 시스템 (문서) | `design-system/tessera-design-system.md` |
 | 디자인 시스템 (CSS) | `design-system/tessera.css` |
-| mockup (27개) | `mockups/M-Jx-Sn.html` |
+| mockup — 여정 단위 (J1) | `mockups/journeys/JRN-layout.html` |
+| mockup — 화면 단위 (J2~J4, 19개) | `mockups/M-Jx-Sn.html` |
 | mockup 갤러리 | `mockups/index.html` |
 | mockup 인덱스 | `mockups/tessera-mockup-index.md` |
 | 상태 추적 | `tessera-doc-tracker.md` (이 문서) |
@@ -187,3 +190,4 @@
 | 2026-08-07 | **AC4.3 터미널 스크롤백 캡처·재적용 구현**(정합성 criterion ①) — 순수 모듈 `terminalScrollbackRegistry` 신설(캡처 getter 등록/해제·`captureTerminalStates`·`seedTerminalRestore`/`takeTerminalRestore`·5초 스로틀 변경 알림·1000줄 상한·`formatRestoredScrollback`), `TerminalSurface`에 `tabId` prop + xterm 버퍼 캡처 getter + 마운트 시 히스토리 재적용 + 출력 시 autosave 넛지 배선, `SurfaceHost`가 `tabId` 전달, `WorkspaceView` autosave가 편집기+터미널 서피스를 함께 적재, `App` 부팅이 두 레지스트리를 시드. 유닛 18건 신설(`test/unit/terminal-restore.test.ts`). 트래커 동반 갱신 — AC4.3 ✗ 스텁 → ◐ 부분, AC4.5 근거를 '3종 중 Claude만 미캡처'로, 집계 구현 17/부분 5/스텁 4, 검증 축 한계를 'AC4.1 e2e 1건 미배선' → '`test/e2e/` spec 19개 전부 CI 미실행'으로 정정. AC 본문·문서 사슬 불변(to-be 미하향) | AC4.3 ✗ 스텁(터미널 스크롤백 미캡처 → 복원 없음), 집계 구현 17/부분 4/스텁 5, 검증 축 한계를 AC4.1 e2e 1건으로만 기술 | AC4.3 ◐ 부분(재적용 경로 동작·인세션 동결 미구현), 집계 구현 17/부분 5/스텁 4, e2e spec 19개 전부 미실행 명시 |
 | 2026-08-07 | **AC4.3 인세션 동결·재연결 구현 → AC4.3 완결**(정합성 criterion ①) — `isAbnormalPtyExit`/`formatFrozenNotice`/`formatReconnectedHeader`를 `terminalScrollbackRegistry`(순수 모듈)에 추가하고, `TerminalSurface`가 비정상 PTY 종료 시 탭을 닫는 대신 보존 화면을 읽기 전용으로 동결(surfaceId 해제·autosave 넛지)한 뒤 M-J4-S1 표현(`.banner.danger`·`.badge.ro`·`.btn`)과 재연결 버튼을 렌더하도록 개편. `spawn()` 추출로 재연결이 같은 xterm 위에 새 PTY를 붙인다. 강제 종료를 판별할 수 있도록 `PtyExitEvent.signal`을 `Backend`·`HostBackend`·`ContainerRuntime`·`registerSurfaceIpc`를 거쳐 전파(optional 필드, v3 스냅샷 스키마 불변). 배치 규칙만 renderer 전용 `shell.css`에 추가 — 디자인 시스템 파일·mockup 불변. 유닛 25건. 트래커 동반 갱신 — AC4.3 ◐ → ✅, 집계 구현 18/부분 4/스텁 4, V4 3/6, 다음 우선순위를 AC2.6 생명주기(+ M-J4-S1 전역 크롬)로 이동 | AC4.3 ◐ 부분(재적용 경로만 동작, 인세션 동결·재연결 없음 → PTY 종료가 탭을 닫음), 집계 구현 17/부분 5/스텁 4, V4 2/6 | AC4.3 ✅ 구현(재시작·인세션 두 축 모두 동작), 집계 구현 18/부분 4/스텁 4, V4 3/6 |
 | 2026-08-08 | **AC2.6 컨테이너 생명주기 + 응답성 측정 구현 → AC2.6 완결**(정합성 criterion ①) — `ContainerRuntime`에 `stopMachine`/`bootMachine`/`removeMachine` 추가(`container machine stop|rm <name>`; 별도 `machine start`가 없으므로 부팅은 `machine run`의 on-demand boot을 무해한 `:` 일회성으로 이용), `Backend`에 `stop`/`restart`/`remove` 추가 — `ContainerBackend`가 stopped/starting/running/error를 정확히 전이하고 이미 정지된 머신의 restart는 boot만 수행, `HostBackend`는 무음 no-op 대신 명시적 거부. `backend.lifecycle` IPC의 `NotImplementedError` 스텁을 실제 핸들러(status·stop·restart·remove, 실패는 `message`로 반환)로 교체. 순수 모듈 `terminalLatencyRegistry` 신설(입력→출력 왕복 표본, 최근 20개 중앙값, 요청 없는 출력 무시, 연타는 첫 키 기준, `now` 주입)과 `TerminalSurface` 배선. M-J2-S6 목업 그대로의 `BackendPanel`(상태 배지·이미지·머신·지연 게이지·정지/재시작)을 ⌃⌘B/⌘K 팔레트로 노출 — 시각 요소는 전부 기존 디자인 시스템 클래스(`.bepanel`·`.metric`·`.gauge`·`.belife`)이고 배치만 인라인이라 `tessera.css`·mockup 불변. 유닛 269 → 305건(신설 36건: `backend-lifecycle` 17 · `backend-responsiveness` 19). AC 본문·PRD·테스트 문서·여정 불변(to-be 미하향) | AC2.6 ◐ 부분(컨테이너 start만, stop/remove가 `NotImplementedError` · 응답성 측정·노출 없음), 집계 구현 18/부분 4/스텁 4, V2 5/8 | AC2.6 ✅ 구현(생명주기·응답성 두 축 동작), 집계 구현 19/부분 3/스텁 4, V2 6/8, 다음 우선순위를 M-J4-S1 전역 크롬으로 이동 |
+| 2026-08-15 | **J1 mockup을 여정 단위 페이지로 이관**(프론트엔드 사슬 구조 정비) — 화면 단위 8개(`M-J1-S1~S8.html`)를 `mockups/journeys/JRN-layout.html` 1개로 통합. 단계 식별자를 순번에서 슬러그(`STP-<슬러그>`)로 세우고 여정 문서 `## 단계` 표에 「단계 ID」 열을 신설해 SSOT로 삼음, 페이지에 `data-journey`/`data-step` 선언·`#STP-*` 딥링크·스테퍼·단계별 전진 핫스폿 배선. 옛 `M-J1-Sn`은 `data-legacy-id`·인덱스에 legacy alias로 보존(`src/`·`test/` 주석 40곳이 그 이름을 인용). mockup 인덱스에 「여정 단위 페이지 규약」 절 신설(J2~J4가 따를 계약), 갤러리 J1 카드를 딥링크로 재배선. AC·여정 단계·시각화 카운트 불변 | J1 mockup 8파일(화면 단위), 단계 식별자 순번, `data-step` 없음 | J1 mockup 1파일(여정 단위), 단계 식별자 슬러그, 문서↔페이지 단계 집합 기계 대조 가능 |
