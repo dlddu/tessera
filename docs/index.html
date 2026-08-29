@@ -1,15 +1,169 @@
-<!doctype html>
+<!DOCTYPE html>
+<!--
+  docs/index.html — 문서 포털 허브 (GitHub Pages 진입점)
+
+  design-doc-structure-validator 스킬의 hub-template.html 에서 생성했다.
+
+  허브는 "원천"이 아니라 문서·mockup 인덱스의 반영물이다.
+  문서나 mockup 이 늘거나 줄면 이 파일도 같은 커밋에서 함께 고친다.
+
+  링크 규칙:
+    - 마크다운 문서 → reader.html?doc=<docs 기준 경로>   (직접 .md 로 걸면 raw 다운로드가 된다)
+    - 여정 mockup   → journeys/<journey-id>/
+-->
 <html lang="ko">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta http-equiv="refresh" content="0; url=./mockups/" />
-    <title>Tessera — Mockup Gallery</title>
-    <script>
-      window.location.replace('./mockups/');
-    </script>
-  </head>
-  <body>
-    <p><a href="./mockups/">Tessera 목업 갤러리 열기</a></p>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tessera 문서 포털</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d1d9e0;
+    --accent: #0969da; --card: #f6f8fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #30363d;
+      --accent: #4493f8; --card: #161b22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo",
+          "Noto Sans KR", Roboto, sans-serif;
+  }
+  main { max-width: 940px; margin: 0 auto; padding: 48px 20px 120px; }
+  h1 { font-size: 2em; margin: 0 0 .2em; }
+  .lede { color: var(--muted); margin: 0 0 2.5em; }
+  h2 { font-size: 1.25em; margin: 2.4em 0 .2em; }
+  h2 + .hint { color: var(--muted); font-size: .9em; margin: 0 0 1em; }
+  a { color: var(--accent); }
+  .row {
+    display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px;
+    margin-bottom: 10px; background: var(--card);
+  }
+  .row .name { font-weight: 600; }
+  .row .meta { color: var(--muted); font-size: .875em; }
+  .row .spacer { flex: 1 1 auto; }
+  .row .links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row .links a {
+    display: inline-block; padding: 4px 12px; border: 1px solid var(--line);
+    border-radius: 999px; font-size: .875em; text-decoration: none; background: var(--bg);
+    white-space: nowrap;
+  }
+  .row .links a:hover { border-color: var(--accent); }
+  .row .links a.missing { color: var(--muted); border-style: dashed; pointer-events: none; }
+  code { background: var(--card); padding: .15em .4em; border-radius: 5px; font-size: .875em; }
+  footer { margin-top: 4em; padding-top: 1.5em; border-top: 1px solid var(--line); color: var(--muted); font-size: .875em; }
+</style>
+</head>
+<body>
+<main>
+
+  <h1>Tessera 문서 포털</h1>
+  <p class="lede">macOS 윈도우 멀티플렉서 — 제품 가치 · PRD · 사용자 여정 · 디자인 시스템 · 최종 갱신 2026-08-29</p>
+
+  <h2>제품 문서</h2>
+  <p class="hint">제품이 약속하는 가치와 그 가치를 구현하는 요구사항 · 검증 계획.</p>
+
+  <div class="row">
+    <span class="name">제품 가치</span>
+    <span class="meta">가치 <code>V1</code>~<code>V4</code> · 모든 문서의 최상위 기준</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-values.md">읽기</a></span>
+  </div>
+  <div class="row">
+    <span class="name">PRD-1 컴포넌트 &amp; 레이아웃 시스템</span>
+    <span class="meta">PRD + 대응 테스트 문서</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-prd-layout.md">PRD</a> <a href="reader.html?doc=tessera-test-layout.md">테스트</a></span>
+  </div>
+  <div class="row">
+    <span class="name">PRD-2 백엔드 &amp; 워크스페이스</span>
+    <span class="meta">PRD + 대응 테스트 문서</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-prd-backend.md">PRD</a> <a href="reader.html?doc=tessera-test-backend.md">테스트</a></span>
+  </div>
+  <div class="row">
+    <span class="name">PRD-3 크로스-격리 브라우저 라우팅</span>
+    <span class="meta">PRD + 대응 테스트 문서</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-prd-browser-routing.md">PRD</a> <a href="reader.html?doc=tessera-test-browser-routing.md">테스트</a></span>
+  </div>
+  <div class="row">
+    <span class="name">PRD-4 상태 복원</span>
+    <span class="meta">PRD + 대응 테스트 문서</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-prd-state-restoration.md">PRD</a> <a href="reader.html?doc=tessera-test-state-restoration.md">테스트</a></span>
+  </div>
+  <div class="row">
+    <span class="name">문서 체계 상태 추적</span>
+    <span class="meta">AC·mockup·시각화 커버리지 집계</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-doc-tracker.md">읽기</a></span>
+  </div>
+
+  <h2>사용자 여정</h2>
+  <p class="hint">여정 하나 = 문서 하나 + mockup 페이지 하나. 아래 mockup 자리는 아직 비어 있다 — 현재 mockup 은 화면 단위라 여정 단위 페이지가 없다.</p>
+
+  <div class="row">
+    <span class="name">여정 인덱스</span>
+    <span class="meta">주 페르소나 · 가치 커버리지 · 여정 목록</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-user-journeys.md">읽기</a></span>
+  </div>
+  <div class="row">
+    <span class="name">J1 통합 작업 표면 구성</span>
+    <span class="meta">달성 가치 <code>V1</code>(주) · <code>V2</code>(부) · 8단계</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-journey-layout.md">문서 읽기</a> <a class="missing" href="#">여정 mockup 준비 중</a></span>
+  </div>
+  <div class="row">
+    <span class="name">J2 컨테이너 워크스페이스 격리 작업</span>
+    <span class="meta">달성 가치 <code>V2</code>(주) · <code>V1</code>(부) · 7단계</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-journey-backend.md">문서 읽기</a> <a class="missing" href="#">여정 mockup 준비 중</a></span>
+  </div>
+  <div class="row">
+    <span class="name">J3 컨테이너 작업 중 OAuth 인증 완결</span>
+    <span class="meta">달성 가치 <code>V3</code>(주) · <code>V2</code>(부) · 6단계</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-journey-browser-routing.md">문서 읽기</a> <a class="missing" href="#">여정 mockup 준비 중</a></span>
+  </div>
+  <div class="row">
+    <span class="name">J4 크래시에서 작업 복원</span>
+    <span class="meta">달성 가치 <code>V4</code>(주) · <code>V1</code>(부) · 6단계</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=tessera-journey-state-restoration.md">문서 읽기</a> <a class="missing" href="#">여정 mockup 준비 중</a></span>
+  </div>
+
+  <h2>디자인 시스템</h2>
+  <p class="hint">mockup 이 따르는 시각 언어.</p>
+
+  <div class="row">
+    <span class="name">토큰 · 컴포넌트 · 패턴</span>
+    <span class="meta">시각 언어 정의 + 공유 스타일시트</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=design-system/tessera-design-system.md">읽기</a> <a href="design-system/tessera.css">tessera.css</a></span>
+  </div>
+
+  <h2>mockup (화면 단위)</h2>
+  <p class="hint">여정 단위로 전환되기 전의 화면 단위 산출물. 전환이 끝나면 이 구획은 사라지고 위 여정 행의 mockup 링크가 채워진다.</p>
+
+  <div class="row">
+    <span class="name">화면 단위 mockup 갤러리</span>
+    <span class="meta">M-J1-S1 ~ M-J4-S6 · 27개 화면 + 갤러리</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="mockups/index.html">갤러리 열기 →</a> <a href="reader.html?doc=mockups/tessera-mockup-index.md">mockup 인덱스</a></span>
+  </div>
+
+  <footer>
+    이 페이지는 손으로 갱신한다. 여정·mockup·문서가 늘거나 줄면 같은 커밋에서 이 파일도 고친다.<br>
+    구조 점검은 <code>design-doc-structure-validator</code> 스킬로 한다.
+  </footer>
+
+</main>
+</body>
 </html>
