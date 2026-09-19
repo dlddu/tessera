@@ -90,4 +90,4 @@
 - 가치 문서: `tessera-values.md` (이 문서)
 - PRD: `tessera-prd-layout.md`, `tessera-prd-backend.md`, `tessera-prd-browser-routing.md`, `tessera-prd-state-restoration.md`
 - 테스트: `tessera-test-layout.md`, `tessera-test-backend.md`, `tessera-test-browser-routing.md`, `tessera-test-state-restoration.md`
-- 상태 추적: `tessera-doc-tracker.md`
+- 상태 추적: `tessera-doc-tracker/`
