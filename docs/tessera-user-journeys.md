@@ -68,4 +68,4 @@
 - 디자인 시스템: `design-system/tessera-design-system.md`, `design-system/tessera.css`
 - mockup: `mockups/` (27개 `M-Jx-Sn.html`), 갤러리 `mockups/index.html`
 - mockup 인덱스: `mockups/tessera-mockup-index.md`
-- 상태 추적: `tessera-doc-tracker.md`
+- 상태 추적: `tessera-doc-tracker/`
