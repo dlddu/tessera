@@ -15,9 +15,18 @@
 > `WebContentsView` with cross-isolation routing (PRD-3 direction A, AC3.2) — while
 > the Claude pane is a **static design-system visual** for now.
 
-Product specs live in [`docs/`](./docs) — values (`tessera-values.md`), PRDs
-(`tessera-prd-*.md`), tests (`tessera-test-*.md`), journeys, and the design system
-(`docs/design-system/`).
+Product specs live in [`docs/`](./docs), one directory per kind — values
+(`docs/values/`), PRDs and their acceptance criteria (`docs/prd/`), test documents
+(`docs/tests/`), the design system (`docs/design-system/`), and platform surfaces
+that sit outside the value chain (`docs/platform/`). User journeys stay at the
+`docs/` root for now; [`docs/README.md`](./docs/README.md) records the placement
+rules and why that exception exists.
+
+The document index itself lives in the published hub
+(**[dlddu.github.io/tessera](https://dlddu.github.io/tessera/)**), not in a
+markdown table — one index, so it cannot drift. Run
+`node scripts/check-docs-links.mjs` after moving any document: it resolves every
+relative link, HTML `href`/`src`, and hub `reader.html?doc=` target under `docs/`.
 
 The 27-screen mockup gallery is published at
 **[dlddu.github.io/tessera](https://dlddu.github.io/tessera/)**. GitHub Pages

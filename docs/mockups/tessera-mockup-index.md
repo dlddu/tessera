@@ -6,7 +6,7 @@
 - **갤러리**: [`index.html`](./index.html) — 27개 미리보기 한 페이지
 - **디자인 시스템**: [`../design-system/tessera-design-system.md`](../design-system/tessera-design-system.md) · 스타일 구현 [`../design-system/tessera.css`](../design-system/tessera.css)
 - **여정 인덱스**: [`../tessera-user-journeys.md`](../tessera-user-journeys.md)
-- **가치 문서**: [`../tessera-values.md`](../tessera-values.md)
+- **가치 문서**: [`../values/tessera-values.md`](../values/tessera-values.md)
 
 각 mockup HTML은 빌드 없이 그대로 열리는 자체 완결 정적 파일이며, 공유 `tessera.css` 한 장을
 `<link>`로 참조한다(디자인 시스템 변경이 전체 mockup에 전파됨). 상단 캡션 바(화면 ID·단계·가치·AC·패턴)는
