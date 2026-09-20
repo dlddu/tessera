@@ -63,7 +63,7 @@
 <main>
 
   <h1>Tessera 문서 포털</h1>
-  <p class="lede">macOS 윈도우 멀티플렉서 — 제품 가치 · PRD · 사용자 여정 · 디자인 시스템 · 최종 갱신 2026-08-29</p>
+  <p class="lede">macOS 윈도우 멀티플렉서 — 제품 가치 · PRD · 사용자 여정 · 디자인 시스템 · 플랫폼 인프라 · 최종 갱신 2026-09-20</p>
 
   <h2>제품 문서</h2>
   <p class="hint">제품이 약속하는 가치와 그 가치를 구현하는 요구사항 · 검증 계획.</p>
@@ -72,37 +72,53 @@
     <span class="name">제품 가치</span>
     <span class="meta">가치 <code>V1</code>~<code>V4</code> · 모든 문서의 최상위 기준</span>
     <span class="spacer"></span>
-    <span class="links"><a href="reader.html?doc=tessera-values.md">읽기</a></span>
+    <span class="links"><a href="reader.html?doc=values/tessera-values.md">읽기</a></span>
   </div>
   <div class="row">
     <span class="name">PRD-1 컴포넌트 &amp; 레이아웃 시스템</span>
     <span class="meta">PRD + 대응 테스트 문서</span>
     <span class="spacer"></span>
-    <span class="links"><a href="reader.html?doc=tessera-prd-layout.md">PRD</a> <a href="reader.html?doc=tessera-test-layout.md">테스트</a></span>
+    <span class="links"><a href="reader.html?doc=prd/tessera-prd-layout.md">PRD</a> <a href="reader.html?doc=tests/tessera-test-layout.md">테스트</a></span>
   </div>
   <div class="row">
     <span class="name">PRD-2 백엔드 &amp; 워크스페이스</span>
     <span class="meta">PRD + 대응 테스트 문서</span>
     <span class="spacer"></span>
-    <span class="links"><a href="reader.html?doc=tessera-prd-backend.md">PRD</a> <a href="reader.html?doc=tessera-test-backend.md">테스트</a></span>
+    <span class="links"><a href="reader.html?doc=prd/tessera-prd-backend.md">PRD</a> <a href="reader.html?doc=tests/tessera-test-backend.md">테스트</a></span>
   </div>
   <div class="row">
     <span class="name">PRD-3 크로스-격리 브라우저 라우팅</span>
     <span class="meta">PRD + 대응 테스트 문서</span>
     <span class="spacer"></span>
-    <span class="links"><a href="reader.html?doc=tessera-prd-browser-routing.md">PRD</a> <a href="reader.html?doc=tessera-test-browser-routing.md">테스트</a></span>
+    <span class="links"><a href="reader.html?doc=prd/tessera-prd-browser-routing.md">PRD</a> <a href="reader.html?doc=tests/tessera-test-browser-routing.md">테스트</a></span>
   </div>
   <div class="row">
     <span class="name">PRD-4 상태 복원</span>
     <span class="meta">PRD + 대응 테스트 문서</span>
     <span class="spacer"></span>
-    <span class="links"><a href="reader.html?doc=tessera-prd-state-restoration.md">PRD</a> <a href="reader.html?doc=tessera-test-state-restoration.md">테스트</a></span>
+    <span class="links"><a href="reader.html?doc=prd/tessera-prd-state-restoration.md">PRD</a> <a href="reader.html?doc=tests/tessera-test-state-restoration.md">테스트</a></span>
   </div>
   <div class="row">
     <span class="name">문서 체계 상태 추적</span>
     <span class="meta">AC·mockup·시각화 커버리지 집계</span>
     <span class="spacer"></span>
     <span class="links"><a href="reader.html?doc=tessera-doc-tracker.md">읽기</a></span>
+  </div>
+  <div class="row">
+    <span class="name">문서 배치 규약</span>
+    <span class="meta">구획 규칙 · 고정점 · 새 문서를 어디에 두는가</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=README.md">읽기</a></span>
+  </div>
+
+  <h2>플랫폼 인프라 (가치 사슬 밖)</h2>
+  <p class="hint">어떤 제품 가치(V1~V4)도 달성하지 않지만 사용자 눈에는 보이는 표면. AC·테스트 문서·여정·mockup 을 갖지 않는다.</p>
+
+  <div class="row">
+    <span class="name">플랫폼 인프라 표면</span>
+    <span class="meta">PI-1 진단(로그·크래시·DevTools) · PI-2 auto-update</span>
+    <span class="spacer"></span>
+    <span class="links"><a href="reader.html?doc=platform/tessera-platform-infrastructure.md">읽기</a></span>
   </div>
 
   <h2>사용자 여정</h2>
@@ -161,6 +177,9 @@
 
   <footer>
     이 페이지는 손으로 갱신한다. 여정·mockup·문서가 늘거나 줄면 같은 커밋에서 이 파일도 고친다.<br>
+    <strong>이 허브가 문서 인덱스의 정본이다</strong> — 새 문서를 어디에 두는지는
+    <a href="reader.html?doc=README.md">문서 배치 규약</a>이 정하고, 어디서 읽는지는 여기가 정한다.<br>
+    링크 해석은 <code>node scripts/check-docs-links.mjs</code> 로 확인한다(허브의 <code>doc=</code> 타깃 포함).<br>
     구조 점검은 <code>design-doc-structure-validator</code> 스킬로 한다.
   </footer>
 
