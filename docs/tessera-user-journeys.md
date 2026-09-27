@@ -6,7 +6,8 @@
 
 > **문서 체계 상 위치**: 가치 → PRD → AC → 테스트의 백엔드 사슬과,
 > 사용자 여정 → mockup ↔ 디자인 시스템의 프론트엔드 사슬이 모두 갖춰졌다.
-> 디자인 시스템과 27개 mockup이 작성·연결되어, 모든 여정의 시각화 칸이 **완료(✅)** 상태다(J1은 워크스페이스 전환 8단계, J2는 host 전용 영역 7단계 포함).
+> 디자인 시스템과 mockup이 작성·연결되어, 모든 여정의 시각화 칸이 **완료(✅)** 상태다(J1은 워크스페이스 전환 8단계, J2는 host 전용 영역 7단계 포함).
+> J1은 **여정 단위 페이지 1개**([`mockups/JRN-layout.html`](./mockups/JRN-layout.html))로 이관됐고, J2~J4는 아직 화면 단위 목업 19개다.
 > 전체 mockup은 [갤러리](./mockups/index.html)와 [mockup 인덱스](./mockups/tessera-mockup-index.md)에서 볼 수 있다.
 
 ---
@@ -35,15 +36,16 @@
 | **J4** | 크래시에서 작업 복원 | `tessera-journey-state-restoration.md` | V4 | V1 | AC1.5, AC4.1~4.6 | ✅ 6/6 |
 
 > 4개 여정이 V1~V4 가치 전부를 달성하며, 단계 근거로 AC1.1~AC4.6(26개)을 모두 한 번 이상 경유한다. (고아 여정 없음)
-> 전체 27개 단계 전부가 mockup으로 시각화됨(시각화 27/27). V1~V4 가치 전부가 시각화됨.
+> 전체 27개 단계 전부가 mockup으로 시각화됨(시각화 27/27 — J1 8단계는 여정 페이지의 `data-step`, 나머지 19단계는 화면 단위 파일). V1~V4 가치 전부가 시각화됨.
 
-**시각화 범례**: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. 각 여정 파일의 `M-Jx-Sn`은 제안 mockup ID(미작성).
+**시각화 범례**: ⬜ = mockup 미작성 / ✅ = mockup 작성·연결됨. J1은 단계 ID가 `STP-<슬러그>`이고 이관 전 `M-J1-Sn`은 legacy ID로 보존된다(재사용 금지). J2~J4의 `M-Jx-Sn`은 화면 단위 파일명이다.
 
 ---
 
 ## 시각화 상태와 다음 단계
 
 모든 여정(J1~J4)의 27개 단계가 모두 mockup으로 시각화되어 연결되었다(✅ 27/27, J1 워크스페이스 전환 1단계 + J2 host 전용 영역 7단계 포함).
+J1은 여정 단위 페이지 1개로 이관되어 「여정 하나 = mockup 페이지 하나」를 만족하고, J2~J4는 이관 대기다(각 여정에 화면 단위 파일 7·6·6개).
 프론트엔드 사슬의 구조적 공백이 모두 해소되었다.
 
 - **시각화 누락 단계(unvisualized step)**: 없음. J1~J4의 전 단계(27/27)가 대응 mockup을 가리킨다.
@@ -66,6 +68,6 @@
 - 사용자 여정 인덱스(이 문서): `tessera-user-journeys.md`
 - 사용자 여정(여정별): `tessera-journey-layout.md`, `tessera-journey-backend.md`, `tessera-journey-browser-routing.md`, `tessera-journey-state-restoration.md`
 - 디자인 시스템: `design-system/tessera-design-system.md`, `design-system/tessera.css`
-- mockup: `mockups/` (27개 `M-Jx-Sn.html`), 갤러리 `mockups/index.html`
+- mockup: `mockups/` (여정 페이지 `JRN-layout.html` 1개 + 화면 단위 19개 `M-Jx-Sn.html`), 갤러리 `mockups/index.html`
 - mockup 인덱스: `mockups/tessera-mockup-index.md`
 - 상태 추적: `tessera-doc-tracker.md`

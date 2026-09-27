@@ -102,12 +102,14 @@
 const CONFIG = {
   // 허브 파일 경로 (docs/ 기준)
   hubPath: 'index.html',
-  // 여정 mockup 이 사는 폴더 (docs/ 기준). 여정 mockup = <mockupBase><journey-id>/
-  // 현재 이 폴더는 없다. 여정 단위 mockup 을 만들 때 docs/journeys/<journey-id>/index.html 로 둔다.
-  mockupBase: 'journeys/',
+  // 여정 mockup 이 사는 폴더 (docs/ 기준). 여정 mockup = <mockupBase>JRN-<journey-id>.html
+  // J1 이관(2026-09-27)으로 자리가 확정됐다: docs/mockups/JRN-<여정 슬러그>.html.
+  // journey-id 는 파일명 tessera-journey-<영역>.md 의 <영역> 이다(= 여정 슬러그).
+  mockupBase: 'mockups/',
   // "이 문서가 그 여정의 문서다" 를 확정하는 두 가지 근거. 각각 1번 그룹으로 여정 ID 를 잡는다.
   // 이 레포의 여정 식별자 규약: J1~J4 (파일 tessera-journey-<영역>.md), 단계는 표의 번호
-  // 여정 mockup 이 아직 없으므로 두 정규식은 의도적으로 아무것도 잡지 않는다
+  // J2~J4 의 여정 mockup 이 아직 없으므로 두 정규식은 의도적으로 아무것도 잡지 않는다
+  // (J1 만 켤 수는 없다 — journeyIdInPath 는 여정 문서 4개를 다 잡는다).
   // (잡게 두면 존재하지 않는 mockup 으로 가는 끊긴 링크가 헤더에 뜬다).
   // 여정 단위 mockup 을 만들면 아래 두 줄을 이 레포 규약으로 고친다:
   //   journeyIdInMeta: /\|[^|\n]*여정\s*ID[^|\n]*\|\s*`?(J\d)`?\s*\|/
@@ -349,7 +351,7 @@ async function main() {
            || (doc.match(CONFIG.journeyIdInPath) || [])[1];
   if (jid) {
     const link = document.getElementById('mockup-link');
-    link.href = CONFIG.mockupBase + jid + '/' + location.hash;
+    link.href = CONFIG.mockupBase + 'JRN-' + jid + '.html' + location.hash;
     link.hidden = false;
   }
 

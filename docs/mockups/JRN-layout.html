@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JRN-layout · J1 통합 작업 표면 구성 (8단계) — Tessera</title>
+<link rel="stylesheet" href="../design-system/tessera.css">
+<style>
+  /* 여정 크롬만 이 페이지 로컬에 둔다 — 화면 마크업은 공유 tessera.css 를 그대로 쓴다.
+     (갤러리 index.html 선례: 문서용 크롬은 페이지 로컬, 제품 UI 스타일은 디자인 시스템) */
+  body{display:block; padding:0 0 60px; overflow:auto; align-items:initial}
+  .journey{max-width:1320px; margin:0 auto; padding:0 22px}
+  .jhead{display:flex; align-items:center; gap:12px; padding:26px 2px 12px; flex-wrap:wrap}
+  .jhead .jid{font-family:var(--font-mono); font-size:12px; font-weight:700; color:var(--brand);
+    border:1px solid color-mix(in srgb,var(--brand) 40%,transparent); border-radius:6px; padding:2px 9px}
+  .jhead h1{font-size:19px; font-weight:700; letter-spacing:.2px}
+  .jhead .jmeta{margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--faint)}
+  .jhead .jmeta a{color:var(--muted)}
+  .lede{color:var(--muted); font-size:12.5px; line-height:1.65; margin:0 2px 16px; max-width:900px}
+  .stepper{position:sticky; top:0; z-index:5; display:flex; gap:6px; flex-wrap:wrap;
+    padding:10px 2px; margin-bottom:10px; background:color-mix(in srgb,var(--bg) 92%,transparent);
+    backdrop-filter:blur(6px); border-bottom:1px solid var(--line-soft)}
+  .stepper a{display:flex; align-items:center; gap:6px; text-decoration:none; color:var(--muted);
+    font-size:11.5px; border:1px solid var(--line); border-radius:999px; padding:3px 11px 3px 4px;
+    background:var(--tile); transition:border-color .15s, color .15s}
+  .stepper a:hover{border-color:color-mix(in srgb,var(--brand) 55%,var(--line)); color:var(--ink)}
+  .stepper a b{font-family:var(--font-mono); font-size:10.5px; color:var(--brand); font-weight:700;
+    background:var(--bg); border:1px solid var(--line-soft); border-radius:999px;
+    width:18px; height:18px; display:grid; place-items:center}
+  .step{margin:0 0 30px; padding-top:8px; scroll-margin-top:58px}
+  .sthead{display:flex; align-items:center; gap:9px; margin:0 2px 9px; flex-wrap:wrap}
+  .sthead .sn{font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--ink)}
+  .sthead .sid{font-family:var(--font-mono); font-size:11px; color:var(--brand)}
+  .sthead .slegacy{font-family:var(--font-mono); font-size:10px; color:var(--faint);
+    border:1px solid var(--line-soft); border-radius:999px; padding:1px 7px}
+  .sthead .stitle{font-size:12.5px; color:var(--muted)}
+  .sthead .scur{display:none; font-family:var(--font-mono); font-size:10px; color:var(--brand);
+    border:1px solid color-mix(in srgb,var(--brand) 45%,transparent); border-radius:999px; padding:1px 8px}
+  .step:target .sthead .scur{display:inline}
+  /* 현재 위치 표시 — 딥링크(#STP-*)로 들어온 단계를 브랜드 색 레일로 표시한다(JS 없음). */
+  .step:target{border-left:2px solid var(--brand); padding-left:14px; margin-left:-16px}
+  /* 전진 핫스폿 — 화면 전체가 다음 단계로 가는 링크다. 화면 마크업은 손대지 않고
+     이 앵커로 감싸기만 하므로 원본 8개와 바이트 동일성이 유지된다. */
+  a.advance{display:block; text-decoration:none; color:inherit; position:relative; border-radius:12px}
+  a.advance:hover{outline:1px solid color-mix(in srgb,var(--brand) 45%,transparent); outline-offset:6px}
+  a.advance::after{content:attr(data-action) " →"; position:absolute; right:10px; bottom:-11px;
+    font-family:var(--font-mono); font-size:10.5px; color:var(--brand); background:var(--tile);
+    border:1px solid color-mix(in srgb,var(--brand) 40%,transparent); border-radius:999px; padding:2px 10px}
+  .stnav{display:flex; gap:10px; margin:20px 2px 0; font-family:var(--font-mono); font-size:11px}
+  .stnav a{color:var(--muted); text-decoration:none; border:1px solid var(--line); border-radius:8px;
+    padding:3px 10px; background:var(--tile)}
+  .stnav a:hover{color:var(--ink); border-color:color-mix(in srgb,var(--brand) 50%,var(--line))}
+  .stnav .spacer{flex:1}
+  .jdone{margin:6px 2px 0; padding:16px 18px; background:var(--tile); border:1px solid var(--line);
+    border-radius:12px; color:var(--muted); font-size:12.5px; line-height:1.7; scroll-margin-top:58px}
+  .jdone h2{font-size:13.5px; color:var(--ink); font-weight:600; margin-bottom:6px}
+  .jfoot{margin:22px 2px 0; color:var(--faint); font-size:11.5px; line-height:1.7}
+  .jfoot a{color:var(--muted)}
+</style>
+</head><body>
+<div class="journey" data-journey="JRN-layout">
+  <div class="jhead">
+    <span class="jid">JRN-layout</span>
+    <h1>J1 — 통합 작업 표면 구성</h1>
+    <span class="jmeta">V1(주) · V2(부) · 8단계 · 흐름 SSOT <a href="../tessera-journey-layout.md">tessera-journey-layout.md</a></span>
+  </div>
+  <p class="lede">이 여정 하나를 한 페이지에서 걸어본다. 위 스텝바나 각 화면을 눌러 전진하고, <span class="mono">#STP-&lt;단계&gt;</span> 딥링크로 특정 단계를 바로 열 수 있다. 단계별 화면 마크업은 이관 전 화면 단위 목업 8개에서 <b>바이트 그대로</b> 옮겼다 — 이 이관은 구조 변경이고 화면 재디자인이 아니다. 매핑 표는 <a href="./tessera-mockup-index.md">tessera-mockup-index.md</a>.</p>
+  <nav class="stepper" aria-label="J1 단계 이동">
+    <a href="#STP-new-workspace"><b>1</b>새 워크스페이스</a>
+    <a href="#STP-first-terminal"><b>2</b>첫 터미널</a>
+    <a href="#STP-split-editor"><b>3</b>분할 · 편집기</a>
+    <a href="#STP-mosaic-2x2"><b>4</b>2×2 모자이크</a>
+    <a href="#STP-tab-drag-keys"><b>5</b>드래그 · 단축키</a>
+    <a href="#STP-layout-restore"><b>6</b>골격 재구성</a>
+    <a href="#STP-pane-zoom"><b>7</b>pane zoom</a>
+    <a href="#STP-workspace-switch"><b>8</b>워크스페이스 전환</a>
+  </nav>
+  <section class="step" id="STP-new-workspace" data-step="STP-new-workspace" data-legacy-id="M-J1-S1">
+    <div class="sthead"><span class="sn">단계 1 / 8</span><span class="sid">STP-new-workspace</span><span class="slegacy">M-J1-S1</span><span class="stitle">앱 첫 실행 — ⌘N으로 host backend 워크스페이스 생성</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-first-terminal" data-action="워크스페이스 생성">
+<!-- extracted-from:M-J1-S1.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S1</span>
+    <span class="ctitle">새 워크스페이스 생성 (backend: host)</span>
+    <span class="cmeta"><span><b>가치</b> V1·V2</span><span><b>AC</b> AC2.1</span><span><b>패턴</b> P-modal-over-quiet</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws"><span class="muted">새 워크스페이스</span></div>
+      <div class="right"><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;color:var(--faint)"><span class="mark lg"><i></i><i></i><i></i><i></i></span><div style="font-size:13px;color:var(--muted)">아직 워크스페이스가 없습니다</div><div class="mono" style="font-size:11.5px">⌘N — 새 워크스페이스</div></div></div>
+    <div class="statusbar"><div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span class="muted">워크스페이스 없음</span></div><div class="spacer"></div><div class="seg keys"><span><b>새 워크스페이스</b> <span class="kc">⌘</span><span class="kc">N</span></span></div><div class="clock">14:30</div></div>
+    <div class="scrim"><div class="dialog">
+  <div class="dhead"><span class="mark"><i></i><i></i><i></i><i></i></span><h3>새 워크스페이스</h3></div>
+  <div class="dbody">
+    <div class="field"><label>이름</label>
+      <div class="input"><span>proj-web</span></div></div>
+    <div class="field"><label>작업 디렉토리</label>
+      <div class="input mono focus"><span class="ic">📁</span><span>~/proj-web</span><span class="pick">선택…</span></div></div>
+    <div class="field"><label>Backend</label>
+      <div class="segmented">
+        <div class="seg on host"><span class="sdot"></span>호스트</div>
+        <div class="seg cont"><span class="sdot"></span>컨테이너</div>
+      </div>
+      <div class="hint">호스트 머신에서 직접 실행됩니다. backend는 생성 후 고정됩니다.</div>
+    </div>
+  </div>
+  <div class="dfoot"><div class="spacer"></div>
+    <button class="btn ghost">취소</button>
+    <button class="btn primary">워크스페이스 생성</button></div>
+</div></div>
+  </div>
+<!-- extracted-from:M-J1-S1.html end -->
+    </a>
+    <div class="stnav"><span class="spacer"></span><a href="#STP-first-terminal">단계 2 첫 터미널 →</a></div>
+  </section>
+  <section class="step" id="STP-first-terminal" data-step="STP-first-terminal" data-legacy-id="M-J1-S2">
+    <div class="sthead"><span class="sn">단계 2 / 8</span><span class="sid">STP-first-terminal</span><span class="slegacy">M-J1-S2</span><span class="stitle">첫 탭: 호스트 셸 터미널 (단일 pane)</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-split-editor" data-action="터미널에서 npm run dev 실행">
+<!-- extracted-from:M-J1-S2.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S2</span>
+    <span class="ctitle">첫 탭: 호스트 셸 터미널 (단일 pane)</span>
+    <span class="cmeta"><span><b>가치</b> V1·V2</span><span><b>AC</b> AC1.1·AC2.2</span><span><b>패턴</b> P-single</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane focused" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % node -v
+v20.11.1
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % npm run dev
+<span class="acc">  ▲ vite</span> v5.2  ready in 412 ms
+  ➜  Local:   http://localhost:5173/
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % </div><span class="cursor"></span></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌥⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">]</span></span></span></div>
+      <div class="clock">14:32</div>
+    </div>
+    
+  </div>
+<!-- extracted-from:M-J1-S2.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-new-workspace">← 단계 1 새 워크스페이스</a><span class="spacer"></span><a href="#STP-split-editor">단계 3 분할 · 편집기 →</a></div>
+  </section>
+  <section class="step" id="STP-split-editor" data-step="STP-split-editor" data-legacy-id="M-J1-S3">
+    <div class="sthead"><span class="sn">단계 3 / 8</span><span class="sid">STP-split-editor</span><span class="slegacy">M-J1-S3</span><span class="stitle">⌘D 수직 분할 → 편집기로 호스트 파일 열기</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-mosaic-2x2" data-action="⌘D 수직 분할 → 편집기 탭 열기">
+<!-- extracted-from:M-J1-S3.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S3</span>
+    <span class="ctitle">수직 분할 → 편집기로 호스트 파일 열기</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.2·AC1.1·AC2.2</span><span><b>패턴</b> P-split-v</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % node -v
+v20.11.1
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % npm run dev
+<span class="acc">  ▲ vite</span> v5.2  ready in 412 ms
+  ➜  Local:   http://localhost:5173/
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % </div><span class="cursor"></span></div></div></div></div></div><div class="col"><div class="row"><div class="pane focused" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>server.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">proj-web › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/server.ts</span>
+<span class="kw">import</span> { <span class="fn">createServer</span> } <span class="kw">from</span> <span class="str">'./app'</span>
+
+<span class="kw">const</span> port = <span class="num">5173</span>
+<span class="kw">const</span> server = <span class="fn">createServer</span>()
+server.<span class="fn">listen</span>(port, () => {
+  console.<span class="fn">log</span>(<span class="str">`up on :${port}`</span>)<span class="caret"></span>
+})</div></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌥⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">]</span></span></span></div>
+      <div class="clock">14:32</div>
+    </div>
+    
+  </div>
+<!-- extracted-from:M-J1-S3.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-first-terminal">← 단계 2 첫 터미널</a><span class="spacer"></span><a href="#STP-mosaic-2x2">단계 4 2×2 모자이크 →</a></div>
+  </section>
+  <section class="step" id="STP-mosaic-2x2" data-step="STP-mosaic-2x2" data-legacy-id="M-J1-S4">
+    <div class="sthead"><span class="sn">단계 4 / 8</span><span class="sid">STP-mosaic-2x2</span><span class="slegacy">M-J1-S4</span><span class="stitle">2×2 레이아웃 — 4종 컴포넌트 공존</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-tab-drag-keys" data-action="브라우저 · Claude Code 탭 추가">
+<!-- extracted-from:M-J1-S4.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S4</span>
+    <span class="ctitle">2×2 레이아웃 — 4종 컴포넌트 공존</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.1·AC1.2</span><span><b>패턴</b> P-grid-2x2</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % node -v
+v20.11.1
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % npm run dev
+<span class="acc">  ▲ vite</span> v5.2  ready in 412 ms
+  ➜  Local:   http://localhost:5173/
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % </div><span class="cursor"></span></div></div></div></div><div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>server.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">proj-web › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/server.ts</span>
+<span class="kw">import</span> { <span class="fn">createServer</span> } <span class="kw">from</span> <span class="str">'./app'</span>
+
+<span class="kw">const</span> port = <span class="num">5173</span>
+<span class="kw">const</span> server = <span class="fn">createServer</span>()
+server.<span class="fn">listen</span>(port, () => {
+  console.<span class="fn">log</span>(<span class="str">`up on :${port}`</span>)<span class="caret"></span>
+})</div></div></div></div></div></div></div><div class="col"><div class="row"><div class="pane" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:5173<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab active"><span class="fav"></span>Vite App</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:5173</span><span class="rest">/</span></div></div></div><div class="bview"><div class="page-bar"><div class="b-logo" style="background:var(--id-web)"></div><div class="skline" style="width:130px;background:#222a37"></div></div><div class="skline" style="width:64%;height:13px;margin-bottom:12px"></div><div class="skline" style="width:84%;margin-bottom:9px"></div><div class="skline" style="width:74%;margin-bottom:9px"></div><div class="skline" style="width:48%"></div></div></div></div></div></div><div class="row"><div class="pane focused" data-kind="claude"><div class="tabbar"><div class="tab active" data-kind="claude"><span class="dot"></span>session<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="claude"><div class="turns"><div class="turn user"><div class="av">You</div><div class="msg">이 라우트 서버에 구조화 에러 로깅 추가해줘</div></div><div class="turn asst"><div class="av">◆</div><div class="msg">listen 콜백을 분리하고 실패 시 종료 코드를 나눴습니다. <span class="mono">src/server.ts</span> 패치를 적용할게요.</div></div><div class="turn asst"><div class="av">◆</div><div class="run"><span class="spinner"></span>src/server.ts 편집 중…</div></div></div><div class="composer"><span>메시지 입력…</span><span class="send">↑</span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌥⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">]</span></span></span></div>
+      <div class="clock">14:32</div>
+    </div>
+    
+  </div>
+<!-- extracted-from:M-J1-S4.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-split-editor">← 단계 3 분할 · 편집기</a><span class="spacer"></span><a href="#STP-tab-drag-keys">단계 5 드래그 · 단축키 →</a></div>
+  </section>
+  <section class="step" id="STP-tab-drag-keys" data-step="STP-tab-drag-keys" data-legacy-id="M-J1-S5">
+    <div class="sthead"><span class="sn">단계 5 / 8</span><span class="sid">STP-tab-drag-keys</span><span class="slegacy">M-J1-S5</span><span class="stitle">탭 드래그 이동 · 단축키 포커스/전환</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-layout-restore" data-action="탭을 다른 pane으로 끌어 놓기">
+<!-- extracted-from:M-J1-S5.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S5</span>
+    <span class="ctitle">탭 드래그 이동 · 단축키 포커스/전환</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.3·AC1.4</span><span><b>패턴</b> P-overlay</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><div class="titlebar-status"><div class="toast"><span class="ti">⤷</span><span class="tt">탭 이동 중</span><span class="td"><span class="mono">app.ts</span> → claude pane</span></div></div><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % node -v
+v20.11.1
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % npm run dev
+<span class="acc">  ▲ vite</span> v5.2  ready in 412 ms
+  ➜  Local:   http://localhost:5173/
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % </div><span class="cursor"></span></div></div></div></div><div class="row"><div class="pane focused" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>server.ts<span class="x">×</span></div><div class="tab drag" data-kind="edit"><span class="dot"></span>app.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">proj-web › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/server.ts</span>
+<span class="kw">import</span> { <span class="fn">createServer</span> } <span class="kw">from</span> <span class="str">'./app'</span>
+
+<span class="kw">const</span> port = <span class="num">5173</span>
+<span class="kw">const</span> server = <span class="fn">createServer</span>()
+server.<span class="fn">listen</span>(port, () => {
+  console.<span class="fn">log</span>(<span class="str">`up on :${port}`</span>)<span class="caret"></span>
+})</div></div></div></div></div></div></div><div class="col"><div class="row"><div class="pane" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:5173<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab active"><span class="fav"></span>Vite App</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:5173</span><span class="rest">/</span></div></div></div><div class="bview"><div class="page-bar"><div class="b-logo" style="background:var(--id-web)"></div><div class="skline" style="width:130px;background:#222a37"></div></div><div class="skline" style="width:64%;height:13px;margin-bottom:12px"></div><div class="skline" style="width:84%;margin-bottom:9px"></div><div class="skline" style="width:74%;margin-bottom:9px"></div><div class="skline" style="width:48%"></div></div></div></div></div></div><div class="row"><div class="pane" data-kind="claude"><div class="tabbar"><div class="tab active" data-kind="claude"><span class="dot"></span>session<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="claude"><div class="turns"><div class="turn user"><div class="av">You</div><div class="msg">이 라우트 서버에 구조화 에러 로깅 추가해줘</div></div><div class="turn asst"><div class="av">◆</div><div class="msg">listen 콜백을 분리하고 실패 시 종료 코드를 나눴습니다. <span class="mono">src/server.ts</span> 패치를 적용할게요.</div></div><div class="turn asst"><div class="av">◆</div><div class="run"><span class="spinner"></span>src/server.ts 편집 중…</div></div></div><div class="composer"><span>메시지 입력…</span><span class="send">↑</span></div></div><div class="drop-zone">⤵ 여기에 탭 놓기</div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌥⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">]</span></span></span></div>
+      <div class="clock">14:32</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;background:var(--tile-raise);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-toast);padding:10px 14px;display:flex;gap:18px;align-items:center;font-size:11.5px"><span class="row-gap"><span class="muted">포커스</span> <span class="kcrow"><span class="kc">⌥⌘</span><span class="plus">+</span><span class="kc">←</span><span class="kc">→</span><span class="kc">↑</span><span class="kc">↓</span></span></span><span class="row-gap"><span class="muted">탭 전환</span> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">[</span><span class="kc">]</span></span></span><span class="row-gap"><span class="muted">탭 이동</span> <span class="kcrow"><span class="kc">⌃⌘</span><span class="plus">+</span><span class="kc">←</span><span class="kc">→</span><span class="kc">↑</span><span class="kc">↓</span></span> <span class="faint">또는 드래그</span></span></div>
+  </div>
+<!-- extracted-from:M-J1-S5.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-mosaic-2x2">← 단계 4 2×2 모자이크</a><span class="spacer"></span><a href="#STP-layout-restore">단계 6 골격 재구성 →</a></div>
+  </section>
+  <section class="step" id="STP-layout-restore" data-step="STP-layout-restore" data-legacy-id="M-J1-S6">
+    <div class="sthead"><span class="sn">단계 6 / 8</span><span class="sid">STP-layout-restore</span><span class="slegacy">M-J1-S6</span><span class="stitle">레이아웃 골격 직렬화 → 다음 실행에 재구성</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-pane-zoom" data-action="앱을 닫고 다시 열기">
+<!-- extracted-from:M-J1-S6.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S6</span>
+    <span class="ctitle">레이아웃 골격 직렬화 저장 → 다음 실행 재구성</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.5</span><span><b>패턴</b> P-overlay</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><div class="titlebar-status"><div class="toast ok" title="창·패널·탭 골격이 저장되었습니다"><span class="ti">✓</span><span class="tt">레이아웃 저장됨</span></div></div><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>zsh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># host shell · /bin/zsh</span>
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % node -v
+v20.11.1
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % npm run dev
+<span class="acc">  ▲ vite</span> v5.2  ready in 412 ms
+  ➜  Local:   http://localhost:5173/
+<span class="ps">dev@mbp</span> <span class="path">~/proj-web</span> % </div><span class="cursor"></span></div></div></div></div><div class="row"><div class="pane" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>server.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">proj-web › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/server.ts</span>
+<span class="kw">import</span> { <span class="fn">createServer</span> } <span class="kw">from</span> <span class="str">'./app'</span>
+
+<span class="kw">const</span> port = <span class="num">5173</span>
+<span class="kw">const</span> server = <span class="fn">createServer</span>()
+server.<span class="fn">listen</span>(port, () => {
+  console.<span class="fn">log</span>(<span class="str">`up on :${port}`</span>)<span class="caret"></span>
+})</div></div></div></div></div></div></div><div class="col"><div class="row"><div class="pane" data-kind="web"><div class="tabbar"><div class="tab active" data-kind="web"><span class="dot"></span>localhost:5173<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="browser"><div class="bchrome"><div class="btabs"><div class="btab active"><span class="fav"></span>Vite App</div></div><div class="baddr"><span class="nav">‹ › ⟳</span><div class="url"><span class="lock">🔒</span><span class="host">localhost:5173</span><span class="rest">/</span></div></div></div><div class="bview"><div class="page-bar"><div class="b-logo" style="background:var(--id-web)"></div><div class="skline" style="width:130px;background:#222a37"></div></div><div class="skline" style="width:64%;height:13px;margin-bottom:12px"></div><div class="skline" style="width:84%;margin-bottom:9px"></div><div class="skline" style="width:74%;margin-bottom:9px"></div><div class="skline" style="width:48%"></div></div></div></div></div></div><div class="row"><div class="pane" data-kind="claude"><div class="tabbar"><div class="tab active" data-kind="claude"><span class="dot"></span>session<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="claude"><div class="turns"><div class="turn user"><div class="av">You</div><div class="msg">이 라우트 서버에 구조화 에러 로깅 추가해줘</div></div><div class="turn asst"><div class="av">◆</div><div class="msg">listen 콜백을 분리하고 실패 시 종료 코드를 나눴습니다. <span class="mono">src/server.ts</span> 패치를 적용할게요.</div></div><div class="turn asst"><div class="av">◆</div><div class="run"><span class="spinner"></span>src/server.ts 편집 중…</div></div></div><div class="composer"><span>메시지 입력…</span><span class="send">↑</span></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      <div class="seg" style="color:var(--brand)">레이아웃 저장됨 ✓</div>
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>분할</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">D</span></span></span><span><b>포커스</b> <span class="kcrow"><span class="kc">⌥⌘</span><span class="plus">+</span><span class="kc">→</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">]</span></span></span></div>
+      <div class="clock">14:32</div>
+    </div>
+    <div style="position:absolute;left:14px;bottom:36px;z-index:40;width:320px;background:var(--tile-raise);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-toast);overflow:hidden"><div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line-soft)"><span class="mark"><i></i><i></i><i></i><i></i></span><span style="font-size:12.5px;font-weight:600">저장된 레이아웃 골격</span><span class="badge host" style="margin-left:auto"><span class="led"></span>host</span></div><div class="mono" style="padding:11px 13px;font-size:11px;line-height:1.7;color:var(--muted);white-space:pre">workspace <span class="brand">"proj-web"</span>
+└─ split · <span class="ok">vertical</span>
+   ├─ pane#1
+   │  ├─ <span style="color:var(--id-term)">●</span> tab terminal · zsh
+   │  └─ <span style="color:var(--id-edit)">●</span> tab editor · server.ts
+   └─ pane#2
+      ├─ <span style="color:var(--id-web)">●</span> tab browser · :5173
+      └─ <span style="color:var(--id-claude)">●</span> tab claude · session</div><div style="padding:9px 13px;border-top:1px solid var(--line-soft);font-size:10.5px;color:var(--faint)">다음 실행 시 이 골격으로 재구성됩니다 · <span class="mono">~/.tessera/proj-web.json</span></div></div>
+  </div>
+<!-- extracted-from:M-J1-S6.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-tab-drag-keys">← 단계 5 드래그 · 단축키</a><span class="spacer"></span><a href="#STP-pane-zoom">단계 7 pane zoom →</a></div>
+  </section>
+  <section class="step" id="STP-pane-zoom" data-step="STP-pane-zoom" data-legacy-id="M-J1-S7">
+    <div class="sthead"><span class="sn">단계 7 / 8</span><span class="sid">STP-pane-zoom</span><span class="slegacy">M-J1-S7</span><span class="stitle">포커스 pane 전체화면(zoom) → 레이아웃 보존 복귀</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#STP-workspace-switch" data-action="⇧⌘⏎ 포커스 pane 전체화면">
+<!-- extracted-from:M-J1-S7.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S7</span>
+    <span class="ctitle">포커스된 pane 전체화면(zoom) 토글 — 영속·zoom-follows-focus</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.6</span><span><b>패턴</b> P-single · P-overlay</span></span>
+  </div>
+  <div class="win ">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">proj-web<span class="dir">~/proj-web</span></div>
+      <div class="right"><div class="titlebar-status"><div class="toast" title="server.ts 확대 중 · Esc로 2×2 복귀"><span class="ti">⤢</span><span class="tt">pane 전체화면</span><span class="td"><span class="mono">server.ts</span> 확대</span></div></div><span class="badge" style="color:var(--brand);border-color:color-mix(in srgb,var(--brand) 45%,transparent)"><span class="led" style="background:var(--brand)"></span>⤢ 전체화면</span><span class="badge host"><span class="led"></span>host</span></div>
+    </div>
+    <div class="surface"><div class="col"><div class="row"><div class="pane focused" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>server.ts<span class="x">×</span></div><div class="tab" data-kind="edit"><span class="dot"></span>app.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">proj-web › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15</div><div class="code"><span class="cm">// src/server.ts</span>
+<span class="kw">import</span> { <span class="fn">createServer</span> } <span class="kw">from</span> <span class="str">'./app'</span>
+<span class="kw">import</span> { <span class="fn">logError</span> } <span class="kw">from</span> <span class="str">'./log'</span>
+
+<span class="kw">const</span> port = <span class="fn">Number</span>(process.env.PORT ?? <span class="num">5173</span>)
+<span class="kw">const</span> server = <span class="fn">createServer</span>()
+
+server.<span class="fn">listen</span>(port, () => {
+  console.<span class="fn">log</span>(<span class="str">`up on :${port}`</span>)
+})
+
+server.<span class="fn">on</span>(<span class="str">'error'</span>, (err) => {
+  <span class="fn">logError</span>(<span class="str">'listen_failed'</span>, err)
+  process.<span class="fn">exit</span>(<span class="num">1</span>)<span class="caret"></span>
+})</div></div></div></div></div></div></div></div>
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>proj-web</span></div>
+      <div class="seg host">host · MacBook Pro</div>
+      
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>전체화면</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">⏎</span></span></span><span><b>복귀</b> <span class="kcrow"><span class="kc">Esc</span></span></span><span><b>탭</b> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">]</span></span></span></div>
+      <div class="clock">14:33</div>
+    </div>
+    <div style="position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:40;background:var(--tile-raise);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow-toast);padding:10px 14px;display:flex;gap:18px;align-items:center;font-size:11.5px"><span class="row-gap"><span class="muted">전체화면 토글</span> <span class="kcrow"><span class="kc">⇧⌘</span><span class="plus">+</span><span class="kc">⏎</span></span></span><span class="row-gap"><span class="muted">되돌리기</span> <span class="kcrow"><span class="kc">Esc</span></span></span><span class="row-gap"><span class="muted">숨긴 pane</span> <span style="display:inline-flex;gap:2px"><i style="width:7px;height:7px;border-radius:2px;background:var(--faint);display:inline-block"></i><i style="width:7px;height:7px;border-radius:2px;background:var(--faint);display:inline-block"></i><i style="width:7px;height:7px;border-radius:2px;background:var(--faint);display:inline-block"></i></span> <span class="faint">레이아웃 보존</span></span></div>
+  </div>
+<!-- extracted-from:M-J1-S7.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-layout-restore">← 단계 6 골격 재구성</a><span class="spacer"></span><a href="#STP-workspace-switch">단계 8 워크스페이스 전환 →</a></div>
+  </section>
+  <section class="step" id="STP-workspace-switch" data-step="STP-workspace-switch" data-legacy-id="M-J1-S8">
+    <div class="sthead"><span class="sn">단계 8 / 8</span><span class="sid">STP-workspace-switch</span><span class="slegacy">M-J1-S8</span><span class="stitle">워크스페이스 목록에서 전환 — 단일 창</span><span class="scur">현재 단계</span></div>
+    <a class="advance" href="#JRN-layout-done" data-action="⌘2 두 번째 워크스페이스로">
+<!-- extracted-from:M-J1-S8.html begin — 아래 블록은 원본과 바이트 동일하다 -->
+  <div class="caption">
+    <span class="cid">M-J1-S8</span>
+    <span class="ctitle">워크스페이스 목록에서 전환 — 단일 창, 활성 workspace 표시</span>
+    <span class="cmeta"><span><b>가치</b> V1</span><span><b>AC</b> AC1.7</span><span><b>패턴</b> P-workspace-rail</span></span>
+  </div>
+
+  <div class="win">
+    <div class="titlebar">
+      <div class="lights"><i></i><i></i><i></i></div>
+      <div class="ws">api-svc<span class="dir">/workspace</span></div>
+      <div class="right"><span class="badge cont"><span class="led"></span>container</span><span class="badge live"><span class="led"></span>node:20</span></div>
+    </div>
+
+    <div class="winmain">
+      <!-- C-workspace-rail: 단일 창 좌측 workspace 목록/스위처 -->
+      <div class="wsrail">
+        <div class="wsrail-head">워크스페이스</div>
+        <div class="wsitem active"><span class="wsdot cont"></span><span class="wsname">api-svc</span><span class="wskey">⌘1</span></div>
+        <div class="wsitem"><span class="wsdot cont"></span><span class="wsname">web-svc</span><span class="wskey">⌘2</span></div>
+        <div class="wsitem"><span class="wsdot host"></span><span class="wsname">docs</span><span class="wskey">⌘3</span></div>
+        <div class="wsrail-spacer"></div>
+        <div class="wsnew">＋ 새 워크스페이스</div>
+      </div>
+
+      <!-- 활성 workspace(api-svc)의 표면 -->
+      <div class="surface">
+        <div class="col"><div class="row"><div class="pane" data-kind="term"><div class="tabbar"><div class="tab active" data-kind="term"><span class="dot"></span>sh<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div></div><div class="body"><div class="term"><div class="o"><span class="dim"># container · node:20</span>
+<span class="ps">root@ctr-api7f3</span> <span class="path">/workspace</span> # npm run dev
+<span class="acc">  ▲ next</span> dev — ready on :3000
+<span class="ps">root@ctr-api7f3</span> <span class="path">/workspace</span> # </div><span class="cursor"></span></div></div></div></div></div>
+        <div class="col"><div class="row"><div class="pane focused" data-kind="edit"><div class="tabbar"><div class="tab active" data-kind="edit"><span class="dot"></span>route.ts<span class="x">×</span></div><span class="add">+</span><div class="spacer"></div><div class="crumb">api-svc › src</div></div><div class="body"><div class="editor"><div class="gut-wrap"><div class="gutter">1
+2
+3
+4
+5
+6</div><div class="code"><span class="cm">// src/route.ts</span>
+<span class="kw">import</span> { <span class="fn">Router</span> } <span class="kw">from</span> <span class="str">'express'</span>
+
+<span class="kw">const</span> r = <span class="fn">Router</span>()
+r.<span class="fn">get</span>(<span class="str">'/health'</span>, (_q, s) => s.<span class="fn">json</span>({ ok: <span class="num">1</span> }))<span class="caret"></span>
+<span class="kw">export</span> <span class="kw">default</span> r</div></div></div></div></div></div></div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <div class="seg ws"><span class="mark"><i></i><i></i><i></i><i></i></span><span>api-svc</span></div>
+      <div class="seg cont">container · node:20</div>
+      <div class="spacer"></div>
+      <div class="seg keys"><span><b>전환</b> <span class="kcrow"><span class="kc">⌘</span><span class="plus">+</span><span class="kc">1-3</span></span></span></div>
+      <div class="clock">15:40</div>
+    </div>
+  </div>
+<!-- extracted-from:M-J1-S8.html end -->
+    </a>
+    <div class="stnav"><a href="#STP-pane-zoom">← 단계 7 pane zoom</a><span class="spacer"></span><a href="#JRN-layout-done">여정 완료 상태 →</a></div>
+  </section>
+  <div class="jdone" id="JRN-layout-done">
+    <h2>완료 상태 — V1 달성</h2>
+    4종 컴포넌트를 단일 window/pane/tab 표면에서 배치·전환·재정렬하고, 필요할 때 한 pane을 전체화면으로 확대했다가 레이아웃 손실 없이 복귀할 수 있다(zoom 상태도 골격에 저장돼 재시작 후 유지). 나아가 여러 workspace를 단일 창의 목록에서 전환하며 같은 표면 안에서 작업 단위 사이를 오갈 수 있다.
+  </div>
+  <div class="jfoot">
+    이 페이지는 여정 J1 하나만 시각화한다(<span class="mono">data-journey</span> 선언 1건). 단계 식별자는 <span class="mono">STP-&lt;슬러그&gt;</span>이고, 이관 전 순번 ID는 <span class="mono">data-legacy-id</span>·단계 머리말에 보존된다. J2~J4는 아직 화면 단위 목업이라 <a href="./index.html">갤러리</a>에서 본다.
+  </div>
+</div>
+</body></html>
