@@ -9,7 +9,7 @@
 
   링크 규칙:
     - 마크다운 문서 → reader.html?doc=<docs 기준 경로>   (직접 .md 로 걸면 raw 다운로드가 된다)
-    - 여정 mockup   → journeys/<journey-id>/
+    - 여정 mockup   → mockups/JRN-<여정 슬러그>.html   (규약은 mockups/tessera-mockup-index.md 「여정 단위 페이지 규약」)
 -->
 <html lang="ko">
 <head>
@@ -122,7 +122,7 @@
   </div>
 
   <h2>사용자 여정</h2>
-  <p class="hint">여정 하나 = 문서 하나 + mockup 페이지 하나. 아래 mockup 자리는 아직 비어 있다 — 현재 mockup 은 화면 단위라 여정 단위 페이지가 없다.</p>
+  <p class="hint">여정 하나 = 문서 하나 + mockup 페이지 하나. J1 은 여정 단위 페이지로 이관됐고, J2~J4 의 mockup 자리는 아직 비어 있다(그 여정들은 화면 단위 목업뿐이다).</p>
 
   <div class="row">
     <span class="name">여정 인덱스</span>
@@ -134,7 +134,7 @@
     <span class="name">J1 통합 작업 표면 구성</span>
     <span class="meta">달성 가치 <code>V1</code>(주) · <code>V2</code>(부) · 8단계</span>
     <span class="spacer"></span>
-    <span class="links"><a href="reader.html?doc=tessera-journey-layout.md">문서 읽기</a> <a class="missing" href="#">여정 mockup 준비 중</a></span>
+    <span class="links"><a href="reader.html?doc=tessera-journey-layout.md">문서 읽기</a> <a href="mockups/JRN-layout.html">여정 mockup 열기 →</a></span>
   </div>
   <div class="row">
     <span class="name">J2 컨테이너 워크스페이스 격리 작업</span>
@@ -166,11 +166,11 @@
   </div>
 
   <h2>mockup (화면 단위)</h2>
-  <p class="hint">여정 단위로 전환되기 전의 화면 단위 산출물. 전환이 끝나면 이 구획은 사라지고 위 여정 행의 mockup 링크가 채워진다.</p>
+  <p class="hint">여정 단위로 전환되기 전의 화면 단위 산출물. J1 은 전환됐고(위 여정 행의 링크), 남은 J2~J4 가 전환되면 이 구획은 사라진다.</p>
 
   <div class="row">
     <span class="name">화면 단위 mockup 갤러리</span>
-    <span class="meta">M-J1-S1 ~ M-J4-S6 · 27개 화면 + 갤러리</span>
+    <span class="meta">M-J2-S1 ~ M-J4-S6 · 19개 화면 + 갤러리(J1 여정 페이지 포함)</span>
     <span class="spacer"></span>
     <span class="links"><a href="mockups/index.html">갤러리 열기 →</a> <a href="reader.html?doc=mockups/tessera-mockup-index.md">mockup 인덱스</a></span>
   </div>

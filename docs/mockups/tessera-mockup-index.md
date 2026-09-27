@@ -1,9 +1,10 @@
 # Tessera Mockup 인덱스
 
-27개 mockup이 각각 어느 **사용자 여정 단계 / 제품 가치 / Acceptance Criteria / 디자인 시스템 항목**을
-시각화하는지 매핑하는 단일 소스. mockup·여정·디자인 시스템 사이의 연결은 이 표를 기준으로 추적한다.
+여정 단위 페이지 **1개**(J1)와 화면 단위 mockup **19개**(J2~J4)가 각각 어느
+**사용자 여정 단계 / 제품 가치 / Acceptance Criteria / 디자인 시스템 항목**을 시각화하는지 매핑하는 단일 소스.
+mockup·여정·디자인 시스템 사이의 연결은 이 표를 기준으로 추적한다. 27단계 전부가 시각화되어 있다(27/27).
 
-- **갤러리**: [`index.html`](./index.html) — 27개 미리보기 한 페이지
+- **갤러리**: [`index.html`](./index.html) — 여정 페이지 1개 + 화면 19개 미리보기 한 페이지
 - **디자인 시스템**: [`../design-system/tessera-design-system.md`](../design-system/tessera-design-system.md) · 스타일 구현 [`../design-system/tessera.css`](../design-system/tessera.css)
 - **여정 인덱스**: [`../tessera-user-journeys.md`](../tessera-user-journeys.md)
 - **가치 문서**: [`../values/tessera-values.md`](../values/tessera-values.md)
@@ -32,22 +33,53 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 
 ---
 
-## J1 — 통합된 단일 작업 표면 (host backend)
+## 여정 단위 페이지 규약 (J2~J4 이관이 따를 계약)
+
+J1이 이 규약의 첫 적용이다. 남은 여정은 같은 규약을 기계적으로 복제한다.
+
+- **자리**: `docs/mockups/JRN-<여정 슬러그>.html` — 여정 문서 파일명 `tessera-journey-<영역>.md`의 `<영역>`이 슬러그다.
+  `mockups/` 안에 **평면**으로 두는 이유는 두 가지다. ⑴ 배치 규약 [`../README.md`](../README.md)의 구획 규칙 1이
+  중첩을 한 단계로 제한한다(`mockups/journeys/` 는 두 단계다). ⑵ 이 레포 밖 정합성 모델의 as-is 지문이
+  `docs/mockups` 트리 해시라, 그 밖(`docs/journeys/`)에 두면 **페이지 내용이 바뀌어도 지문이 움직이지 않아**
+  드리프트가 조용히 묻힌다 — 여정 *문서*의 `journeys/` 이관을 미룬 것과 같은 사유다(`../README.md` 「아직 구획이 없는 종류」).
+  규칙 4(파일명은 이동해도 바뀌지 않는다)대로 basename 은 `JRN-<슬러그>.html` 로 고정이므로,
+  모델 쪽 지문이 경로 독립적으로 고쳐지면 그때 `journeys/` 로 **이름 그대로** 내려갈 수 있다.
+- **선언**: 루트 컨테이너에 `data-journey="JRN-<슬러그>"` 를 **정확히 1회**. 한 페이지는 한 여정만 담는다(규칙 2).
+- **단계**: 각 단계를 `<section class="step" id="STP-<슬러그>" data-step="STP-<슬러그>" data-legacy-id="M-J<n>-S<m>">` 로 감싼다.
+  `data-step` 집합은 여정 문서 `## 단계` 표의 단계 ID 열과 **양방향으로 같아야** 한다(규칙 3).
+- **식별자 보존**: 이관 전 순번 ID(`M-J<n>-S<m>`)는 폐기·재사용하지 않고 `data-legacy-id`·단계 머리말·아래 legacy 열에 남긴다.
+- **화면 마크업 무수정**: 화면 단위 목업의 `.caption`+`.win` 블록을 **바이트 그대로** 옮긴다. 이관은 구조 변경이고 재디자인이 아니다.
+  페이지는 추출 블록을 `<!-- extracted-from:<legacy>.html begin/end -->` 마커로 감싸 대조가 기계적으로 가능하게 한다.
+- **흐름 체험**(규칙 5): 상단 sticky 스텝바(단계 전환) · 각 단계의 이전/다음 · `:target` 레일로 현재 위치 표시 ·
+  화면 전체를 다음 단계로 가는 `a.advance` 로 감싸 **주요 행동을 눌러 전진**(라벨은 `data-action`) · `#STP-*` 딥링크 ·
+  JS·빌드·네트워크 없이 `file://` 로 열림. 다른 여정으로 가는 분기 행이 있는 여정은 그 갈래를 선택 가능하게 둔다(규칙 4).
+- **허브·갤러리**: 허브 [`../index.html`](../index.html) 의 그 여정 행 mockup 링크를 채우고, 갤러리의 그 여정 구획을
+  단계 딥링크로 재배선한다. 네 여정이 모두 이관되면 허브의 「mockup (화면 단위)」 구획과 이 문서의 화면 단위 표가 사라진다.
+- **반출 금지**: `docs/mockups/` 는 배치 규약의 **고정점**이다. `src/` 의 경로 인용을 고치는 편집은
+  `.github/workflows/ci.yml` 의 release 경로 필터에 걸려 서명·공증 빌드를 사용자 auto-updater 로 내보내므로,
+  문서 이관은 `docs/` 밖을 건드리지 않는다.
+
+---
+
+## J1 — 통합된 단일 작업 표면 (host backend) · 여정 단위 페이지
 
 가치: **V1**(주) · V2(부) · 여정 문서 [`../tessera-journey-layout.md`](../tessera-journey-layout.md)
 
-| Mockup | 단계 | 화면 | 가치 | AC | 패턴 · 주요 DS 컴포넌트 |
-|--------|------|------|------|-----|--------------------------|
-| [M-J1-S1](./M-J1-S1.html) | 1 | 새 워크스페이스 생성 (backend: host) | V1·V2 | AC2.1 | `P-modal-over-quiet` · C-dialog, C-segmented, C-field |
-| [M-J1-S2](./M-J1-S2.html) | 2 | 첫 탭: 호스트 셸 터미널 (단일 pane) | V1·V2 | AC1.1·AC2.2 | `P-single` · C-window, C-pane, C-terminal, C-statusbar |
-| [M-J1-S3](./M-J1-S3.html) | 3 | 수직 분할 → 편집기로 호스트 파일 열기 | V1 | AC1.2·AC1.1·AC2.2 | `P-split-v` · C-pane, C-editor |
-| [M-J1-S4](./M-J1-S4.html) | 4 | **2×2 레이아웃 — 4종 컴포넌트 공존** | V1 | AC1.1·AC1.2 | `P-grid-2x2` · C-terminal, C-editor, C-browser, C-claude |
-| [M-J1-S5](./M-J1-S5.html) | 5 | 탭 드래그 이동 · 단축키 포커스/전환 | V1 | AC1.3·AC1.4 | `P-overlay` · C-tab(drag), C-keycap, C-toast |
-| [M-J1-S6](./M-J1-S6.html) | 6 | 레이아웃 골격 직렬화 저장 → 다음 실행 재구성 | V1 | AC1.5 | `P-overlay` · C-toast, C-mark |
-| [M-J1-S7](./M-J1-S7.html) | 7 | **포커스된 pane 전체화면(zoom) 토글 → 레이아웃 보존 복귀 (영속·zoom-follows-focus)** | V1 | AC1.6 | `P-single`·`P-overlay` · C-pane(zoom), C-keycap, C-toast, C-badge |
-| [M-J1-S8](./M-J1-S8.html) | 8 | **워크스페이스 목록에서 전환 — 단일 창, 활성 workspace 표시** | V1 | AC1.7 | `P-workspace-rail` · C-workspace-rail, C-window, C-pane ×2, C-terminal, C-editor |
+**여정 페이지**: [`JRN-layout.html`](./JRN-layout.html) · 선언 `data-journey="JRN-layout"` ×1 · 단계 8개
+(공개 경로 `https://dlddu.github.io/tessera/mockups/JRN-layout.html`)
 
-## J2 — 환경 선택의 자유 (container backend)
+| 단계 ID | 단계 | legacy ID | 화면 | 가치 | AC | 전진 핫스폿(눌러 전진) | 패턴 · 주요 DS 컴포넌트 |
+|---------|------|-----------|------|------|-----|------------------------|--------------------------|
+| [`STP-new-workspace`](./JRN-layout.html#STP-new-workspace) | 1 | `M-J1-S1` | 새 워크스페이스 생성 (backend: host) | V1·V2 | AC2.1 | 워크스페이스 생성 → STP-first-terminal | `P-modal-over-quiet` · C-dialog, C-segmented, C-field |
+| [`STP-first-terminal`](./JRN-layout.html#STP-first-terminal) | 2 | `M-J1-S2` | 첫 탭: 호스트 셸 터미널 (단일 pane) | V1·V2 | AC1.1·AC2.2 | 터미널에서 npm run dev 실행 → STP-split-editor | `P-single` · C-window, C-pane, C-terminal, C-statusbar |
+| [`STP-split-editor`](./JRN-layout.html#STP-split-editor) | 3 | `M-J1-S3` | 수직 분할 → 편집기로 호스트 파일 열기 | V1 | AC1.2·AC1.1·AC2.2 | ⌘D 수직 분할 → 편집기 탭 열기 → STP-mosaic-2x2 | `P-split-v` · C-pane, C-editor |
+| [`STP-mosaic-2x2`](./JRN-layout.html#STP-mosaic-2x2) | 4 | `M-J1-S4` | **2×2 레이아웃 — 4종 컴포넌트 공존** | V1 | AC1.1·AC1.2 | 브라우저 · Claude Code 탭 추가 → STP-tab-drag-keys | `P-grid-2x2` · C-terminal, C-editor, C-browser, C-claude |
+| [`STP-tab-drag-keys`](./JRN-layout.html#STP-tab-drag-keys) | 5 | `M-J1-S5` | 탭 드래그 이동 · 단축키 포커스/전환 | V1 | AC1.3·AC1.4 | 탭을 다른 pane으로 끌어 놓기 → STP-layout-restore | `P-overlay` · C-tab(drag), C-keycap, C-toast |
+| [`STP-layout-restore`](./JRN-layout.html#STP-layout-restore) | 6 | `M-J1-S6` | 레이아웃 골격 직렬화 저장 → 다음 실행 재구성 | V1 | AC1.5 | 앱을 닫고 다시 열기 → STP-pane-zoom | `P-overlay` · C-toast, C-mark |
+| [`STP-pane-zoom`](./JRN-layout.html#STP-pane-zoom) | 7 | `M-J1-S7` | **포커스된 pane 전체화면(zoom) 토글 → 레이아웃 보존 복귀 (영속·zoom-follows-focus)** | V1 | AC1.6 | ⇧⌘⏎ 포커스 pane 전체화면 → STP-workspace-switch | `P-single`·`P-overlay` · C-pane(zoom), C-keycap, C-toast, C-badge |
+| [`STP-workspace-switch`](./JRN-layout.html#STP-workspace-switch) | 8 | `M-J1-S8` | **워크스페이스 목록에서 전환 — 단일 창, 활성 workspace 표시** | V1 | AC1.7 | ⌘2 두 번째 워크스페이스로 → 여정 완료 상태 | `P-workspace-rail` · C-workspace-rail, C-window, C-pane ×2, C-terminal, C-editor |
+
+## J2 — 환경 선택의 자유 (container backend) · 화면 단위 (이관 대기)
 
 가치: **V2**(주) · V1(부) · 여정 문서 [`../tessera-journey-backend.md`](../tessera-journey-backend.md)
 
@@ -61,7 +93,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 | [M-J2-S6](./M-J2-S6.html) | 6 | 컨테이너 생명주기 관리 · 호스트급 응답성 | V2 | AC2.6 | `P-overlay` · C-backend-panel(gauge·metric) |
 | [M-J2-S7](./M-J2-S7.html) | 7 | host 전용 영역에서 호스트 도구 실행 · 영역 경계 구분 | V2 | AC2.7·AC2.8 | `P-grid-2x2`(host 영역 표식) · C-badge(host), C-pane |
 
-## J3 — 격리를 깨지 않는 인증 경험 (OAuth 라우팅)
+## J3 — 격리를 깨지 않는 인증 경험 (OAuth 라우팅) · 화면 단위 (이관 대기)
 
 가치: **V3**(주) · V2(부) · 여정 문서 [`../tessera-journey-browser-routing.md`](../tessera-journey-browser-routing.md)
 
@@ -74,7 +106,7 @@ UI 크롬은 한국어, 터미널·코드·경로는 영어. 자세한 규칙은
 | [M-J3-S5](./M-J3-S5.html) | 5 | 컨테이너 콜백 수신 → 토큰 획득, 루프 완결 | V3 | AC3.4 | `P-single` · C-terminal, C-banner(ok) |
 | [M-J3-S6](./M-J3-S6.html) | 6 | 다중 컨테이너 — 포트 충돌·오배달 없음 | V3 | AC3.5 | `P-flowmap` · C-flowmap ×2 |
 
-## J4 — 작업 손실 없는 복원력 (크래시 복원)
+## J4 — 작업 손실 없는 복원력 (크래시 복원) · 화면 단위 (이관 대기)
 
 가치: **V4**(주) · V1(부) · 여정 문서 [`../tessera-journey-state-restoration.md`](../tessera-journey-state-restoration.md)
 
